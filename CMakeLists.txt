@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.24)
 project(crash_bash_port LANGUAGES C CXX)
 
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message(FATAL_ERROR "Crash Bash C++ must be compiled with clang++; got ${CMAKE_CXX_COMPILER_ID} "
+                      "(${CMAKE_CXX_COMPILER}). Reconfigure with CC=clang CXX=clang++.")
+endif()
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+enable_testing()
+
 # PSXPORT_DIR — the framework. external/psxport is NOT a git submodule (2026-08-16): it is a symlink
 # to the workspace's shared framework clone, or a private clone at this repo's psxport.pin on a fresh
 # machine; tools/psxport_sync.py --auto establishes whichever applies. Defaults to external/psxport so
@@ -24,3 +33,10 @@ file(WRITE "${CMAKE_BINARY_DIR}/psxport_resolved.txt"
 set(PSXPORT_BUILD_SMOKE ON CACHE BOOL "Build the framework agnosticism smoke" FORCE)
 add_subdirectory("${PSXPORT_DIR}" psxport_build)
 add_custom_target(crashbash_scaffold DEPENDS psxport_smoke)
+add_test(
+  NAME crashbash_cpp_policy
+  COMMAND
+    "${Python3_EXECUTABLE}" "${PSXPORT_DIR}/tools/check_cpp_style.py"
+    --root "${CMAKE_CURRENT_SOURCE_DIR}" --compile-commands "${CMAKE_BINARY_DIR}"
+    --allow-empty-scaffold
+)
