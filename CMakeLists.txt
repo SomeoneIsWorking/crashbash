@@ -40,3 +40,7 @@ add_test(
     --root "${CMAKE_CURRENT_SOURCE_DIR}" --compile-commands "${CMAKE_BINARY_DIR}"
     --allow-empty-scaffold
 )
+add_test(
+  NAME crashbash_provision_selftest
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_provision.py"
+)

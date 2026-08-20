@@ -15,12 +15,12 @@ successful build.
 - notes: Identity and CRT0 evidence only. No game seam, recompilation, or boot is claimed.
 
 ### boot.provision — Resolve the selected disc and extract the executable reproducibly
-- status: todo
+- status: re-verified
 - deps: boot.target
-- evidence:
-- where: tools/
-- gap: Add CLI > environment/.env > drop-in disc resolution and hash-check the extracted SCUS_945.70 against the tracked identity.
-- notes: Never track the disc or extracted executable.
+- evidence: tools/provision.py verified the real USA CHD: SYSTEM.CNF boot 1/1 and executable identity/header 11/11 at SHA-256 fd5727a18feb2a2d5a6359a55966f0266284d1e50f64ee9b8a127a97091bd516; tests/test_provision.py passed 8/8 positive, mismatch, refusal, precedence, ambiguity, and atomic-publication tests through the shipping provision path, including one failing case for each of the 11 manifest facts.
+- where: tools/provision.py, tests/test_provision.py
+- gap:
+- notes: The disc and provisioned executable remain external/gitignored. This proves identity and provisioning only, not recompilation or boot.
 
 ### boot.recompile — Generate the static-recompilation substrate
 - status: todo

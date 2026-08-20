@@ -3,9 +3,10 @@
 PC-native PlayStation port of Crash Bash, built on
 [psxport](https://github.com/SomeoneIsWorking/psxport).
 
-Current status: the North American target and its executable/CRT0 metadata are measured. No game seam,
-generated substrate, runnable game executable, native producer, widescreen path, or interpolation path
-is claimed yet.
+Current status: the North American target and its executable/CRT0 metadata are measured, and its boot
+executable is reproducibly provisioned and verified from external media. No game seam, generated
+substrate, runnable game executable, oracle comparison, native producer, widescreen path, or
+interpolation path is claimed yet.
 
 ## Configure the framework scaffold
 
@@ -21,5 +22,20 @@ first-party C++ gate. The shared framework checker applies this repository's tra
 and `clang-tidy` policy and the 1,200-line ownership cap without linting `external/psxport` or
 generated code. The scaffold currently reports an explicit zero first-party translation units.
 
-Disc images and extracted executables are never committed. Provisioning resolution is the next frontier
-step; the measured target identity is in `titles/crashbash/executable.json`.
+## Provision the selected retail executable
+
+Build `discdump` with Clang, then run the title-local provisioner:
+
+```sh
+CCACHE_DISABLE=1 cmake --build scratch/build-clang --target discdump -j16
+python3 tools/provision.py "/path/to/Crash Bash (USA).chd"
+```
+
+With no argument, disc resolution is `PSXPORT_CRASHBASH_DISC`, then `PSXPORT_DISC`, the same keys in
+`.env`, then one `*.chd` drop-in at the repository root. A configured missing path or multiple drop-ins
+refuse instead of silently choosing different media. The tool extracts into a scoped temporary
+directory, checks the `SYSTEM.CNF` boot target and all 11 tracked executable identity/header facts, and
+only then atomically publishes `scratch/bin/crashbash/SCUS_945.70`.
+
+Disc images and extracted executables are never committed. The measured identity remains in
+`titles/crashbash/executable.json`; successful provisioning does not claim recompilation or boot.

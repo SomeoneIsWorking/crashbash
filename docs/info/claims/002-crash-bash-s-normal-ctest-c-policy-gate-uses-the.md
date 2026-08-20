@@ -6,7 +6,7 @@ created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 02:21:55
+verified_at: 2026-08-21 02:36:30
 ---
 
 ## Claim
@@ -28,3 +28,7 @@ Reverified Crash Bash from a fresh Clang 22 build against clean pinned psxport e
 ## Re-confirmed 2026-08-21
 
 Reverified Crash Bash after final framework landing be381503: CMake reconfigured with Clang 22, scaffold rebuilt and linked, psxport_smoke passed 8/8, normal CTest C++ policy passed, and psxport_sync.py --check confirmed build/ used the exact recorded be381503 pin.
+
+## Re-confirmed 2026-08-21
+
+After provisioning CMake integration, Clang 22 rebuilt crashbash_scaffold and discdump; scoped normal CTest passed crashbash_cpp_policy plus crashbash_provision_selftest 2/2, and psxport_sync.py --check matched built framework be381503 to the recorded pin.

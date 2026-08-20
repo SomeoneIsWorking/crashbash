@@ -55,3 +55,5 @@ scratch/build-clang/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/S
 ```
 
 Disc images and extracted files stay under external storage or gitignored `scratch/`; neither is tracked.
+For normal provisioning, `python3 tools/provision.py [disc.chd]` owns disc resolution, validates
+`SYSTEM.CNF`, checks these same 11 executable facts, and atomically publishes only a verified image.
