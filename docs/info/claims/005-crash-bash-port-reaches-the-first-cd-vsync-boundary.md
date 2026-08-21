@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_boot.py#judge,game/recomp_seeds.json,game/core/main.cpp
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21
+verified_at: 2026-08-21 03:42:30
 ---
 
 ## Claim
@@ -20,3 +20,7 @@ The real 96-line boot trace reported CRT0 audit 10 agree / 0 disagree / 0 unreso
 ## What would falsify it
 
 A real verified-image run omits either reachability trace, reports a CRT0 disagreement/unresolved field or recomp miss, reaches a different stop before the CD/VSync diagnostics, or the forced-negative mutations cease to fail.
+
+## Re-confirmed 2026-08-21
+
+Post-landing crashbash_boot_boundary_selftest passed 3/3: CRT0 10/10, guest main and measured IRQ callback reached without recomp miss, plus missing-main and forced-miss negatives.

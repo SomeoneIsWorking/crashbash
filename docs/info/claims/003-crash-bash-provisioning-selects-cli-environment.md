@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,provisioning
 depends: tools/provision.py#provision
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 02:44:52
+verified_at: 2026-08-21 03:42:29
 ---
 
 ## Claim
@@ -24,3 +24,7 @@ A source can silently fall through, wrong media can overwrite the verified outpu
 ## Re-confirmed 2026-08-21
 
 Post-landing recheck: tests/test_provision.py passed 8/8 through the tracked shipping provisioner; real USA media had already passed SYSTEM.CNF 1/1 and executable identity/header 11/11.
+
+## Re-confirmed 2026-08-21
+
+Post-landing crashbash_provision_selftest passed its resolution, refusal, identity, and atomic-preservation cases.

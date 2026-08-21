@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,recompiler
 depends: tools/recomp_bootstrap.py#check,game/recomp_seeds.json,game/core/game_config.cpp
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21
+verified_at: 2026-08-21 03:42:29
 ---
 
 ## Claim
@@ -20,3 +20,7 @@ The shipping bootstrap emitted 339 roots into 907 resident functions over 0x8001
 ## What would falsify it
 
 The same verified executable emits different routing or interfaces, a shipping GameConfig field disagrees with the executable measurement, an explicit seed lacks runtime and static evidence, generated output is hand-edited or tracked, or an overlay becomes configured without measured load evidence.
+
+## Re-confirmed 2026-08-21
+
+Post-landing crashbash_recomp_bootstrap_selftest passed 4/4 with the real 339-root/907-function substrate and three forced negatives.

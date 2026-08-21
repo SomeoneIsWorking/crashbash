@@ -6,7 +6,7 @@ created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 02:36:30
+verified_at: 2026-08-21 03:42:29
 ---
 
 ## Claim
@@ -36,3 +36,7 @@ Reverified Crash Bash after final framework landing be381503: CMake reconfigured
 ## Re-confirmed 2026-08-21
 
 After provisioning CMake integration, Clang 22 rebuilt crashbash_scaffold and discdump; scoped normal CTest passed crashbash_cpp_policy plus crashbash_provision_selftest 2/2, and psxport_sync.py --check matched built framework be381503 to the recorded pin.
+
+## Re-confirmed 2026-08-21
+
+Post-landing scoped Crash Bash CTest passed 5/5; cpp_policy format/size checked four first-party files and clang-tidy used all four Clang compile commands.
