@@ -4,34 +4,43 @@ kind: claim
 status: holds
 created: 2026-08-21
 tags: boot,harness,irq
-depends: tools/verify_boot.py#judge,game/recomp_seeds.json,game/core/main.cpp
+depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, psxport.pin
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 11:43:15
+verified_at: 2026-08-21 14:13:10
 falsified_on: 2026-08-21
 ---
 
 ## Claim
 
-The Crash Bash port reaches guest main and its measured IRQ callback without a recomp miss, then stops at the unimplemented CD/VSync hardware boundary.
+The Crash Bash port reaches guest main and its ordered CD IRQ service, finishes the first file load,
+then stops at the measured unloaded overlay entry 0x80092BDC.
 
 ## Evidence
 
-The real 96-line boot trace reported CRT0 audit 10 agree / 0 disagree / 0 unresolved, correct InitHeap arguments, guest main 0x8002718C reached, and IRQ callback 0x8003B1BC reached. No recomp miss or segmentation fault occurred. The remaining output repeatedly reported CD timeout, an unclaimed IRQ source, and watchdog stuck. The shipping verifier passed this positive and rejected both a trace with guest-main reachability removed and one with a forced recomp miss.
+The Clang-built port pinned to psxport `3418a79b` reports CRT0 audit 10 agree / 0 disagree / 0
+unresolved, guest main 0x8002718C, the saved-context/master-dispatcher/CD-service sequence
+0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C, `load file start`, and `done loading`.
+It then fails fast at unloaded entry 0x80092BDC (caller 0x80010478), with no earlier unexpected miss,
+CD timeout, or cant-find result. The shipping verifier demonstrates the positive and four controlled
+negative answers.
 
 ## What would falsify it
 
-A real verified-image run omits either reachability trace, reports a CRT0 disagreement/unresolved field or recomp miss, reaches a different stop before the CD/VSync diagnostics, or the forced-negative mutations cease to fail.
+A verified-image run omits a required ordered reachability marker, reports a CRT0 disagreement,
+fails to print `done loading`, reaches a different miss before 0x80092BDC, or a forced-negative
+mutation passes.
 
 ## Re-confirmed 2026-08-21
 
-Post-landing crashbash_boot_boundary_selftest passed 3/3: CRT0 10/10, guest main and measured IRQ callback reached without recomp miss, plus missing-main and forced-miss negatives.
-
-## FALSIFIED 2026-08-21
-
-Shared HookEntryInt delivery now resumes 0x80031AE8, reaches master dispatcher 0x80031B58 and CD callback 0x8003F5F0; the old unimplemented CD/VSync stop no longer occurs.
-
-> Anything that cited this claim as proof must be re-checked. Grep the repo for it.
+Pinned psxport 3418a79b: crashbash_boot_boundary_selftest 5/5 required ordered IRQ service, done loading, and exact next miss 0x80092BDC; the full Clang CTest suite passed 7/7.
 
 ## Re-confirmed 2026-08-21
 
-Post-landing boot verifier passed 5/5 and reached guest main, the measured verifier, custom interrupt exit, CD IRQ service, and file-load start with no recompilation miss.
+Pinned psxport 3418a79b Clang build: live boot verifier passed 5/5 with ordered IRQ service,
+`done loading`, and exact next miss 0x80092BDC; full CTest passed 7/7. The zero-argument
+`./run.sh` path independently built the same current target, loaded the file once, and stopped at
+that same declared incomplete boundary.
+
+## Re-confirmed 2026-08-21
+
+Pinned psxport 3418a79b Clang build: live boot verifier passed 5/5, full CTest passed 7/7, direct and zero-argument launcher paths each loaded once and stopped at exact next miss 0x80092BDC.

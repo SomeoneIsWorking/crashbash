@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Crash Bash services its first live CD interrupt without a recomp miss."""
+"""Verify Crash Bash loads its first file and stops at the measured overlay boundary."""
 
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ REQUIRED = (
     "[fntrace] 0x8003B1BC REACHED",
     "[irq] pending I_STAT&I_MASK=0x004; no SysEnq element claimed it (1 in chain), "
     "custom exception exit installed",
-    "[watchdog] STUCK: no frame presented within the timeout",
     "load file start",
+    "done loading",
+    "[hle:warn] [recomp-MISS 0] no recompiled fn for 0x80092BDC",
 )
 FORBIDDEN = (
-    "[recomp-MISS",
     "Segmentation fault",
     "CD timeout:",
     "Cant find CRASHBSH.DAT",
@@ -48,6 +48,11 @@ def judge(text: str) -> Verdict:
     lines = len(text.splitlines())
     missing = [pattern for pattern in REQUIRED if pattern not in text]
     present = [pattern for pattern in FORBIDDEN if pattern in text]
+    unexpected_misses = [
+        line
+        for line in text.splitlines()
+        if "[recomp-MISS" in line and REQUIRED[6] not in line
+    ]
     marker = text.find(REQUIRED[3])
     sequence_index = marker
     missing_sequence: list[str] = []
@@ -57,12 +62,14 @@ def judge(text: str) -> Verdict:
             if sequence_index < 0:
                 missing_sequence.append(address)
                 break
-    if missing or present or missing_sequence:
+    if missing or present or missing_sequence or unexpected_misses:
         details = []
         if missing:
             details.append("missing " + ", ".join(repr(item) for item in missing))
         if present:
             details.append("forbidden " + ", ".join(repr(item) for item in present))
+        if unexpected_misses:
+            details.append("unexpected recomp miss " + repr(unexpected_misses[0]))
         if missing_sequence:
             details.append(
                 "missing ordered IRQ service after pending bit 2: "
@@ -118,7 +125,8 @@ def selftest(port: Path, timeout: float) -> bool:
     print(
         f"PASS positive: {verdict.lines} runtime line(s), {verdict.required}/{len(REQUIRED)} "
         f"required boundary facts, ordered {len(IRQ_SEQUENCE)}-entry IRQ service, "
-        f"{verdict.forbidden}/{len(FORBIDDEN)} forbidden patterns absent"
+        f"{verdict.forbidden}/{len(FORBIDDEN)} forbidden patterns absent; "
+        "expected next boundary 0x80092BDC"
     )
     passed = 1
     changed = output.replace(REQUIRED[1], "game-main trace removed", 1)
@@ -144,7 +152,7 @@ def selftest(port: Path, timeout: float) -> bool:
         print("PASS negative: breaking the master-dispatcher order fails the boundary")
     else:
         print("FAIL negative: broken IRQ service order passed", file=sys.stderr)
-    changed = output.replace(REQUIRED[5], "file-load progression removed", 1)
+    changed = output.replace(REQUIRED[4], "file-load progression removed", 1)
     try:
         judge(changed)
     except Refused:
@@ -168,7 +176,8 @@ def main() -> int:
         verdict = judge(run(args.port, args.timeout))
         print(
             f"PASS: {verdict.lines} runtime line(s); crt0, guest main, custom exception exit, "
-            "master dispatcher, and CD IRQ callback observed in order with no recomp miss"
+            "master dispatcher, CD IRQ callback, and file completion observed before the measured "
+            "unloaded entry 0x80092BDC"
         )
         return 0
     except Refused as error:

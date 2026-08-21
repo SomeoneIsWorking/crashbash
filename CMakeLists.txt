@@ -107,3 +107,9 @@ add_test(
     "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
     --selftest
 )
+add_test(
+  NAME crashbash_read_completion_compare_selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_read_completion.py"
+    --selftest
+)
