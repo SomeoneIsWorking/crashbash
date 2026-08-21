@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:13:10
+verified_at: 2026-08-21 14:16:30
 ---
 
 ## Claim
@@ -42,3 +42,7 @@ Pinned psxport 3418a79b preserved the true-oracle saved-context/master-dispatche
 ## Re-confirmed 2026-08-21
 
 Pinned psxport 3418a79b preserves the true-oracle saved-context/master-dispatcher prefix and CD IRQ callback/drain; oracle comparator forced answers passed 4/4.
+
+## Re-confirmed 2026-08-21
+
+Post-landing IRQ comparator remained 4/4 and live execution reached the ordered CD drain without nested ISR frames; the separate completion-coalescing residual remains explicitly refused.

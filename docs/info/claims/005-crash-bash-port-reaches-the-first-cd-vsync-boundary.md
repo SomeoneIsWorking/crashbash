@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, psxport.pin
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:13:10
+verified_at: 2026-08-21 14:16:30
 falsified_on: 2026-08-21
 ---
 
@@ -44,3 +44,7 @@ that same declared incomplete boundary.
 ## Re-confirmed 2026-08-21
 
 Pinned psxport 3418a79b Clang build: live boot verifier passed 5/5, full CTest passed 7/7, direct and zero-argument launcher paths each loaded once and stopped at exact next miss 0x80092BDC.
+
+## Re-confirmed 2026-08-21
+
+Post-landing direct and zero-argument routes each loaded CRASHBSH.DAT once, printed done loading, and reached the next exact miss 0x80092BDC.

@@ -6,7 +6,7 @@ created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 11:43:15
+verified_at: 2026-08-21 14:16:30
 ---
 
 ## Claim
@@ -44,3 +44,7 @@ Post-landing scoped Crash Bash CTest passed 5/5; cpp_policy format/size checked 
 ## Re-confirmed 2026-08-21
 
 Post-landing Clang CTest passed 6/6; the normal C++ policy gate format-checked four first-party files and clang-tidied all four compile-backed TUs.
+
+## Re-confirmed 2026-08-21
+
+Post-landing normal CTest passed 7/7 with the shared Clang format, structure, and compile-backed tidy policy.

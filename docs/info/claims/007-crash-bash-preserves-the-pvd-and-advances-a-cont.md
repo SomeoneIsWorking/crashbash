@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,cdrom,cdc
 depends: psxport.pin, tools/verify_boot.py#judge
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:13:11
+verified_at: 2026-08-21 14:16:30
 ---
 
 ## Claim
@@ -40,3 +40,7 @@ Pinned psxport 3418a79b live run found CRASHBSH.DAT, scheduled every mode-0xA0 s
 ## Re-confirmed 2026-08-21
 
 Pinned psxport 3418a79b direct live run preserved PVD split reads, sourced all 378 file DMAs from FIFO with zero depletion, scheduled all events 225792 ticks apart, loaded once, and reached 0x80092BDC.
+
+## Re-confirmed 2026-08-21
+
+Post-landing PVD split and all 189 sectors remained FIFO-backed, all 196 periods were 225792 ticks, and the load completed once without retry.

@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,cdrom,harness
 depends: tools/verify_read_completion.py#completion_contract, psxport.pin
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:13:11
+verified_at: 2026-08-21 14:16:30
 ---
 
 ## Claim
@@ -44,3 +44,7 @@ Pinned psxport 3418a79b is the causal positive: starter returns 1 with all 189 p
 ## Re-confirmed 2026-08-21
 
 Pinned psxport 3418a79b keeps the causal positive: starter returns 1 with all 189 pending and no same-range retry. Strict 5/5 comparator still rejects completion because pending 1 is transient inside one IRQ drain.
+
+## Re-confirmed 2026-08-21
+
+Post-landing deterministic pacing still removes the original same-range retry and reaches 0x80092BDC; the strict 5/5 comparator continues to reject the distinct transient-only pending-state ordering.
