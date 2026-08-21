@@ -13,3 +13,9 @@ is not the recorded pin. Framework edits happen in the shared clone (`$PSX/psxpo
 All picture work is RE-driven. Widescreen and interpolation require PC-native graphics producers
 reading game state; do not reconstruct pictures from GTE/OT/GP0 output. Establish a faithful,
 measurable base before enhancements.
+
+The host structure follows Dusklight's current composition/ownership split: `game/core/main.cpp`
+only composes process startup, `game_config.cpp` owns measured addresses and routing,
+`game_hooks.cpp` owns the narrow game-behavior seam, and `recomp_register.cpp` is the sole generated
+adapter. Project automation remains in Python under `tools/`; do not grow the process entry point or
+move game behavior into configuration or the generated adapter.

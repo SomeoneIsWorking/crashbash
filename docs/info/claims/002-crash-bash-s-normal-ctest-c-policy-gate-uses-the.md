@@ -11,15 +11,19 @@ verified_at: 2026-08-21 02:36:30
 
 ## Claim
 
-Crash Bash's normal CTest C++ policy gate uses the shared psxport checker; its empty scaffold produces explicit zero denominators, and CMake refuses a GNU C++ compiler before configuring
+Crash Bash's normal CTest C++ policy gate uses the shared psxport checker for every first-party translation unit, and CMake refuses a non-Clang C++ compiler before configuring
 
 ## Evidence
 
-Clang 22 configure plus the scoped CTest passed; a fresh CC=gcc CXX=g++ configure failed at the project compiler guard; the checker reported 0 format, 0 size, and 0 touched clang-tidy units
+Clang 22 built the four first-party seam translation units and the generated product; the normal CTest checker reported 4/4 format, 4/4 size, and 4/4 compile-database clang-tidy units. The established forced-negative GNU configure still exercises the CMake compiler guard.
 
 ## What would falsify it
 
 A first-party C++ source is added without becoming format/tidy/size checked, a non-Clang compiler configures successfully, or the shared checker/pin changes without re-verification
+
+## Re-confirmed 2026-08-21
+
+After the first Crash Bash seam landed in the worktree, Clang 22 built all four first-party TUs against psxport 2b5ef7b5 and normal CTest reported 4/4 format, 4/4 size, and 4/4 compile-backed clang-tidy checks.
 
 ## Re-confirmed 2026-08-21
 

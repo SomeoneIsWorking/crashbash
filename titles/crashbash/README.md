@@ -1,8 +1,9 @@
 # Crash Bash — selected target
 
-The selected target is the North American retail disc (`SCUS-94570`, NTSC-U). This is an identity and
-boot-image measurement, not a boot claim: the repo still has no game seam, generated substrate, or
-native executable.
+The selected target is the North American retail disc (`SCUS-94570`, NTSC-U). Its identity and boot
+image measurements now drive the shipped game seam and reproducible generated substrate. The port
+reaches guest main and the measured IRQ callback, then stops in the unimplemented CD/VSync hardware
+path; this is not yet an oracle or gameplay claim.
 
 `SYSTEM.CNF` names `cdrom:\SCUS_945.70;1`. The executable independently contains both the
 `Sony Computer Entertainment Inc. for North America area` and `BASCUS-94570` markers. The disc also
@@ -37,8 +38,8 @@ and resolved 8/8 boot fields:
 | InitHeap thunk | `0x8003ACCC` |
 | heap globals | absent; values remain register-only in this CRT0 |
 
-These values are evidence for the future boot seam. They are not yet shipped in a `GameConfig`, so the
-runtime CRT0 audit has not compared them and this project is not claimed to boot.
+These values are bound in `game/core/game_config.cpp`. The runtime CRT0 audit compared 10/10 fields
+with zero disagreement or unresolved values before dispatching guest main `0x8002718C`.
 
 ## Reproduce the measurement
 

@@ -1,0 +1,17 @@
+// Crash Bash resident recompiler seeds.
+//
+// emit.py already roots discovery in this executable's entry point and binary pointer/table scan,
+// then follows direct jal edges. Grow `main` only from an observed [recomp-MISS] whose call site is
+// recorded; the sole entry below meets that evidence gate.
+{
+  "main": [
+    // First live boot boundary: Hle::irqPoll dispatched the callback stored at 0x8006D98C while
+    // guest CD sync 0x8003EDBC called VSync 0x800320EC. Ghidra confirms 0x8003B1BC is the IRQ
+    // callback entry; static discovery could not see the guest-RAM function pointer.
+    "0x8003B1BC"
+  ],
+  "main_reentry": [],
+  "overlay_bases": {},
+  "overlay_base_patterns": [],
+  "overlay_seeds": {}
+}
