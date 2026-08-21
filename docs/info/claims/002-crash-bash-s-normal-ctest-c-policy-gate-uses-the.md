@@ -6,7 +6,7 @@ created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 03:42:29
+verified_at: 2026-08-21 11:43:15
 ---
 
 ## Claim
@@ -40,3 +40,7 @@ After provisioning CMake integration, Clang 22 rebuilt crashbash_scaffold and di
 ## Re-confirmed 2026-08-21
 
 Post-landing scoped Crash Bash CTest passed 5/5; cpp_policy format/size checked four first-party files and clang-tidy used all four Clang compile commands.
+
+## Re-confirmed 2026-08-21
+
+Post-landing Clang CTest passed 6/6; the normal C++ policy gate format-checked four first-party files and clang-tidied all four compile-backed TUs.

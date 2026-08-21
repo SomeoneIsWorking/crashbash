@@ -1,12 +1,12 @@
 ---
 id: C005
 kind: claim
-status: falsified
+status: holds
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_boot.py#judge,game/recomp_seeds.json,game/core/main.cpp
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 03:42:30
+verified_at: 2026-08-21 11:43:15
 falsified_on: 2026-08-21
 ---
 
@@ -31,3 +31,7 @@ Post-landing crashbash_boot_boundary_selftest passed 3/3: CRT0 10/10, guest main
 Shared HookEntryInt delivery now resumes 0x80031AE8, reaches master dispatcher 0x80031B58 and CD callback 0x8003F5F0; the old unimplemented CD/VSync stop no longer occurs.
 
 > Anything that cited this claim as proof must be re-checked. Grep the repo for it.
+
+## Re-confirmed 2026-08-21
+
+Post-landing boot verifier passed 5/5 and reached guest main, the measured verifier, custom interrupt exit, CD IRQ service, and file-load start with no recompilation miss.

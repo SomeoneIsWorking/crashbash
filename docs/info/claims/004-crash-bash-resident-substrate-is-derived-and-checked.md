@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,recompiler
 depends: tools/recomp_bootstrap.py#check,game/recomp_seeds.json,game/core/game_config.cpp
 reconfirmed: 2026-08-21
-verified_at: 2026-08-21 03:42:29
+verified_at: 2026-08-21 11:43:15
 ---
 
 ## Claim
@@ -24,3 +24,7 @@ The same verified executable emits different routing or interfaces, a shipping G
 ## Re-confirmed 2026-08-21
 
 Post-landing crashbash_recomp_bootstrap_selftest passed 4/4 with the real 339-root/907-function substrate and three forced negatives.
+
+## Re-confirmed 2026-08-21
+
+Post-landing recomp_bootstrap selftest passed 6/6; the identity-bound image plus measured indirect verifier and sole main_reentry emit 340 roots into 908 functions.

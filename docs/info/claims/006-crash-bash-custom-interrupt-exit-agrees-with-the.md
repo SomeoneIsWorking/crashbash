@@ -5,6 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
+reconfirmed: 2026-08-21
+verified_at: 2026-08-21 11:43:16
 ---
 
 ## Claim
@@ -18,3 +20,7 @@ Independent Beetle interpreter on the actual USA CHD showed steady v0=1, sp=0x80
 ## What would falsify it
 
 A repeat true-oracle or port trace changes the saved-context ordering/state, omits the CD callback/drain, reports a recomp miss/CD timeout, or any forced-negative trace is accepted.
+
+## Re-confirmed 2026-08-21
+
+Post-landing true Beetle/port interrupt comparison remained green and its forced-answer comparator selftest passed 4/4; the port reaches the ordered CD service path.
