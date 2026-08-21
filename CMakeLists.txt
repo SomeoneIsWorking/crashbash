@@ -101,3 +101,9 @@ add_test(
     "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/recomp_bootstrap.py"
     --selftest --crt0-extract $<TARGET_FILE:crt0_extract>
 )
+add_test(
+  NAME crashbash_oracle_irq_compare_selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
+    --selftest
+)

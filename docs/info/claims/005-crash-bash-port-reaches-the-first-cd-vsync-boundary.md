@@ -1,12 +1,13 @@
 ---
 id: C005
 kind: claim
-status: holds
+status: falsified
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_boot.py#judge,game/recomp_seeds.json,game/core/main.cpp
 reconfirmed: 2026-08-21
 verified_at: 2026-08-21 03:42:30
+falsified_on: 2026-08-21
 ---
 
 ## Claim
@@ -24,3 +25,9 @@ A real verified-image run omits either reachability trace, reports a CRT0 disagr
 ## Re-confirmed 2026-08-21
 
 Post-landing crashbash_boot_boundary_selftest passed 3/3: CRT0 10/10, guest main and measured IRQ callback reached without recomp miss, plus missing-main and forced-miss negatives.
+
+## FALSIFIED 2026-08-21
+
+Shared HookEntryInt delivery now resumes 0x80031AE8, reaches master dispatcher 0x80031B58 and CD callback 0x8003F5F0; the old unimplemented CD/VSync stop no longer occurs.
+
+> Anything that cited this claim as proof must be re-checked. Grep the repo for it.

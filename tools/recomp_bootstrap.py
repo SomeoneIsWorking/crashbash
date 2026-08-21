@@ -22,6 +22,12 @@ GENERATED = ROOT / "generated"
 MEASUREMENT_FILE = GENERATED / ".recomp.measurement.json"
 SCRATCH = ROOT / "scratch/raw"
 
+# Runtime FNTRACE reached ResetCallback at this entry.  Its first setjmp is the custom interrupt
+# exit installed with HookEntryInt; the retail JAL target and the derived call+8 resume address are
+# verified below rather than treating the recompiler split as an unexplained seed.
+INTERRUPT_SETUP_ENTRY = 0x80031A80
+SETJMP_ENTRY = 0x8003ACEC
+
 
 class Refused(RuntimeError):
     """Required evidence could not be produced."""
@@ -60,6 +66,73 @@ def require_retail(path: Path = EXE) -> dict:
             f"expected {expected['file_size']} bytes sha256 {expected['sha256']}"
         )
     return expected
+
+
+def load_seeds(path: Path = SEEDS) -> dict:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise Refused(f"cannot read recompiler seeds {path}: {error}") from error
+    # The shipping file is JSON-with-line-comments so each measured address keeps its rationale.
+    text = re.sub(r"//[^\n]*", "", text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise Refused(f"cannot parse recompiler seeds {path}: {error}") from error
+    if not isinstance(data, dict):
+        raise Refused(f"recompiler seeds {path} must contain an object")
+    return data
+
+
+def seed_addresses(data: dict, key: str) -> set[int]:
+    values = data.get(key, [])
+    if not isinstance(values, list):
+        raise Refused(f"recompiler seed field {key} must be an array")
+    try:
+        return {int(value, 0) if isinstance(value, str) else int(value) for value in values}
+    except (TypeError, ValueError) as error:
+        raise Refused(f"recompiler seed field {key} contains a non-address") from error
+
+
+def verify_interrupt_reentry(data: bytes, seeds: Path = SEEDS) -> int:
+    target = require_retail()["header"]
+    load = int(target["text_address"], 0)
+    size = int(target["text_size"], 0)
+    seed_data = load_seeds(seeds)
+    main = seed_addresses(seed_data, "main")
+    reentries = seed_addresses(seed_data, "main_reentry")
+    duplicated = sorted(reentries & main)
+    if duplicated:
+        rendered = ", ".join(f"0x{address:08X}" for address in duplicated)
+        raise Mismatch(
+            f"main_reentry seed(s) {rendered} are duplicated in main; psxport unions the "
+            "main_reentry class into discovery and owns the artificial split"
+        )
+
+    setup_offset = 0x800 + INTERRUPT_SETUP_ENTRY - load
+    setup_limit = min(len(data), 0x800 + size, setup_offset + 0x100)
+    resumes: list[int] = []
+    for offset in range(setup_offset, setup_limit - 3, 4):
+        word = int.from_bytes(data[offset : offset + 4], "little")
+        if word >> 26 != 3:
+            continue
+        pc = load + offset - 0x800
+        call_target = ((pc + 4) & 0xF0000000) | ((word & 0x03FFFFFF) << 2)
+        if call_target == SETJMP_ENTRY:
+            resumes.append(pc + 8)
+    if len(resumes) != 1:
+        raise Refused(
+            f"ResetCallback window at 0x{INTERRUPT_SETUP_ENTRY:08X} contains {len(resumes)} "
+            f"jal(s) to measured setjmp 0x{SETJMP_ENTRY:08X}; expected exactly one"
+        )
+    resume = resumes[0]
+    if reentries != {resume}:
+        rendered = ", ".join(f"0x{address:08X}" for address in sorted(reentries)) or "none"
+        raise Mismatch(
+            f"main_reentry ships {rendered}; retail ResetCallback setjmp resumes at "
+            f"0x{resume:08X}"
+        )
+    return resume
 
 
 def invoke_emitter(
@@ -122,6 +195,11 @@ def generated_measurement(
     missing = [symbol for symbol in required if symbol not in declarations]
     if missing:
         raise Mismatch("generated declarations omit " + ", ".join(missing))
+    resume = verify_interrupt_reentry(EXE.read_bytes())
+    if f"void func_{resume:08X}(Core*);" not in declarations:
+        raise Mismatch(
+            f"generated declarations omit interrupt re-entry func_{resume:08X}"
+        )
     if "const int g_rec_overlay_count = 0;" not in table:
         raise Mismatch(
             "resident-only emission did not produce a zero-entry overlay table"
@@ -388,8 +466,34 @@ def selftest(extractor: Path) -> bool:
             print("PASS negative: a one-byte executable mutation is refused")
         else:
             print("FAIL negative: mutated executable passed identity", file=sys.stderr)
-    print(f"SELFTEST {passed}/4")
-    return passed == 4
+
+        wrong_reentry = directory / "wrong-reentry.json"
+        wrong_reentry.write_text(
+            '{"main": [], "main_reentry": ["0x80031AEC"]}\n',
+            encoding="utf-8",
+        )
+        try:
+            verify_interrupt_reentry(EXE.read_bytes(), wrong_reentry)
+        except Mismatch:
+            passed += 1
+            print("PASS negative: a non-setjmp interrupt re-entry is rejected")
+        else:
+            print("FAIL negative: wrong interrupt re-entry passed", file=sys.stderr)
+
+        duplicated_reentry = directory / "duplicated-reentry.json"
+        duplicated_reentry.write_text(
+            '{"main": ["0x80031AE8"], "main_reentry": ["0x80031AE8"]}\n',
+            encoding="utf-8",
+        )
+        try:
+            verify_interrupt_reentry(EXE.read_bytes(), duplicated_reentry)
+        except Mismatch:
+            passed += 1
+            print("PASS negative: a duplicated main/main_reentry seed is rejected")
+        else:
+            print("FAIL negative: duplicated re-entry seed passed", file=sys.stderr)
+    print(f"SELFTEST {passed}/6")
+    return passed == 6
 
 
 def default_extractor() -> Path:

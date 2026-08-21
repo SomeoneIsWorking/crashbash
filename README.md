@@ -4,10 +4,13 @@ PC-native PlayStation port of Crash Bash, built on
 [psxport](https://github.com/SomeoneIsWorking/psxport).
 
 Current status: the North American executable is reproducibly provisioned, its resident substrate is
-emitted and verified, and the Clang-built port reaches guest main plus the measured IRQ callback with
-no recomp miss. It currently stops honestly in the unimplemented CD/VSync hardware path. No oracle
-comparison, native game behavior, native graphics producer, widescreen path, or interpolation path is
-claimed yet.
+emitted and verified, and the Clang-built port's custom interrupt exit agrees with an independent
+Beetle interpreter running the real disc. The port reaches the master dispatcher and CD IRQ callback
+without a recomp miss or the former CD timeout, finds `CRASHBSH.DAT`, and continuously reads all 189
+sectors in its first load request. Its next honest boundary is the read-completion result: the guest
+restarts the same LBA 35799..35987 range instead of printing `done loading`, while the frame-only
+watchdog mistakes the active disc work for a freeze. No full-memory lockstep, native game behavior,
+native graphics producer, widescreen path, or interpolation path is claimed yet.
 
 ## Run the current product
 
@@ -29,13 +32,15 @@ python3 tools/recomp_bootstrap.py --ensure \
 CCACHE_DISABLE=1 cmake -S . -B scratch/build-clang \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 CCACHE_DISABLE=1 cmake --build scratch/build-clang --target crashbash_port -j16
-ctest --test-dir scratch/build-clang --output-on-failure
+PSXPORT_CRASHBASH_DISC="/path/to/Crash Bash (USA).chd" \
+  ctest --test-dir scratch/build-clang --output-on-failure
 ```
 
-The normal CTest suite includes real and forced-negative recompilation/boot-boundary checks plus the
-first-party C++ gate. The shared checker applies this repository's tracked `clang-format` and
-`clang-tidy` policy and the 1,200-line ownership cap to all four first-party translation units without
-linting `external/psxport` or generated code.
+The normal CTest suite includes real and forced-negative recompilation/boot-boundary checks, a
+forced-negative oracle/port interrupt-order comparator, and the first-party C++ gate. The shared
+checker applies this repository's tracked `clang-format` and `clang-tidy` policy and the 1,200-line
+ownership cap to all four first-party translation units without linting `external/psxport` or
+generated code.
 
 ## Provision the selected retail executable
 

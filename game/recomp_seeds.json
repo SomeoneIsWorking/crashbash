@@ -5,12 +5,17 @@
 // recorded; the sole entry below meets that evidence gate.
 {
   "main": [
-    // First live boot boundary: Hle::irqPoll dispatched the callback stored at 0x8006D98C while
-    // guest CD sync 0x8003EDBC called VSync 0x800320EC. Ghidra confirms 0x8003B1BC is the IRQ
-    // callback entry; static discovery could not see the guest-RAM function pointer.
+    // First live boot boundary: Hle::irqPoll consulted the SysEnq verifier stored at 0x8006D98C
+    // while guest CD sync 0x8003EDBC called VSync 0x800320EC. Ghidra confirms 0x8003B1BC is that
+    // verifier; static discovery could not see the guest-RAM function pointer.
     "0x8003B1BC"
   ],
-  "main_reentry": [],
+  // ResetCallback's custom interrupt exit resumes the nonzero setjmp path at 0x80031AE8.  The
+  // runtime trace reached ResetCallback 0x80031A80 and registered source 2 -> 0x8003F5F0; the
+  // retail instruction at 0x80031AE0 is `jal 0x8003ACEC` (setjmp), so call+8 is the measured
+  // resume PC.  main_reentry is the authoritative seed class: psxport unions it into discovery,
+  // emits the dispatchable body, and preserves fallthrough across the artificial split.
+  "main_reentry": ["0x80031AE8"],
   "overlay_bases": {},
   "overlay_base_patterns": [],
   "overlay_seeds": {}

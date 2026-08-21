@@ -29,6 +29,8 @@ def command(arguments: list[str], environment: dict[str, str]) -> None:
 def launch(disc: Path | None) -> None:
     environment = dict(os.environ)
     environment.update(CC="clang", CXX="clang++", CCACHE_DISABLE="1")
+    if disc is not None:
+        environment["PSXPORT_CRASHBASH_DISC"] = str(disc.resolve())
     jobs = min(os.cpu_count() or 1, 16)
     configure = [
         "cmake",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Crash Bash reaches its measured first live hardware boundary without a recomp miss."""
+"""Verify Crash Bash services its first live CD interrupt without a recomp miss."""
 
 from __future__ import annotations
 
@@ -19,10 +19,18 @@ REQUIRED = (
     "10 field(s) AGREE, 0 DISAGREE, 0 unresolved",
     "[fntrace] 0x8002718C REACHED",
     "[fntrace] 0x8003B1BC REACHED",
-    "CD timeout:",
+    "[irq] pending I_STAT&I_MASK=0x004; no SysEnq element claimed it (1 in chain), "
+    "custom exception exit installed",
     "[watchdog] STUCK: no frame presented within the timeout",
+    "load file start",
 )
-FORBIDDEN = ("[recomp-MISS", "Segmentation fault")
+FORBIDDEN = (
+    "[recomp-MISS",
+    "Segmentation fault",
+    "CD timeout:",
+    "Cant find CRASHBSH.DAT",
+)
+IRQ_SEQUENCE = ("80031AE8", "80031B58", "8003F5F0", "8003E14C")
 
 
 class Refused(RuntimeError):
@@ -40,12 +48,26 @@ def judge(text: str) -> Verdict:
     lines = len(text.splitlines())
     missing = [pattern for pattern in REQUIRED if pattern not in text]
     present = [pattern for pattern in FORBIDDEN if pattern in text]
-    if missing or present:
+    marker = text.find(REQUIRED[3])
+    sequence_index = marker
+    missing_sequence: list[str] = []
+    if marker >= 0:
+        for address in IRQ_SEQUENCE:
+            sequence_index = text.find(f"[fntrace] 0x{address}", sequence_index + 1)
+            if sequence_index < 0:
+                missing_sequence.append(address)
+                break
+    if missing or present or missing_sequence:
         details = []
         if missing:
             details.append("missing " + ", ".join(repr(item) for item in missing))
         if present:
             details.append("forbidden " + ", ".join(repr(item) for item in present))
+        if missing_sequence:
+            details.append(
+                "missing ordered IRQ service after pending bit 2: "
+                + " -> ".join(f"0x{address}" for address in IRQ_SEQUENCE)
+            )
         raise Refused(
             f"runtime boundary failed over {lines} log line(s): {'; '.join(details)}"
         )
@@ -61,7 +83,8 @@ def run(port: Path, timeout: float) -> str:
         PSXPORT_ASSET_DIR=str(ROOT / "external/psxport"),
         PSXPORT_NOPACE="1",
         PSXPORT_NOAUDIO="1",
-        PSXPORT_FNTRACE="8002718C,8003B1BC",
+        PSXPORT_FNTRACE="8002718C,8003B1BC,80031AE8,80031B58,8003F5F0,8003E14C",
+        PSXPORT_FNTRACE_REGS="2",
         PSXPORT_WATCHDOG="2",
     )
     process = subprocess.Popen(
@@ -94,7 +117,8 @@ def selftest(port: Path, timeout: float) -> bool:
     verdict = judge(output)
     print(
         f"PASS positive: {verdict.lines} runtime line(s), {verdict.required}/{len(REQUIRED)} "
-        f"required boundary facts, {verdict.forbidden}/{len(FORBIDDEN)} forbidden patterns absent"
+        f"required boundary facts, ordered {len(IRQ_SEQUENCE)}-entry IRQ service, "
+        f"{verdict.forbidden}/{len(FORBIDDEN)} forbidden patterns absent"
     )
     passed = 1
     changed = output.replace(REQUIRED[1], "game-main trace removed", 1)
@@ -112,8 +136,24 @@ def selftest(port: Path, timeout: float) -> bool:
         print("PASS negative: a recomp miss fails the boundary")
     else:
         print("FAIL negative: recomp miss passed", file=sys.stderr)
-    print(f"SELFTEST {passed}/3")
-    return passed == 3
+    changed = output.replace("0x80031B58", "0x80031B54")
+    try:
+        judge(changed)
+    except Refused:
+        passed += 1
+        print("PASS negative: breaking the master-dispatcher order fails the boundary")
+    else:
+        print("FAIL negative: broken IRQ service order passed", file=sys.stderr)
+    changed = output.replace(REQUIRED[5], "file-load progression removed", 1)
+    try:
+        judge(changed)
+    except Refused:
+        passed += 1
+        print("PASS negative: missing file-load progression fails the boundary")
+    else:
+        print("FAIL negative: missing file-load progression passed", file=sys.stderr)
+    print(f"SELFTEST {passed}/5")
+    return passed == 5
 
 
 def main() -> int:
@@ -127,8 +167,8 @@ def main() -> int:
             return 0 if selftest(args.port, args.timeout) else 1
         verdict = judge(run(args.port, args.timeout))
         print(
-            f"PASS: {verdict.lines} runtime line(s); crt0, guest main, IRQ callback, and CD/VSync "
-            "boundary observed with no recomp miss"
+            f"PASS: {verdict.lines} runtime line(s); crt0, guest main, custom exception exit, "
+            "master dispatcher, and CD IRQ callback observed in order with no recomp miss"
         )
         return 0
     except Refused as error:
