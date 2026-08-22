@@ -5,6 +5,8 @@ status: holds
 created: 2026-08-22
 tags: boot,graphics,overlay
 depends: CMakeLists.txt, game/core/recomp_register.cpp, game/recomp_seeds.json, tools/verify_boot.py#judge
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:51
 ---
 
 ## Claim
@@ -23,3 +25,7 @@ no render sources, `game/render/` is absent, and the game hook registers no nati
 
 The loaded executable containing 0x80092BDC is emitted and executes into a game frame, or a verified
 native producer is registered and submits a game picture before that boundary.
+
+## Re-confirmed 2026-08-22
+
+Pinned psxport 7f5d3f13 with inherited CrashBashRuntime loaded all 189 DAT sectors and stopped at unloaded entry 0x80092BDC before a game frame; CMake still registers no render source and the runtime owns no native override.

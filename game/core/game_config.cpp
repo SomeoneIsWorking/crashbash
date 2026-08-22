@@ -1,5 +1,8 @@
-// Crash Bash's measured framework configuration.  Unmeasured address groups stay zero by omission.
+// Crash Bash's measured framework compatibility facts. Unmeasured address groups stay zero by
+// omission. CrashBashRuntime owns behavior; this table exists only while generic psxport algorithms
+// still read Core::cfg.
 #include "game_iface.h"
+#include "legacy_game_interface.h"
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
 #include "overlay_table.h"
@@ -56,8 +59,4 @@ static const GameConfig kCrashBashConfig = {
     .stackBias = {1, kCrt0StackBias},
 };
 
-const GameHooks *crashbash_game_hooks();
-
-void crashbash_install_game() {
-  psxport_install_game(&kCrashBashConfig, crashbash_game_hooks());
-}
+const GameConfig &crashbash::legacy::measuredConfig = kCrashBashConfig;

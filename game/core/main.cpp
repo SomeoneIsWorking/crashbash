@@ -1,5 +1,6 @@
 // Crash Bash process entry: install the measured seam, load the retail image, and enter guest main.
 #include "core.h"
+#include "crashbash_runtime.h"
 #include "game.h"
 #include <filesystem>
 #include <lucent/log.h>
@@ -14,13 +15,14 @@ void watchdog_init();
 void gte_init();
 void load_exe(const char *path, Core *core);
 void native_boot_run(Core *core);
-void crashbash_install_game();
 void crashbash_install_recomp();
 
 static constexpr const char *kDefaultExecutable = "scratch/bin/crashbash/SCUS_945.70";
 
 int main(int argc, char **argv) {
-  crashbash_install_game();
+  // Installation precedes the first Core, which snapshots this process-lifetime derived owner.
+  static crashbash::CrashBashRuntime runtime;
+  psxport_install_game(runtime);
   crashbash_install_recomp();
 
   const char *path = argc > 1 ? argv[1] : kDefaultExecutable;
@@ -43,7 +45,7 @@ int main(int argc, char **argv) {
   game->pad.overridesInit();
   core->r[4] = 1;
   core->r[5] = 0;
-  core->hooks->registerOverrides(game.get());
+  core->runtime->registerOverrides(*game);
   native_boot_run(core);
   lucent::info("boot", "Crash Bash native boot returned");
   return 0;

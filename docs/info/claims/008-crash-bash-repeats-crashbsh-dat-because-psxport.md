@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,cdrom,harness
 depends: tools/verify_read_completion.py#completion_contract, psxport.pin
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:16:30
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:51
 ---
 
 ## Claim
@@ -48,3 +48,7 @@ Pinned psxport 3418a79b keeps the causal positive: starter returns 1 with all 18
 ## Re-confirmed 2026-08-21
 
 Post-landing deterministic pacing still removes the original same-range retry and reaches 0x80092BDC; the strict 5/5 comparator continues to reject the distinct transient-only pending-state ordering.
+
+## Re-confirmed 2026-08-22
+
+Pinned psxport 7f5d3f13 retained the causal positive at the observable boundary: the same 189-sector range did not retry, done loading printed, and execution reached 0x80092BDC; the strict completion comparator's 5/5 controlled-answer selftest still passed.

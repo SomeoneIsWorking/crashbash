@@ -15,7 +15,8 @@ reading game state; do not reconstruct pictures from GTE/OT/GP0 output. Establis
 measurable base before enhancements.
 
 The host structure follows Dusklight's current composition/ownership split: `game/core/main.cpp`
-only composes process startup, `game_config.cpp` owns measured addresses and routing,
-`game_hooks.cpp` owns the narrow game-behavior seam, and `recomp_register.cpp` is the sole generated
-adapter. Project automation remains in Python under `tools/`; do not grow the process entry point or
-move game behavior into configuration or the generated adapter.
+only composes process startup, `CrashBashRuntime` owns framework-facing title behavior through
+inheritance, `game_config.cpp` and `game_hooks.cpp` are bounded compatibility facts for generic
+framework code that still reads `Core::cfg/Core::hooks`, and `recomp_register.cpp` is the sole
+generated adapter. Project automation remains in Python under `tools/`; do not grow the process entry
+point or move game behavior into compatibility tables or the generated adapter.

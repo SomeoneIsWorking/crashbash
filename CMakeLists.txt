@@ -34,6 +34,7 @@ set(PSXPORT_BUILD_SMOKE OFF CACHE BOOL "Build the framework agnosticism smoke" F
 add_subdirectory("${PSXPORT_DIR}" psxport_build)
 
 set(CRASHBASH_SEAM_SOURCES
+  game/core/crashbash_runtime.cpp
   game/core/game_config.cpp
   game/core/game_hooks.cpp
   game/core/main.cpp

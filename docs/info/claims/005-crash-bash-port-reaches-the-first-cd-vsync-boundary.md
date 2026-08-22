@@ -4,9 +4,9 @@ kind: claim
 status: holds
 created: 2026-08-21
 tags: boot,harness,irq
-depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, psxport.pin
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:16:30
+depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, game/core/crashbash_runtime.cpp, psxport.pin
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:50
 falsified_on: 2026-08-21
 ---
 
@@ -48,3 +48,7 @@ Pinned psxport 3418a79b Clang build: live boot verifier passed 5/5, full CTest p
 ## Re-confirmed 2026-08-21
 
 Post-landing direct and zero-argument routes each loaded CRASHBSH.DAT once, printed done loading, and reached the next exact miss 0x80092BDC.
+
+## Re-confirmed 2026-08-22
+
+Pinned psxport 7f5d3f13 with inherited CrashBashRuntime: live verifier passed over 129 lines with all 7 required facts, ordered 4-entry IRQ service, complete DAT load, and exact next miss 0x80092BDC; full Clang CTest passed 7/7.

@@ -4,9 +4,9 @@ kind: claim
 status: holds
 created: 2026-08-21
 tags: boot,recompiler
-depends: tools/recomp_bootstrap.py#check,game/recomp_seeds.json,game/core/game_config.cpp
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 11:43:15
+depends: tools/recomp_bootstrap.py#check, game/recomp_seeds.json, game/core/game_config.cpp
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:50
 ---
 
 ## Claim
@@ -28,3 +28,7 @@ Post-landing crashbash_recomp_bootstrap_selftest passed 4/4 with the real 339-ro
 ## Re-confirmed 2026-08-21
 
 Post-landing recomp_bootstrap selftest passed 6/6; the identity-bound image plus measured indirect verifier and sole main_reentry emit 340 roots into 908 functions.
+
+## Re-confirmed 2026-08-22
+
+crashbash_recomp_bootstrap_selftest passed after the legacy program facts were exposed through CrashBashRuntime; it accepted the real 340-root/908-function substrate and rejected all controlled mismatches.

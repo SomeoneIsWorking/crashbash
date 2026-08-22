@@ -32,8 +32,8 @@ successful build.
 ### boot.harness — Establish a deterministic psxport/oracle boot comparison
 - status: re-verified
 - deps: boot.recompile
-- evidence: The independent Beetle interpreter ran the actual USA CHD for 600 frames and repeatedly showed the saved-context path 0x80031AE8 (v0=1, sp=0x80068B14) -> 0x80031B58 (same sp, ra=0x80031AF8). The Clang port shared that prefix and continued through IRQ2 callback 0x8003F5F0 -> drain 0x8003E14C with no recomp miss or old CD timeout. tools/verify_oracle_irq.py passed the real comparison and 4/4 selftests; tools/verify_boot.py passed 5/5 and requires file-load progression after the PVD lookup.
-- where: tools/verify_oracle_irq.py, tools/verify_boot.py, game/recomp_seeds.json, game/core/
+- evidence: The independent Beetle interpreter ran the actual USA CHD for 600 frames and repeatedly showed the saved-context path 0x80031AE8 (v0=1, sp=0x80068B14) -> 0x80031B58 (same sp, ra=0x80031AF8). The Clang port shared that prefix and continued through IRQ2 callback 0x8003F5F0 -> drain 0x8003E14C with no recomp miss or old CD timeout. After runtime ownership moved from `GameHooks` into the inherited `CrashBashRuntime`, pinned psxport 7f5d3f13 produced the same 129-line boundary: all 7 required facts, ordered 4-entry service, `done loading`, and exact next miss 0x80092BDC. tools/verify_oracle_irq.py passed the real comparison and 4/4 selftests; tools/verify_boot.py passed 5/5 and requires file-load progression after the PVD lookup.
+- where: tools/verify_oracle_irq.py, tools/verify_boot.py, game/recomp_seeds.json, game/core/crashbash_runtime.cpp
 - gap:
 - notes: The comparison is deliberately at the custom exception-exit boundary shared by both machines. It does not claim full-RAM lockstep or that the later CD filesystem state agrees.
 

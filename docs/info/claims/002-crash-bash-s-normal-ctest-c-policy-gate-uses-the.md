@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags:
 depends: CMakeLists.txt
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:16:30
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:50
 ---
 
 ## Claim
@@ -48,3 +48,7 @@ Post-landing Clang CTest passed 6/6; the normal C++ policy gate format-checked f
 ## Re-confirmed 2026-08-21
 
 Post-landing normal CTest passed 7/7 with the shared Clang format, structure, and compile-backed tidy policy.
+
+## Re-confirmed 2026-08-22
+
+Against clean psxport 7f5d3f13, Clang rebuilt the five first-party C++ translation units and full CTest passed 7/7; crashbash_cpp_policy passed format, 1200-line structure, and compile-database clang-tidy for the expanded inherited-runtime seam.

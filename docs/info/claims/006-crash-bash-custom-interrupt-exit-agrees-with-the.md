@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:16:30
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:50
 ---
 
 ## Claim
@@ -46,3 +46,7 @@ Pinned psxport 3418a79b preserves the true-oracle saved-context/master-dispatche
 ## Re-confirmed 2026-08-21
 
 Post-landing IRQ comparator remained 4/4 and live execution reached the ordered CD drain without nested ISR frames; the separate completion-coalescing residual remains explicitly refused.
+
+## Re-confirmed 2026-08-22
+
+Pinned psxport 7f5d3f13 live execution retained the measured 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C service order before any unexpected miss; the oracle comparator's controlled-answer selftest passed in full CTest.

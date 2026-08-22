@@ -59,4 +59,4 @@ only then atomically publishes `scratch/bin/crashbash/SCUS_945.70`.
 
 Disc images, extracted executables, and `generated/` are never committed. The measured identity
 remains in `titles/crashbash/executable.json`; `tools/recomp_bootstrap.py` independently rechecks it,
-the emitted interfaces/range, and every shipping CRT0/GameConfig binding.
+the emitted interfaces/range, and every shipping CRT0 legacy program-fact binding.

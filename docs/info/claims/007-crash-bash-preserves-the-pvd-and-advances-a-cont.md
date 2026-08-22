@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,cdrom,cdc
 depends: psxport.pin, tools/verify_boot.py#judge
-reconfirmed: 2026-08-21
-verified_at: 2026-08-21 14:16:30
+reconfirmed: 2026-08-22
+verified_at: 2026-08-22 14:13:51
 ---
 
 ## Claim
@@ -44,3 +44,7 @@ Pinned psxport 3418a79b direct live run preserved PVD split reads, sourced all 3
 ## Re-confirmed 2026-08-21
 
 Post-landing PVD split and all 189 sectors remained FIFO-backed, all 196 periods were 225792 ticks, and the load completed once without retry.
+
+## Re-confirmed 2026-08-22
+
+Pinned psxport 7f5d3f13 real-disc verifier found CRASHBSH.DAT, completed its 189-sector load without cant-find, timeout, retry, or earlier miss, printed done loading, and reached 0x80092BDC.
