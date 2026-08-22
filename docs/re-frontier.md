@@ -61,8 +61,8 @@ successful build.
 - deps: boot.drive-timing
 - evidence:
 - where: game/render/
-- gap: RE from game-state inputs before creating native producers.
-- notes: Do not derive pictures from GTE, OT, or GP0 output.
+- gap: The headless product initializes the native renderer but reaches uncompiled loaded entry 0x80092BDC before any game frame; identify and emit the loaded executable, then RE its camera and submitters from game-state inputs before creating native producers.
+- notes: `game/render/` does not exist and no graphics producer is registered. Do not derive pictures from GTE, OT, or GP0 output.
 
 ### graphics.enhancements — Enable widescreen and interpolation on PC-owned producers
 - status: todo

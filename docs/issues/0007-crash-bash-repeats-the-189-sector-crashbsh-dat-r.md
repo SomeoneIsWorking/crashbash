@@ -82,3 +82,17 @@ Resolution still requires the oracle's returned `1 -> 0` sequence, not merely `d
 retry. The deterministic framework is landed and pinned at `3418a79b`; after fixing the independent
 response/IRQ ordering defect, emit/discover the loaded overlay entry `0x80092BDC`. Separately, route verified
 CD/FMV progress into the shared watchdog owner rather than weakening its timeout.
+
+## Rendering audit (2026-08-22)
+
+The current shipping game code has no native graphics producer and cannot present a game picture yet.
+With the verified USA disc and the binary built from the unchanged shipping `game/` sources against
+the exact recorded psxport pin `3418a79b`, `tools/verify_boot.py` passed with 129 runtime lines: the
+native GPU initialized, all 189 `CRASHBSH.DAT` sectors loaded, and dispatch then failed fast at
+`0x80092BDC`. That address is loaded code outside every emitted resident/overlay range, not a renderer
+regression. The same environment passed all 7 CTest gates.
+
+Graphics work remains downstream of two real prerequisites: preserve the oracle-visible CD completion
+`1 -> 0` ordering in the shared controller, then identify and emit the loaded executable containing
+`0x80092BDC`. Adding a guest-packet fallback, a fabricated boot picture, or camera constants before that
+execution spine exists would hide this boundary rather than advance the port.
