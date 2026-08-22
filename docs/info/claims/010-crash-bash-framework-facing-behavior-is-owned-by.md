@@ -6,7 +6,7 @@ created: 2026-08-22
 tags: architecture,runtime
 depends: game/core/crashbash_runtime.cpp, game/core/main.cpp, game/core/game_hooks.cpp, CMakeLists.txt
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:27
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -29,6 +29,10 @@ A shipping behavior is added to GameConfig/GameHooks, the runtime is not install
 ## Re-confirmed 2026-08-22
 
 Against pinned psxport ad5cf802, CrashBashRuntime remains installed before Game construction and owns bootInit/registerOverrides; the real-disc consumer executes BOOT and nested MENU through retained generated bodies, reaches resident 0x8002DE2C without a recomp miss, and full Clang CTest passes 8/8.
+
+## Re-confirmed 2026-08-22
+
+Post-commit Clang CTest passed 8/8; CrashBashRuntime remains installed before Core and owns behavior while legacy GameHooks is empty.
 
 ## Re-confirmed 2026-08-22
 

@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,cdrom,harness
 depends: tools/verify_read_completion.py#completion_contract, psxport.pin
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:27
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -56,6 +56,10 @@ Pinned psxport 7f5d3f13 retained the causal positive at the observable boundary:
 ## Re-confirmed 2026-08-22
 
 Against pinned psxport ad5cf802, the historical causal positive remains reproduced at the observable boundary: the measured loads complete without the old same-range retry, while the strict read-completion comparator retained all 5/5 controlled answers in full CTest.
+
+## Re-confirmed 2026-08-22
+
+Post-commit full CTest retained the historical causal positive: measured loads do not repeat, while the read-completion comparator passed all 5 controlled answers.
 
 ## Re-confirmed 2026-08-22
 

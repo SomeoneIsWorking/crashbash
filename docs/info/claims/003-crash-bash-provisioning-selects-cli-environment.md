@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,provisioning
 depends: tools/provision.py#provision
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:26
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -28,6 +28,10 @@ Post-landing recheck: tests/test_provision.py passed 8/8 through the tracked shi
 ## Re-confirmed 2026-08-21
 
 Post-landing crashbash_provision_selftest passed its resolution, refusal, identity, and atomic-preservation cases.
+
+## Re-confirmed 2026-08-22
+
+Post-commit provisioning selftest passed all 12 executable/module identity, refusal, unknown-field, and publication controls; the preceding real-media gate passed executable 11/11 and modules 14/14.
 
 ## Re-confirmed 2026-08-22
 

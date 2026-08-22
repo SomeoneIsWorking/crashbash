@@ -6,7 +6,7 @@ created: 2026-08-22
 tags: loaded-code,boot
 depends: tools/loaded_module.py#verify_source, tools/provision.py#provision, tools/recomp_bootstrap.py#generated_measurement, tools/verify_boot.py#judge, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, psxport.pin
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:27
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -32,6 +32,10 @@ Final default-build verification against exact pinned psxport ad5cf802: full Cla
 ## Re-confirmed 2026-08-22
 
 Against pinned psxport ad5cf802, the corrected real-disc verifier deterministically traced guest poll state 0x8002DE2C and passed 7/7 controlled answers; full scratch Clang CTest passed 8/8. The bootstrap passed 9/9 including a changed-generated-source cache-integrity negative, and a subsequent --ensure verified the output digest without rewriting the valid 1,063-root/1,724-function cache.
+
+## Re-confirmed 2026-08-22
+
+Post-commit Clang CTest passed 8/8; exact real-media gate executed BOOT and nested MENU with no recomp miss, traced 0x8002DE2C deterministically, and bootstrap passed 9/9 cache-integrity controls.
 
 ## Re-confirmed 2026-08-22
 

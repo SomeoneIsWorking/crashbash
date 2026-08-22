@@ -6,7 +6,7 @@ created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:26
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -56,6 +56,10 @@ Against clean psxport 7f5d3f13, Clang rebuilt the five first-party C++ translati
 ## Re-confirmed 2026-08-22
 
 Against pinned psxport ad5cf802, a clean Clang 22 configure/build completed and full CTest passed 8/8; crashbash_cpp_policy checked all five first-party C++ units with clang-format, the 1200-line structure cap, and compile-database clang-tidy.
+
+## Re-confirmed 2026-08-22
+
+Post-commit Clang CTest passed 8/8; crashbash_cpp_policy passed the tracked five-unit format, structure, and compile-backed clang-tidy gate.
 
 ## Re-confirmed 2026-08-22
 

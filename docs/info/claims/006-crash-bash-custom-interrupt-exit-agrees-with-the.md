@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:26
+verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
@@ -54,6 +54,10 @@ Pinned psxport 7f5d3f13 live execution retained the measured 0x80031AE8 -> 0x800
 ## Re-confirmed 2026-08-22
 
 Against pinned psxport ad5cf802, full CTest passed the 4/4 oracle IRQ comparator and the real consumer retained 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C before the later resident CDC boundary.
+
+## Re-confirmed 2026-08-22
+
+Post-commit real consumer gate retained the measured IRQ sequence through 0x8003E14C and full CTest passed the 4/4 oracle comparator plus 7/7 boot verifier controls.
 
 ## Re-confirmed 2026-08-22
 
