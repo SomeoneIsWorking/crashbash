@@ -114,3 +114,9 @@ add_test(
     "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_read_completion.py"
     --selftest
 )
+add_test(
+  NAME crashbash_command_response_timing_selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_command_response_timing.py" --selftest
+)

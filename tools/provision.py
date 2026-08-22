@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Resolve the Crash Bash disc and provision its verified boot executable.
+"""Resolve the Crash Bash disc and provision its verified executable and code modules.
 
 The disc selection order is CLI > process environment > .env > one repository-root
 ``*.chd`` drop-in.  The selected source is authoritative: a missing configured path is a
 refusal, never permission to silently use a lower-priority disc.
 
-Exit 0 means SYSTEM.CNF and all executable identity/header facts matched the tracked
-manifest.  Exit 1 means readable media contradicted that manifest.  Exit 2 means the tool
-could not make the comparison.  Copyrighted inputs and extracted output stay outside git;
-the verified executable is published atomically below ``scratch/bin/crashbash``.
+Exit 0 means SYSTEM.CNF, the executable identity/header, the full data file, and both
+loaded-module identities matched their tracked manifests.  Exit 1 means readable media
+contradicted a manifest.  Exit 2 means the tool could not make the comparison.  Copyrighted
+inputs and extracted output stay outside git; publication starts only after the entire set verifies,
+and each destination is replaced atomically below ``scratch/bin/crashbash``.
 """
 
 from __future__ import annotations
@@ -27,9 +28,13 @@ import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+import loaded_module
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "titles" / "crashbash" / "executable.json"
 DEFAULT_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "SCUS_945.70"
+DEFAULT_MODULE_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "BOOT.BIN"
+DEFAULT_MENU_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "MENU.BIN"
 DEFAULT_DISCDUMP = (
     ROOT / "scratch" / "build-clang" / "psxport_build" / "tools" / "discdump"
 )
@@ -60,6 +65,14 @@ class Identity:
     stack_address: int
     stack_offset: int
     markers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ProvisionedInputs:
+    executable: Identity
+    executable_facts: int
+    modules: tuple[loaded_module.ModuleIdentity, ...]
+    module_facts: int
 
 
 def _parse_dotenv(path: pathlib.Path) -> dict[str, str]:
@@ -347,15 +360,38 @@ def provision(
     discdump: pathlib.Path,
     manifest_path: pathlib.Path = MANIFEST,
     output: pathlib.Path = DEFAULT_OUTPUT,
+    module_manifest_path: pathlib.Path = loaded_module.MANIFEST,
+    module_output: pathlib.Path = DEFAULT_MODULE_OUTPUT,
+    menu_manifest_path: pathlib.Path = loaded_module.MENU_MANIFEST,
+    menu_output: pathlib.Path = DEFAULT_MENU_OUTPUT,
     psxport: pathlib.Path | None = None,
     runner: Runner = subprocess.run,
-) -> tuple[Identity, int]:
-    """Extract to a scoped temporary directory, verify, then atomically publish."""
+) -> ProvisionedInputs:
+    """Extract and verify every input, then publish each file through atomic replacement."""
     if not discdump.is_file():
         raise Refused(
             f"discdump is missing at {discdump}; configure with Clang and build target discdump"
         )
     identity = load_identity(manifest_path)
+    try:
+        module_identities = (
+            loaded_module.load_identity(module_manifest_path),
+            loaded_module.load_identity(menu_manifest_path),
+        )
+    except loaded_module.Refused as error:
+        raise Refused(str(error)) from error
+    module_sources = {module.source_path for module in module_identities}
+    if len(module_sources) != 1:
+        rendered = ", ".join(sorted(module_sources))
+        raise Refused(
+            "loaded modules must share one measured source for atomic extraction; "
+            f"manifests name {rendered}"
+        )
+    for module_identity in module_identities:
+        if module_identity.serial != identity.serial:
+            raise Refused(
+                f"loaded module targets {module_identity.serial}, executable targets {identity.serial}"
+            )
     framework = psxport or pathlib.Path(
         os.environ.get("PSXPORT_DIR", ROOT / "external" / "psxport")
     )
@@ -367,10 +403,34 @@ def provision(
         directory = pathlib.Path(raw_directory)
         system_cnf = _extract(discdump, disc, "SYSTEM.CNF", directory, runner)
         executable = _extract(discdump, disc, identity.boot_path, directory, runner)
+        module_source = _extract(
+            discdump, disc, next(iter(module_sources)), directory, runner
+        )
         verify_system_cnf(system_cnf, identity)
-        facts = verify_executable(executable, identity, framework)
+        executable_facts = verify_executable(executable, identity, framework)
+        try:
+            verified_modules = tuple(
+                loaded_module.verify_source(module_source, module_identity)
+                for module_identity in module_identities
+            )
+        except loaded_module.Mismatch as error:
+            raise Mismatch(str(error)) from error
+        except loaded_module.Refused as error:
+            raise Refused(str(error)) from error
+        module_files = (directory / module_output.name, directory / menu_output.name)
+        for module_file, verified_module in zip(
+            module_files, verified_modules, strict=True
+        ):
+            module_file.write_bytes(verified_module.payload)
         _publish(executable, output)
-    return identity, facts
+        _publish(module_files[0], module_output)
+        _publish(module_files[1], menu_output)
+    return ProvisionedInputs(
+        identity,
+        executable_facts,
+        module_identities,
+        sum(module.facts for module in verified_modules),
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -381,20 +441,51 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--discdump", type=pathlib.Path, default=DEFAULT_DISCDUMP)
     parser.add_argument("--manifest", type=pathlib.Path, default=MANIFEST)
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--module-manifest", type=pathlib.Path, default=loaded_module.MANIFEST
+    )
+    parser.add_argument(
+        "--module-output", type=pathlib.Path, default=DEFAULT_MODULE_OUTPUT
+    )
+    parser.add_argument(
+        "--menu-manifest", type=pathlib.Path, default=loaded_module.MENU_MANIFEST
+    )
+    parser.add_argument("--menu-output", type=pathlib.Path, default=DEFAULT_MENU_OUTPUT)
     args = parser.parse_args(argv)
     try:
         disc, source = resolve_disc(args.disc)
-        identity, facts = provision(
+        provisioned = provision(
             disc,
             discdump=args.discdump.resolve(),
             manifest_path=args.manifest.resolve(),
             output=args.output.resolve(),
+            module_manifest_path=args.module_manifest.resolve(),
+            module_output=args.module_output.resolve(),
+            menu_manifest_path=args.menu_manifest.resolve(),
+            menu_output=args.menu_output.resolve(),
         )
         print(f"[provision] disc: {disc} ({source})")
-        print(f"[provision] SYSTEM.CNF boot: 1/1 ({identity.boot_path})")
-        print(f"[provision] executable identity/header: {facts}/{facts}")
+        print(f"[provision] SYSTEM.CNF boot: 1/1 ({provisioned.executable.boot_path})")
+        print(
+            "[provision] executable identity/header: "
+            f"{provisioned.executable_facts}/{provisioned.executable_facts}"
+        )
+        print(
+            "[provision] loaded modules: "
+            f"{provisioned.module_facts}/{provisioned.module_facts} facts"
+        )
+        for module in provisioned.modules:
+            print(
+                f"[provision]   0x{module.load_address:08X}.."
+                f"0x{module.load_address + module.payload_size:08X}, "
+                f"entry 0x{module.entry:08X} from LBA {module.payload_disc_lba}"
+            )
         print(f"[provision] verified output: {args.output.resolve()}")
-        print("[provision] scope: identity only; no recompilation or boot is claimed")
+        print(f"[provision] verified module: {args.module_output.resolve()}")
+        print(f"[provision] verified module: {args.menu_output.resolve()}")
+        print(
+            "[provision] scope: input identity only; no recompilation or boot is claimed"
+        )
         return 0
     except Mismatch as exc:
         print(f"MISMATCH: {exc}", file=sys.stderr)

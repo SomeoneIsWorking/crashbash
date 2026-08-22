@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 14:13:50
+verified_at: 2026-08-22 18:30:26
 ---
 
 ## Claim
@@ -18,8 +18,8 @@ Crash Bash custom interrupt exit agrees with the true Beetle oracle and reaches 
 Independent Beetle interpreter on the actual USA CHD showed steady v0=1, sp=0x80068B14 transitions
 0x80031AE8 -> 0x80031B58 with dispatcher ra=0x80031AF8. The Clang-built port showed the same
 prefix then 0x8003F5F0 -> 0x8003E14C, with no unexpected miss or CD timeout before that boundary.
-Both verifiers passed all forced negatives. The later expected overlay-discovery miss at 0x80092BDC
-is outside this claim.
+Both verifiers pass all forced negatives; subsequent BOOT and MENU execution now proceeds without a
+recompilation miss.
 
 ## What would falsify it
 
@@ -50,3 +50,11 @@ Post-landing IRQ comparator remained 4/4 and live execution reached the ordered 
 ## Re-confirmed 2026-08-22
 
 Pinned psxport 7f5d3f13 live execution retained the measured 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C service order before any unexpected miss; the oracle comparator's controlled-answer selftest passed in full CTest.
+
+## Re-confirmed 2026-08-22
+
+Against pinned psxport ad5cf802, full CTest passed the 4/4 oracle IRQ comparator and the real consumer retained 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C before the later resident CDC boundary.
+
+## Re-confirmed 2026-08-22
+
+Post-commit real consumer gate retained the measured IRQ sequence through 0x8003E14C and full CTest passed the 4/4 oracle comparator plus 7/7 boot verifier controls.

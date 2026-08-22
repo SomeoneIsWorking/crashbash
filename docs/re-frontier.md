@@ -3,6 +3,11 @@
 Tracked with the shared `re_frontier.py`; this is the ordered dependency chain from the real disc toward
 a faithful port. `re-verified` requires executable evidence plus a real verification, never merely a
 successful build.
+
+
+
+
+
 ## boot
 
 ### boot.target — Select and measure the retail target
@@ -16,26 +21,26 @@ successful build.
 ### boot.provision — Resolve the selected disc and extract the executable reproducibly
 - status: re-verified
 - deps: boot.target
-- evidence: tools/provision.py verified the real USA CHD: SYSTEM.CNF boot 1/1 and executable identity/header 11/11 at SHA-256 fd5727a18feb2a2d5a6359a55966f0266284d1e50f64ee9b8a127a97091bd516; tests/test_provision.py passed 8/8 positive, mismatch, refusal, precedence, ambiguity, and atomic-publication tests through the shipping provision path, including one failing case for each of the 11 manifest facts.
-- where: tools/provision.py, tests/test_provision.py
+- evidence: tools/provision.py verified the real USA CHD: SYSTEM.CNF boot 1/1, executable identity/header 11/11, and two measured CRASHBSH.DAT code modules 14/14. tests/test_provision.py passes 11/11 positive, mismatch, refusal, precedence, ambiguity, shared-source, bounded-offset, and atomic-publication tests through the shipping provision path, including one failing case for each of the 11 executable facts and a mutation of either loaded payload.
+- where: tools/provision.py, tools/loaded_module.py, tests/test_provision.py, titles/crashbash/executable.json, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json
 - gap:
-- notes: The disc and provisioned executable remain external/gitignored. This proves identity and provisioning only, not recompilation or boot.
+- notes: The disc, full 73,220,096-byte DAT, executable, and extracted modules remain external/gitignored. The tracked manifests prove identity and provisioning only, not game behavior.
 
 ### boot.recompile — Generate the static-recompilation substrate
 - status: re-verified
 - deps: boot.provision
-- evidence: The verified USA image plus measured indirect targets and the retail-derived HookEntryInt setjmp re-entry emitted 340 roots into 908 resident functions over 0x80010000..0x80079000, with zero configured overlays. tools/recomp_bootstrap.py passed 6/6: the real positive plus changed BSS-bound, out-of-text seed, one-byte executable mutation, wrong re-entry, and duplicated main/main_reentry refusals. A Clang build linked the output and dispatched 0x80031AE8 without a recomp miss.
-- where: tools/recomp_bootstrap.py, game/recomp_seeds.json, game/core/game_config.cpp, game/core/recomp_register.cpp, generated/ (gitignored)
+- evidence: The verified USA image plus measured indirect targets, the retail-derived HookEntryInt setjmp re-entry, and two measured CRASHBSH.DAT code modules emit 1,063 roots into 1,724 functions: resident 0x80010000..0x80079000, BOOT 0x80078C90..0x800D7490, and nested MENU 0x800B32B4..0x800BB2B4. tools/recomp_bootstrap.py passes 9/9 real-positive and forced-negative identity/configuration/cache-integrity checks, and a Clang build links both retained generated overlay bodies.
+- where: tools/recomp_bootstrap.py, tools/loaded_module.py, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, game/core/game_config.cpp, game/core/recomp_register.cpp, generated/ (gitignored)
 - gap:
-- notes: Generated output is rebuilt from the verified executable and remains untouched, gitignored, and non-authoritative. The main_reentry seed is mechanically tied to ResetCallback 0x80031A80: its sole jal to setjmp 0x8003ACEC resumes at call+8, 0x80031AE8.
+- notes: Generated output is rebuilt from the verified executable/modules and remains untouched, gitignored, and non-authoritative. The main_reentry seed is mechanically tied to ResetCallback 0x80031A80: its sole jal to setjmp 0x8003ACEC resumes at call+8, 0x80031AE8.
 
 ### boot.harness — Establish a deterministic psxport/oracle boot comparison
 - status: re-verified
 - deps: boot.recompile
-- evidence: The independent Beetle interpreter ran the actual USA CHD for 600 frames and repeatedly showed the saved-context path 0x80031AE8 (v0=1, sp=0x80068B14) -> 0x80031B58 (same sp, ra=0x80031AF8). The Clang port shared that prefix and continued through IRQ2 callback 0x8003F5F0 -> drain 0x8003E14C with no recomp miss or old CD timeout. After runtime ownership moved from `GameHooks` into the inherited `CrashBashRuntime`, pinned psxport 7f5d3f13 produced the same 129-line boundary: all 7 required facts, ordered 4-entry service, `done loading`, and exact next miss 0x80092BDC. tools/verify_oracle_irq.py passed the real comparison and 4/4 selftests; tools/verify_boot.py passed 5/5 and requires file-load progression after the PVD lookup.
+- evidence: The independent Beetle interpreter ran the actual USA CHD for 600 frames and repeatedly showed the saved-context path 0x80031AE8 (v0=1, sp=0x80068B14) -> 0x80031B58 (same sp, ra=0x80031AF8). The current Clang port preserves that prefix and IRQ2 callback 0x8003F5F0 -> drain 0x8003E14C, completes two loaded-module requests, executes the nested MENU callback, and deterministically traces resident 0x8002DE2C without a recomp miss. tools/verify_oracle_irq.py passes the real comparison and 4/4 selftests; tools/verify_boot.py passes the real boundary and 7/7 forced-answer checks.
 - where: tools/verify_oracle_irq.py, tools/verify_boot.py, game/recomp_seeds.json, game/core/crashbash_runtime.cpp
 - gap:
-- notes: The comparison is deliberately at the custom exception-exit boundary shared by both machines. It does not claim full-RAM lockstep or that the later CD filesystem state agrees.
+- notes: The oracle comparison is deliberately at the custom exception-exit boundary shared by both machines. It does not claim full-RAM lockstep or that later CD command response timing agrees.
 
 ### boot.first-divergence — Reach and root-cause the first real divergence
 - status: re-verified
@@ -48,21 +53,29 @@ successful build.
 ### boot.drive-timing — Reproduce asynchronous drive-sector availability
 - status: in-progress
 - deps: boot.first-divergence
-- evidence: The true oracle's read starter returns 1 with 189 sectors still pending; its initial read/sync result is 189, then completion returns 1 before settling to 0. Pinned psxport 3418a79b schedules mode-0xA0 sector events exactly 225,792 guest-instruction ticks apart, returns the initial 189, sources all 378 file DMAs without depletion, avoids the retry, prints `done loading`, and reaches unloaded entry 0x80092BDC. Its strict landed trace still diverges at completion: v0=1/rem=0/expected=0x8C94/async=1 exists transiently, but async clears before either 0x800348A8 or 0x80027944 returns; only sync return 0 is observed. tools/verify_read_completion.py correctly refuses it while its 5/5 selftest proves the opposite answer.
+- evidence: The true oracle's read starter returns 1 with 189 sectors still pending; its initial read/sync result is 189, then completion returns 1 before settling to 0. The deterministic drive schedule first landed in psxport 3418a79b and remains present in pinned ad5cf802: mode-0xA0 sector events are 225,792 guest-instruction ticks apart, the initial 189 is returned, all 378 file DMAs are sourced without depletion, and the retry is absent. Its strict trace still diverges at completion: v0=1/rem=0/expected=0x8C94/async=1 exists transiently, but async clears before either 0x800348A8 or 0x80027944 returns; only sync return 0 is observed. tools/verify_read_completion.py correctly refuses it while its 5/5 selftest proves the opposite answer.
 - where: external/psxport/runtime/recomp/cdc_native.cpp, tools/verify_read_completion.py, docs/issues/0007-crash-bash-repeats-the-189-sector-crashbsh-dat-r.md
 - gap: Fix shared CD response/IRQ coalescing: one 0x8003F5F0 invocation currently dispatches bit-4 callback 0x80034040 (async=1) and then bit-2 callback 0x8003400C (async=0) before returning, while the oracle exposes sync/poll result 1 between them. Preserve the landed deterministic drive schedule. Afterward make the shared watchdog count verified CD/FMV progress.
 - notes: No game-local file-read HLE, fake CdInit, or watchdog relaxation is permitted.
+
+### boot.loaded-modules — Provision and execute the initial loaded code modules
+- status: re-verified
+- deps: boot.first-divergence
+- evidence: Real CDC/DMA traces identify BOOT as CRASHBSH.DAT +0x04575800, 0x5E800 bytes, loaded at 0x80078C90 with entry pointer 0x80092BDC, and MENU as +0x03693000, 0x8000 bytes, loaded at 0x800B32B4 with callback pointer 0x800B5244 at +0x6270. Provisioning verifies the full 73,220,096-byte DAT plus both payload hashes and pointers (14/14 module facts); emission retains both generated bodies. The real Clang consumer executes MENU after the shared most-specific nested-range fix, prints empty prims, and deterministically traces resident 0x8002DE2C without a recomp miss. tools/verify_boot.py passes 7/7 and tools/verify_command_response_timing.py passes 5/5.
+- where: tools/loaded_module.py, tools/provision.py, tests/test_provision.py, tools/recomp_bootstrap.py, tools/verify_boot.py, tools/verify_command_response_timing.py, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json
+- gap:
+- notes: No DAT or module bytes are tracked. The next execution stop is shared CDC command-response timing, issue 0009; no game-local CD HLE or renderer fallback is permitted.
 
 
 ## graphics
 
 ### graphics.camera-submitters — Identify native camera state and graphics submitters
 - status: todo
-- deps: boot.drive-timing
+- deps: boot.drive-timing, boot.loaded-modules
 - evidence:
 - where: game/render/
-- gap: The headless product initializes the native renderer but reaches uncompiled loaded entry 0x80092BDC before any game frame; identify and emit the loaded executable, then RE its camera and submitters from game-state inputs before creating native producers.
-- notes: `game/render/` does not exist and no graphics producer is registered. Do not derive pictures from GTE, OT, or GP0 output.
+- gap: The headless product initializes the native renderer and executes the initial BOOT and MENU loaded modules, then shared zero-latency CDC command delivery drains GetTN before resident poll state 0x8002DE2C can observe it. Fix that hardware-order boundary, then RE the loaded modules camera and submitters from game-state inputs before creating native producers.
+- notes: game/render/ does not exist and no graphics producer is registered. Do not derive pictures from GTE, OT, or GP0 output.
 
 ### graphics.enhancements — Enable widescreen and interpolation on PC-owned producers
 - status: todo

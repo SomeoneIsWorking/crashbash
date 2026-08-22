@@ -1,12 +1,13 @@
 ---
 id: C004
 kind: claim
-status: holds
+status: falsified
 created: 2026-08-21
 tags: boot,recompiler
 depends: tools/recomp_bootstrap.py#check, game/recomp_seeds.json, game/core/game_config.cpp
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 14:13:50
+falsified_on: 2026-08-22
 ---
 
 ## Claim
@@ -32,3 +33,9 @@ Post-landing recomp_bootstrap selftest passed 6/6; the identity-bound image plus
 ## Re-confirmed 2026-08-22
 
 crashbash_recomp_bootstrap_selftest passed after the legacy program facts were exposed through CrashBashRuntime; it accepted the real 340-root/908-function substrate and rejected all controlled mismatches.
+
+## FALSIFIED 2026-08-22
+
+The measured BOOT and MENU DAT modules are now explicitly provisioned, configured, emitted, and range-checked, so the old claim's defining 'no configured overlays' condition no longer holds; C011 supersedes it.
+
+> Anything that cited this claim as proof must be re-checked. Grep the repo for it.

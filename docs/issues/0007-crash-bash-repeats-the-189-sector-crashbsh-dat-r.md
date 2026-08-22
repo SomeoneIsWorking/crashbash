@@ -36,10 +36,10 @@ for this request. `0x80027790` returns `0xFFFFFFFF` four measured times with act
 async all zero. `tools/verify_read_completion.py` accepts the paced oracle sequence and rejects this
 instant-completion answer, a same-range restart, and wrong async state.
 
-On current pinned psxport `3418a79b`, the initial boundary now agrees: the starter returns one at guest
+On the deterministic-scheduling framework `3418a79b`, the initial boundary agrees: the starter returns one at guest
 instruction tick 1,332,412 with all 189 sectors pending, and `0x80027790` returns 189. Each
 sector event is exactly 225,792 guest CPU cycles apart at mode `0xA0`; the file reaches
-`done loading` without restarting and the next truthful stop is unloaded code at `0x80092BDC`.
+`done loading` without restarting and exposed loaded code at `0x80092BDC` as the next dependency.
 The completion boundary is not yet oracle-equivalent. The port reaches
 `v0=1, remaining=0, expected=0x8C94, async=1` transiently at cycle 44,081,261, but clears async at
 44,081,771 before either measured function returns. The only observed sync return is
@@ -79,20 +79,20 @@ Keep the deterministic drive schedule, then stop the shared CD response/IRQ path
 bit-4 completion callback and bit-2 clear callback into one `0x8003F5F0` drain. The completion-pending
 state must remain observable at `0x800348A8` and `0x80027944` between those hardware edges.
 Resolution still requires the oracle's returned `1 -> 0` sequence, not merely `done loading` and no
-retry. The deterministic framework is landed and pinned at `3418a79b`; after fixing the independent
-response/IRQ ordering defect, emit/discover the loaded overlay entry `0x80092BDC`. Separately, route verified
-CD/FMV progress into the shared watchdog owner rather than weakening its timeout.
+retry. The deterministic framework is landed. The independent response/IRQ ordering defect remains
+the resolution criterion. BOOT and nested MENU have since been measured, provisioned, emitted, and
+executed; that work does not resolve the oracle-visible completion-order mismatch. Separately, route
+verified CD/FMV progress into the shared watchdog owner rather than weakening its timeout.
 
 ## Rendering audit (2026-08-22)
 
 The current shipping game code has no native graphics producer and cannot present a game picture yet.
 With the verified USA disc and the binary built from the unchanged shipping `game/` sources against
-the exact recorded psxport pin `3418a79b`, `tools/verify_boot.py` passed with 129 runtime lines: the
-native GPU initialized, all 189 `CRASHBSH.DAT` sectors loaded, and dispatch then failed fast at
-`0x80092BDC`. That address is loaded code outside every emitted resident/overlay range, not a renderer
-regression. The same environment passed all 7 CTest gates.
+exact recorded psxport pin `ad5cf802`, `tools/verify_boot.py` now proves that the native GPU initializes,
+BOOT and nested MENU execute through retained generated bodies, and execution reaches resident
+0x8002DE2C without a recomp miss. The same environment passes all 8 CTest gates.
 
-Graphics work remains downstream of two real prerequisites: preserve the oracle-visible CD completion
-`1 -> 0` ordering in the shared controller, then identify and emit the loaded executable containing
-`0x80092BDC`. Adding a guest-packet fallback, a fabricated boot picture, or camera constants before that
-execution spine exists would hide this boundary rather than advance the port.
+Graphics work remains downstream of shared CDC timing. The landed port drains and acknowledges a GetTN
+response in 0x8003E14C before resident 0x8002DE2C can observe it, as tracked in issue 0009. Adding a
+guest-packet fallback, a fabricated boot picture, or camera constants before that execution spine
+advances would hide the boundary rather than advance the port.

@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,cdrom,cdc
 depends: psxport.pin, tools/verify_boot.py#judge
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 14:13:51
+verified_at: 2026-08-22 18:30:26
 ---
 
 ## Claim
@@ -48,3 +48,11 @@ Post-landing PVD split and all 189 sectors remained FIFO-backed, all 196 periods
 ## Re-confirmed 2026-08-22
 
 Pinned psxport 7f5d3f13 real-disc verifier found CRASHBSH.DAT, completed its 189-sector load without cant-find, timeout, retry, or earlier miss, printed done loading, and reached 0x80092BDC.
+
+## Re-confirmed 2026-08-22
+
+Against pinned psxport ad5cf802, real-disc provisioning verified the USA executable plus BOOT and MENU payloads; the live consumer completed both measured file loads, reported no cant-find, timeout, retry, or recomp miss, executed nested MENU, and reached the later resident CDC boundary.
+
+## Re-confirmed 2026-08-22
+
+Post-commit real consumer completed both measured loads and executed nested MENU without cant-find, timeout, retry, or recomp miss before resident 0x8002DE2C.

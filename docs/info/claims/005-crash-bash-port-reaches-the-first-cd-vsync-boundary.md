@@ -1,13 +1,13 @@
 ---
 id: C005
 kind: claim
-status: holds
+status: falsified
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, game/core/crashbash_runtime.cpp, psxport.pin
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 14:13:50
-falsified_on: 2026-08-21
+falsified_on: 2026-08-22
 ---
 
 ## Claim
@@ -52,3 +52,9 @@ Post-landing direct and zero-argument routes each loaded CRASHBSH.DAT once, prin
 ## Re-confirmed 2026-08-22
 
 Pinned psxport 7f5d3f13 with inherited CrashBashRuntime: live verifier passed over 129 lines with all 7 required facts, ordered 4-entry IRQ service, complete DAT load, and exact next miss 0x80092BDC; full Clang CTest passed 7/7.
+
+## FALSIFIED 2026-08-22
+
+Execution no longer stops at an unloaded 0x80092BDC: BOOT is provisioned and recompiled, nested MENU executes, and the current boundary is the resident GetTN polling path at 0x8002DE2C; C011 supersedes it.
+
+> Anything that cited this claim as proof must be re-checked. Grep the repo for it.

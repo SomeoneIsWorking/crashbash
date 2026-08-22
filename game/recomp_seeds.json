@@ -16,7 +16,22 @@
   // resume PC.  main_reentry is the authoritative seed class: psxport unions it into discovery,
   // emits the dispatchable body, and preserves fallthrough across the artificial split.
   "main_reentry": ["0x80031AE8"],
-  "overlay_bases": {},
+  "overlay_bases": {
+    // The first CRASHBSH.DAT module is the final 189 sectors of the file. The live CD trace writes
+    // LBA 35799 first to 0x80078C90 and LBA 35987 last to 0x800D6C90, establishing the fixed load
+    // range [0x80078C90, 0x800D7490). Its first word is the dispatcher entry 0x80092BDC.
+    "BOOT": "0x80078C90",
+    // The BOOT module requests 16 DAT sectors after entering its menu state. Live DMA writes LBA
+    // 28178 first to 0x800B32B4 and LBA 28193 last to 0x800BAAB4, replacing this nested code range.
+    "MENU": "0x800B32B4"
+  },
   "overlay_base_patterns": [],
-  "overlay_seeds": {}
+  "overlay_seeds": {
+    // Resident dispatcher 0x80010410 indirect-calls the module's first pointer after the load. The
+    // post-load RAM dump and raw module independently agree that this pointer is 0x80092BDC.
+    "BOOT": ["0x80092BDC"],
+    // After the second read, object callback 0x8001E610 reads 0x800B5244 from the MENU image's raw
+    // function table at 0x800B9524. The fail-fast dispatch trace proves this callback is invoked.
+    "MENU": ["0x800B5244"]
+  }
 }

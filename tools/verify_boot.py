@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Crash Bash loads its first file and stops at the measured overlay boundary."""
+"""Verify Crash Bash executes its measured loaded modules to the next hardware boundary."""
 
 from __future__ import annotations
 
@@ -14,21 +14,27 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PORT = ROOT / "scratch/bin/crashbash_port"
 EXE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
 LOG = ROOT / "scratch/logs/verify-boot.log"
+MENU_EXECUTION = "_Z20ov_menu_gen_800B5218P4Core"
+POLL_STATE_REACHED = "[fntrace] 0x8002DE2C REACHED"
 
 REQUIRED = (
     "10 field(s) AGREE, 0 DISAGREE, 0 unresolved",
     "[fntrace] 0x8002718C REACHED",
     "[fntrace] 0x8003B1BC REACHED",
-    "[irq] pending I_STAT&I_MASK=0x004; no SysEnq element claimed it (1 in chain), "
-    "custom exception exit installed",
-    "load file start",
-    "done loading",
-    "[hle:warn] [recomp-MISS 0] no recompiled fn for 0x80092BDC",
+    (
+        "[irq] pending I_STAT&I_MASK=0x004; no SysEnq element claimed it (1 in chain), "
+        "custom exception exit installed"
+    ),
+    "empty prims",
+    MENU_EXECUTION,
+    POLL_STATE_REACHED,
+    "[watchdog] STUCK: no frame presented within the timeout",
 )
 FORBIDDEN = (
     "Segmentation fault",
     "CD timeout:",
     "Cant find CRASHBSH.DAT",
+    "[recomp-MISS",
 )
 IRQ_SEQUENCE = ("80031AE8", "80031B58", "8003F5F0", "8003E14C")
 
@@ -48,11 +54,8 @@ def judge(text: str) -> Verdict:
     lines = len(text.splitlines())
     missing = [pattern for pattern in REQUIRED if pattern not in text]
     present = [pattern for pattern in FORBIDDEN if pattern in text]
-    unexpected_misses = [
-        line
-        for line in text.splitlines()
-        if "[recomp-MISS" in line and REQUIRED[6] not in line
-    ]
+    load_starts = text.count("load file start")
+    load_completions = text.count("done loading")
     marker = text.find(REQUIRED[3])
     sequence_index = marker
     missing_sequence: list[str] = []
@@ -62,14 +65,23 @@ def judge(text: str) -> Verdict:
             if sequence_index < 0:
                 missing_sequence.append(address)
                 break
-    if missing or present or missing_sequence or unexpected_misses:
+    if (
+        missing
+        or present
+        or missing_sequence
+        or load_starts < 2
+        or load_completions < 2
+    ):
         details = []
         if missing:
             details.append("missing " + ", ".join(repr(item) for item in missing))
         if present:
             details.append("forbidden " + ", ".join(repr(item) for item in present))
-        if unexpected_misses:
-            details.append("unexpected recomp miss " + repr(unexpected_misses[0]))
+        if load_starts < 2 or load_completions < 2:
+            details.append(
+                f"loaded-module progression {load_starts} start(s), "
+                f"{load_completions} completion(s); expected at least 2/2"
+            )
         if missing_sequence:
             details.append(
                 "missing ordered IRQ service after pending bit 2: "
@@ -90,7 +102,9 @@ def run(port: Path, timeout: float) -> str:
         PSXPORT_ASSET_DIR=str(ROOT / "external/psxport"),
         PSXPORT_NOPACE="1",
         PSXPORT_NOAUDIO="1",
-        PSXPORT_FNTRACE="8002718C,8003B1BC,80031AE8,80031B58,8003F5F0,8003E14C",
+        PSXPORT_FNTRACE=(
+            "8002718C,8003B1BC,80031AE8,80031B58,8003F5F0,8003E14C,8002DE2C"
+        ),
         PSXPORT_FNTRACE_REGS="2",
         PSXPORT_WATCHDOG="2",
     )
@@ -126,7 +140,7 @@ def selftest(port: Path, timeout: float) -> bool:
         f"PASS positive: {verdict.lines} runtime line(s), {verdict.required}/{len(REQUIRED)} "
         f"required boundary facts, ordered {len(IRQ_SEQUENCE)}-entry IRQ service, "
         f"{verdict.forbidden}/{len(FORBIDDEN)} forbidden patterns absent; "
-        "expected next boundary 0x80092BDC"
+        "expected next boundary resident CD poll 0x8002DE2C"
     )
     passed = 1
     changed = output.replace(REQUIRED[1], "game-main trace removed", 1)
@@ -152,7 +166,7 @@ def selftest(port: Path, timeout: float) -> bool:
         print("PASS negative: breaking the master-dispatcher order fails the boundary")
     else:
         print("FAIL negative: broken IRQ service order passed", file=sys.stderr)
-    changed = output.replace(REQUIRED[4], "file-load progression removed", 1)
+    changed = output.replace("load file start", "file-load progression removed", 1)
     try:
         judge(changed)
     except Refused:
@@ -160,8 +174,24 @@ def selftest(port: Path, timeout: float) -> bool:
         print("PASS negative: missing file-load progression fails the boundary")
     else:
         print("FAIL negative: missing file-load progression passed", file=sys.stderr)
-    print(f"SELFTEST {passed}/5")
-    return passed == 5
+    changed = output.replace(MENU_EXECUTION, "MENU execution removed", 1)
+    try:
+        judge(changed)
+    except Refused:
+        passed += 1
+        print("PASS negative: removing MENU execution fails the boundary")
+    else:
+        print("FAIL negative: missing MENU execution passed", file=sys.stderr)
+    changed = output.replace(POLL_STATE_REACHED, "resident poll trace removed", 1)
+    try:
+        judge(changed)
+    except Refused:
+        passed += 1
+        print("PASS negative: removing the resident poll trace fails the boundary")
+    else:
+        print("FAIL negative: missing resident poll trace passed", file=sys.stderr)
+    print(f"SELFTEST {passed}/7")
+    return passed == 7
 
 
 def main() -> int:
@@ -176,8 +206,8 @@ def main() -> int:
         verdict = judge(run(args.port, args.timeout))
         print(
             f"PASS: {verdict.lines} runtime line(s); crt0, guest main, custom exception exit, "
-            "master dispatcher, CD IRQ callback, and file completion observed before the measured "
-            "unloaded entry 0x80092BDC"
+            "master dispatcher, CD IRQ callback, both loaded modules, and MENU callback observed "
+            "before the measured resident CD poll boundary 0x8002DE2C"
         )
         return 0
     except Refused as error:

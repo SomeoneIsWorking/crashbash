@@ -6,7 +6,7 @@ created: 2026-08-21
 tags: boot,cdrom,harness
 depends: tools/verify_read_completion.py#completion_contract, psxport.pin
 reconfirmed: 2026-08-22
-verified_at: 2026-08-22 14:13:51
+verified_at: 2026-08-22 18:30:27
 ---
 
 ## Claim
@@ -52,3 +52,11 @@ Post-landing deterministic pacing still removes the original same-range retry an
 ## Re-confirmed 2026-08-22
 
 Pinned psxport 7f5d3f13 retained the causal positive at the observable boundary: the same 189-sector range did not retry, done loading printed, and execution reached 0x80092BDC; the strict completion comparator's 5/5 controlled-answer selftest still passed.
+
+## Re-confirmed 2026-08-22
+
+Against pinned psxport ad5cf802, the historical causal positive remains reproduced at the observable boundary: the measured loads complete without the old same-range retry, while the strict read-completion comparator retained all 5/5 controlled answers in full CTest.
+
+## Re-confirmed 2026-08-22
+
+Post-commit full CTest retained the historical causal positive: measured loads do not repeat, while the read-completion comparator passed all 5 controlled answers.

@@ -56,11 +56,55 @@ def write_manifest(path: pathlib.Path, executable: bytes) -> None:
     )
 
 
+def synthetic_module_source() -> tuple[bytes, bytes, bytes]:
+    boot = bytearray(0x80)
+    menu = bytearray(0x80)
+    struct.pack_into("<I", boot, 0, 0x80018020)
+    struct.pack_into("<I", menu, 0, 0x80020020)
+    boot[4:] = bytes(range(4, 0x80))
+    menu[4:] = bytes(reversed(range(4, 0x80)))
+    source = bytes(0x80) + bytes(boot) + bytes(menu)
+    return source, bytes(boot), bytes(menu)
+
+
+def write_module_manifest(
+    path: pathlib.Path, source: bytes, payload: bytes, load_address: int, entry: int
+) -> None:
+    offset = source.index(payload)
+    path.write_text(
+        json.dumps(
+            {
+                "title": "Crash Bash fixture module",
+                "serial": "SCUS-TEST",
+                "source_path": "DATA/CRASHBSH.DAT",
+                "source_size": len(source),
+                "source_sha256": hashlib.sha256(source).hexdigest(),
+                "source_file_lba": 1,
+                "payload_disc_lba": 1 + offset // len(payload),
+                "sector_size": len(payload),
+                "sector_count": 1,
+                "payload_offset": f"0x{offset:08X}",
+                "payload_size": f"0x{len(payload):08X}",
+                "payload_sha256": hashlib.sha256(payload).hexdigest(),
+                "load_address": f"0x{load_address:08X}",
+                "entry_pointer_offset": "0x00000000",
+                "entry": f"0x{entry:08X}",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 class FakeDiscdump:
     def __init__(
-        self, executable: bytes, boot: str = "SCUS_TEST.00", returncode: int = 0
+        self,
+        executable: bytes,
+        module_source: bytes,
+        boot: str = "SCUS_TEST.00",
+        returncode: int = 0,
     ):
         self.executable = executable
+        self.module_source = module_source
         self.boot = boot
         self.returncode = returncode
         self.requests: list[str] = []
@@ -75,6 +119,8 @@ class FakeDiscdump:
         output = pathlib.Path(command[4]) / pathlib.PurePosixPath(disc_path).name
         if disc_path == "SYSTEM.CNF":
             output.write_text(f"BOOT = cdrom:\\{self.boot};1\r\n", encoding="ascii")
+        elif disc_path.endswith("CRASHBSH.DAT"):
+            output.write_bytes(self.module_source)
         else:
             output.write_bytes(self.executable)
         return subprocess.CompletedProcess(command, 0, f"dumped {output}", "")
@@ -147,8 +193,27 @@ class ProvisionTest(unittest.TestCase):
         self.discdump.touch()
         self.output = self.directory / "output" / "SCUS_TEST.00"
         self.manifest = self.directory / "executable.json"
+        self.module_manifest = self.directory / "boot_module.json"
+        self.menu_manifest = self.directory / "menu_module.json"
         self.executable = synthetic_executable()
+        self.module_source, self.module, self.menu_module = synthetic_module_source()
         write_manifest(self.manifest, self.executable)
+        write_module_manifest(
+            self.module_manifest,
+            self.module_source,
+            self.module,
+            0x80018000,
+            0x80018020,
+        )
+        write_module_manifest(
+            self.menu_manifest,
+            self.module_source,
+            self.menu_module,
+            0x80020000,
+            0x80020020,
+        )
+        self.module_output = self.directory / "output" / "overlays" / "BOOT.BIN"
+        self.menu_output = self.directory / "output" / "overlays" / "MENU.BIN"
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -159,32 +224,88 @@ class ProvisionTest(unittest.TestCase):
             discdump=self.discdump,
             manifest_path=self.manifest,
             output=self.output,
+            module_manifest_path=self.module_manifest,
+            module_output=self.module_output,
+            menu_manifest_path=self.menu_manifest,
+            menu_output=self.menu_output,
             psxport=ROOT / "external" / "psxport",
             runner=fake,
         )
 
     def test_matching_disc_publishes_verified_executable(self):
-        fake = FakeDiscdump(self.executable)
-        identity, facts = self.run_provision(fake)
-        self.assertEqual(identity.boot_path, "SCUS_TEST.00")
-        self.assertEqual(facts, 11)
-        self.assertEqual(fake.requests, ["SYSTEM.CNF", "SCUS_TEST.00"])
+        fake = FakeDiscdump(self.executable, self.module_source)
+        provisioned = self.run_provision(fake)
+        self.assertEqual(provisioned.executable.boot_path, "SCUS_TEST.00")
+        self.assertEqual(provisioned.executable_facts, 11)
+        self.assertEqual(provisioned.module_facts, 14)
+        self.assertEqual(
+            fake.requests, ["SYSTEM.CNF", "SCUS_TEST.00", "DATA/CRASHBSH.DAT"]
+        )
         self.assertEqual(self.output.read_bytes(), self.executable)
+        self.assertEqual(self.module_output.read_bytes(), self.module)
+        self.assertEqual(self.menu_output.read_bytes(), self.menu_module)
 
     def test_wrong_system_cnf_is_a_mismatch_and_preserves_prior_output(self):
         previous = b"previous verified output"
         self.output.parent.mkdir(parents=True)
         self.output.write_bytes(previous)
         with self.assertRaises(provision.Mismatch):
-            self.run_provision(FakeDiscdump(self.executable, boot="OTHER.EXE"))
+            self.run_provision(
+                FakeDiscdump(self.executable, self.module_source, boot="OTHER.EXE")
+            )
         self.assertEqual(self.output.read_bytes(), previous)
 
     def test_mutated_executable_is_a_mismatch_and_is_not_published(self):
         mutated = bytearray(self.executable)
         mutated[-1] ^= 1
         with self.assertRaises(provision.Mismatch):
-            self.run_provision(FakeDiscdump(bytes(mutated)))
+            self.run_provision(FakeDiscdump(bytes(mutated), self.module_source))
         self.assertFalse(self.output.exists())
+
+    def test_mutated_loaded_module_is_a_mismatch_and_publishes_neither_input(self):
+        mutated = bytearray(self.module_source)
+        mutated[-1] ^= 1
+        with self.assertRaises(provision.Mismatch):
+            self.run_provision(FakeDiscdump(self.executable, bytes(mutated)))
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.module_output.exists())
+        self.assertFalse(self.menu_output.exists())
+
+    def test_different_module_sources_refuse_before_extraction(self):
+        changed = json.loads(self.menu_manifest.read_text(encoding="utf-8"))
+        changed["source_path"] = "DATA/OTHER.DAT"
+        self.menu_manifest.write_text(json.dumps(changed), encoding="utf-8")
+        fake = FakeDiscdump(self.executable, self.module_source)
+        with self.assertRaises(provision.Refused):
+            self.run_provision(fake)
+        self.assertEqual(fake.requests, [])
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.module_output.exists())
+        self.assertFalse(self.menu_output.exists())
+
+    def test_negative_module_pointer_offset_refuses_before_extraction(self):
+        changed = json.loads(self.menu_manifest.read_text(encoding="utf-8"))
+        changed["entry_pointer_offset"] = "-0x1"
+        self.menu_manifest.write_text(json.dumps(changed), encoding="utf-8")
+        fake = FakeDiscdump(self.executable, self.module_source)
+        with self.assertRaises(provision.Refused):
+            self.run_provision(fake)
+        self.assertEqual(fake.requests, [])
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.module_output.exists())
+        self.assertFalse(self.menu_output.exists())
+
+    def test_unknown_module_field_refuses_before_extraction(self):
+        changed = json.loads(self.menu_manifest.read_text(encoding="utf-8"))
+        changed["unmeasured_hint"] = "must not be ignored"
+        self.menu_manifest.write_text(json.dumps(changed), encoding="utf-8")
+        fake = FakeDiscdump(self.executable, self.module_source)
+        with self.assertRaises(provision.Refused):
+            self.run_provision(fake)
+        self.assertEqual(fake.requests, [])
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.module_output.exists())
+        self.assertFalse(self.menu_output.exists())
 
     def test_each_of_the_eleven_manifest_facts_can_fail(self):
         original = json.loads(self.manifest.read_text(encoding="utf-8"))
@@ -210,13 +331,17 @@ class ProvisionTest(unittest.TestCase):
                     changed[field][child] = wrong
                 self.manifest.write_text(json.dumps(changed), encoding="utf-8")
                 with self.assertRaises(provision.Mismatch):
-                    self.run_provision(FakeDiscdump(self.executable))
+                    self.run_provision(
+                        FakeDiscdump(self.executable, self.module_source)
+                    )
                 self.assertFalse(self.output.exists())
         self.manifest.write_text(json.dumps(original), encoding="utf-8")
 
     def test_extraction_failure_refuses_without_publishing(self):
         with self.assertRaises(provision.Refused):
-            self.run_provision(FakeDiscdump(self.executable, returncode=1))
+            self.run_provision(
+                FakeDiscdump(self.executable, self.module_source, returncode=1)
+            )
         self.assertFalse(self.output.exists())
 
 

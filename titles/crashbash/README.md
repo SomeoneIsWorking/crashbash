@@ -2,8 +2,8 @@
 
 The selected target is the North American retail disc (`SCUS-94570`, NTSC-U). Its identity and boot
 image measurements now drive the shipped game seam and reproducible generated substrate. The port
-reaches guest main and the measured IRQ callback, then stops in the unimplemented CD/VSync hardware
-path; this is not yet an oracle or gameplay claim.
+reaches guest main and the measured IRQ callback, then executes two measured code modules loaded from
+`CRASHBSH.DAT`. Its next stop is shared CD command-response timing; this is not yet a gameplay claim.
 
 `SYSTEM.CNF` names `cdrom:\SCUS_945.70;1`. The executable independently contains both the
 `Sony Computer Entertainment Inc. for North America area` and `BASCUS-94570` markers. The disc also
@@ -20,7 +20,16 @@ contains a Spyro 3 demo payload, but that is not the configured boot executable.
 | header GP | `0x00000000` |
 | header SP | `0x801FFFF0` |
 
-The tracked machine-readable identity is `executable.json`.
+The tracked machine-readable executable identity is `executable.json`.
+
+## Loaded-module evidence
+
+The first file read loads 189 sectors at `0x80078C90`; its first word is the dispatcher entry
+`0x80092BDC`. That BOOT module later loads a nested 16-sector MENU range at `0x800B32B4`; its raw
+function table at `+0x6270` holds the observed callback `0x800B5244`. Full-DAT identity, disc LBA,
+DAT offset, payload identity, load range, and entry-pointer evidence are tracked in
+`boot_module.json` and `menu_module.json`. Provisioning verifies 14/14 module facts before publishing
+either payload, and the real consumer executes MENU without a recomp miss.
 
 ## CRT0 evidence
 
@@ -57,4 +66,5 @@ scratch/build-clang/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/S
 
 Disc images and extracted files stay under external storage or gitignored `scratch/`; neither is tracked.
 For normal provisioning, `python3 tools/provision.py [disc.chd]` owns disc resolution, validates
-`SYSTEM.CNF`, checks these same 11 executable facts, and atomically publishes only a verified image.
+`SYSTEM.CNF`, checks these same 11 executable facts plus both module identities, and atomically
+publishes only the verified executable and payload set.

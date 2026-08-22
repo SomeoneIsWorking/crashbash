@@ -13,9 +13,20 @@ import sys
 import tempfile
 from pathlib import Path
 
+import loaded_module
+
 ROOT = Path(__file__).resolve().parents[1]
 EXE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
+MODULES = {
+    "BOOT": ROOT / "scratch/bin/crashbash/overlays/BOOT.BIN",
+    "MENU": ROOT / "scratch/bin/crashbash/overlays/MENU.BIN",
+}
+OVERLAYS = MODULES["BOOT"].parent
 IDENTITY = ROOT / "titles/crashbash/executable.json"
+MODULE_IDENTITIES = {
+    "BOOT": ROOT / "titles/crashbash/boot_module.json",
+    "MENU": ROOT / "titles/crashbash/menu_module.json",
+}
 SEEDS = ROOT / "game/recomp_seeds.json"
 CONFIG = ROOT / "game/core/game_config.cpp"
 GENERATED = ROOT / "generated"
@@ -68,6 +79,29 @@ def require_retail(path: Path = EXE) -> dict:
     return expected
 
 
+def require_module(name: str, path: Path | None = None) -> loaded_module.ModuleIdentity:
+    source = path or MODULES[name]
+    try:
+        identity = loaded_module.load_identity(MODULE_IDENTITIES[name])
+        data = source.read_bytes()
+    except (OSError, loaded_module.Refused) as error:
+        raise Refused(f"cannot verify loaded module {source}: {error}") from error
+    digest = hashlib.sha256(data).hexdigest()
+    if len(data) != identity.payload_size or digest != identity.payload_sha256:
+        raise Refused(
+            f"{source} is not the verified loaded module: {len(data)} bytes sha256 {digest}; "
+            f"expected {identity.payload_size} bytes sha256 {identity.payload_sha256}"
+        )
+    pointer = identity.entry_pointer_offset
+    entry = int.from_bytes(data[pointer : pointer + 4], "little")
+    if entry != identity.entry:
+        raise Mismatch(
+            f"loaded module pointer at +0x{pointer:X} is 0x{entry:08X}, "
+            f"expected 0x{identity.entry:08X}"
+        )
+    return identity
+
+
 def load_seeds(path: Path = SEEDS) -> dict:
     try:
         text = path.read_text(encoding="utf-8")
@@ -89,9 +123,42 @@ def seed_addresses(data: dict, key: str) -> set[int]:
     if not isinstance(values, list):
         raise Refused(f"recompiler seed field {key} must be an array")
     try:
-        return {int(value, 0) if isinstance(value, str) else int(value) for value in values}
+        return {
+            int(value, 0) if isinstance(value, str) else int(value) for value in values
+        }
     except (TypeError, ValueError) as error:
         raise Refused(f"recompiler seed field {key} contains a non-address") from error
+
+
+def verify_module_seed(
+    data: dict, name: str, identity: loaded_module.ModuleIdentity
+) -> None:
+    bases = data.get("overlay_bases", {})
+    overlay_seeds = data.get("overlay_seeds", {})
+    if not isinstance(bases, dict) or not isinstance(overlay_seeds, dict):
+        raise Refused("overlay_bases and overlay_seeds must be objects")
+    try:
+        shipped_base = int(bases.get(name, ""), 0)
+        shipped_entries = {
+            int(value, 0) if isinstance(value, str) else int(value)
+            for value in overlay_seeds.get(name, [])
+        }
+    except (TypeError, ValueError) as error:
+        raise Refused(f"{name} overlay base/seed contains a non-address") from error
+    if shipped_base != identity.load_address:
+        raise Mismatch(
+            f"{name} overlay base ships 0x{shipped_base:08X}, measured load address is "
+            f"0x{identity.load_address:08X}"
+        )
+    if shipped_entries != {identity.entry}:
+        rendered = (
+            ", ".join(f"0x{address:08X}" for address in sorted(shipped_entries))
+            or "none"
+        )
+        raise Mismatch(
+            f"{name} overlay seeds ship {rendered}; measured callback entry is "
+            f"0x{identity.entry:08X}"
+        )
 
 
 def verify_interrupt_reentry(data: bytes, seeds: Path = SEEDS) -> int:
@@ -127,7 +194,9 @@ def verify_interrupt_reentry(data: bytes, seeds: Path = SEEDS) -> int:
         )
     resume = resumes[0]
     if reentries != {resume}:
-        rendered = ", ".join(f"0x{address:08X}" for address in sorted(reentries)) or "none"
+        rendered = (
+            ", ".join(f"0x{address:08X}" for address in sorted(reentries)) or "none"
+        )
         raise Mismatch(
             f"main_reentry ships {rendered}; retail ResetCallback setjmp resumes at "
             f"0x{resume:08X}"
@@ -152,6 +221,8 @@ def invoke_emitter(
             str(output),
             "--seeds",
             str(seeds),
+            "--overlays",
+            str(OVERLAYS),
         ],
         cwd=ROOT,
         env=environment,
@@ -165,10 +236,11 @@ def invoke_emitter(
 def generated_measurement(
     directory: Path, output: str, measured: dict[str, int]
 ) -> tuple[int, int, str]:
-    count = re.search(r"\[func\] functions: (\d+) seeds -> (\d+) recompiled", output)
-    if count is None:
+    counts = re.findall(r"functions: (\d+) seeds -> (\d+) recompiled", output)
+    if not counts:
         raise Refused("emitter returned no seed/function denominator")
-    roots, functions = map(int, count.groups())
+    roots = sum(int(count[0]) for count in counts)
+    functions = sum(int(count[1]) for count in counts)
     if roots == 0 or functions < roots:
         raise Refused(
             f"invalid discovery denominator: {roots} roots -> {functions} functions"
@@ -200,11 +272,43 @@ def generated_measurement(
         raise Mismatch(
             f"generated declarations omit interrupt re-entry func_{resume:08X}"
         )
-    if "const int g_rec_overlay_count = 0;" not in table:
-        raise Mismatch(
-            "resident-only emission did not produce a zero-entry overlay table"
+    modules = {name: require_module(name) for name in MODULES}
+    seeds = load_seeds()
+    for name, module in modules.items():
+        verify_module_seed(seeds, name, module)
+        declarations_path = directory / f"ov_{name.lower()}_decls.h"
+        try:
+            declarations = declarations_path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise Refused(
+                f"emitter omitted {declarations_path.name}: {error}"
+            ) from error
+        if (
+            f"void ov_{name.lower()}_func_{module.entry:08X}(Core*);"
+            not in declarations
+        ):
+            raise Mismatch(
+                f"generated {name} declarations omit entry 0x{module.entry:08X}"
+            )
+        expected_range = (
+            f"{{ 0x{module.load_address:08X}u, "
+            f'0x{module.load_address + module.payload_size:08X}u, "{name}"'
         )
-    for source in ("overlay_table.c", "shard_0.c", "shard_disp.c"):
+        if expected_range not in table:
+            raise Mismatch(
+                f"generated overlay table omits the measured {name} module range"
+            )
+    if f"const int g_rec_overlay_count = {len(modules)};" not in table:
+        raise Mismatch("generated overlay table has the wrong module denominator")
+    for source in (
+        "overlay_table.c",
+        "shard_0.c",
+        "shard_disp.c",
+        "ov_boot_shard_0.c",
+        "ov_boot_disp.c",
+        "ov_menu_shard_0.c",
+        "ov_menu_disp.c",
+    ):
         if source not in manifest:
             raise Mismatch(f"generated source manifest omits {source}")
     expected = require_retail()["header"]
@@ -344,7 +448,13 @@ def verify_config(measured: dict[str, int], source: Path = CONFIG) -> None:
 
 def input_hash() -> str:
     digest = hashlib.sha256()
-    for path in [EXE, SEEDS, *recompiler_sources()]:
+    for path in [
+        EXE,
+        *MODULES.values(),
+        *MODULE_IDENTITIES.values(),
+        SEEDS,
+        *recompiler_sources(),
+    ]:
         if not path.is_file():
             raise Refused(f"required recomp input is absent: {path}")
         digest.update(path.name.encode())
@@ -352,18 +462,64 @@ def input_hash() -> str:
     return digest.hexdigest()
 
 
-def generated_complete() -> bool:
-    manifest = GENERATED / "rec_sources.cmake"
-    if not manifest.is_file():
-        return False
-    names = re.findall(
-        r"^\s*(\S+\.c)\s*$", manifest.read_text(encoding="utf-8"), re.MULTILINE
+def generated_source_names(directory: Path) -> list[str]:
+    manifest = directory / "rec_sources.cmake"
+    try:
+        text = manifest.read_text(encoding="utf-8")
+    except OSError as error:
+        raise Refused(
+            f"cannot read generated source manifest {manifest}: {error}"
+        ) from error
+    names = re.findall(r"^\s*(\S+\.c)\s*$", text, re.MULTILINE)
+    if not names:
+        raise Refused("generated source manifest contains no sources")
+    if len(set(names)) != len(names):
+        raise Refused("generated source manifest contains duplicate sources")
+    for name in names:
+        path = Path(name)
+        if path.is_absolute() or len(path.parts) != 1:
+            raise Refused(f"generated source manifest has unsafe path {name!r}")
+    return names
+
+
+def generated_output_hash(directory: Path) -> str:
+    names = set(generated_source_names(directory))
+    names.update(
+        {
+            ".recomp_version",
+            "main.c",
+            "overlay_table.h",
+            "rec_decls.h",
+            "rec_sources.cmake",
+        }
     )
-    return bool(names) and all((GENERATED / name).is_file() for name in names)
+    names.update(f"ov_{name.lower()}_decls.h" for name in MODULES)
+    digest = hashlib.sha256()
+    for name in sorted(names):
+        path = directory / name
+        try:
+            data = path.read_bytes()
+        except OSError as error:
+            raise Refused(f"cannot read generated output {path}: {error}") from error
+        if not data:
+            raise Refused(f"generated output {path} is empty")
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(data)
+    return digest.hexdigest()
+
+
+def generated_complete(directory: Path, expected_hash: str) -> bool:
+    try:
+        return generated_output_hash(directory) == expected_hash
+    except Refused:
+        return False
 
 
 def ensure(extractor: Path) -> tuple[int, int, str]:
     require_retail()
+    for name in MODULES:
+        require_module(name)
     measured = crt0_measurement(extractor)
     verify_config(measured)
     emitter = recompiler_sources()[0]
@@ -375,15 +531,23 @@ def ensure(extractor: Path) -> tuple[int, int, str]:
     version = version_match.group(1)
     wanted = f"{version}:{input_hash()}"
     hash_file = GENERATED / ".recomp.hash"
+    prior: dict[str, object] | None = None
+    if MEASUREMENT_FILE.is_file():
+        try:
+            loaded = json.loads(MEASUREMENT_FILE.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                prior = loaded
+        except (OSError, json.JSONDecodeError):
+            prior = None
+    output_hash = prior.get("output_sha256") if prior is not None else None
     if (
         os.environ.get("PSXPORT_FORCE_RECOMP", "") in ("", "0")
         and hash_file.is_file()
         and hash_file.read_text().strip() == wanted
-        and generated_complete()
-        and MEASUREMENT_FILE.is_file()
+        and isinstance(output_hash, str)
+        and generated_complete(GENERATED, output_hash)
     ):
         try:
-            prior = json.loads(MEASUREMENT_FILE.read_text(encoding="utf-8"))
             prior_output = (
                 f"[func] functions: {int(prior['roots'])} seeds -> "
                 f"{int(prior['functions'])} recompiled"
@@ -396,10 +560,16 @@ def ensure(extractor: Path) -> tuple[int, int, str]:
     if result.returncode != 0:
         raise Refused(f"emitter exited {result.returncode}:\n{result.stdout.rstrip()}")
     outcome = generated_measurement(GENERATED, result.stdout, measured)
+    output_hash = generated_output_hash(GENERATED)
     hash_file.write_text(wanted + "\n", encoding="utf-8")
     MEASUREMENT_FILE.write_text(
         json.dumps(
-            {"roots": outcome[0], "functions": outcome[1], "version": outcome[2]},
+            {
+                "roots": outcome[0],
+                "functions": outcome[1],
+                "version": outcome[2],
+                "output_sha256": output_hash,
+            },
             sort_keys=True,
         )
         + "\n",
@@ -410,6 +580,8 @@ def ensure(extractor: Path) -> tuple[int, int, str]:
 
 def check(extractor: Path) -> tuple[int, int, str]:
     require_retail()
+    for name in MODULES:
+        require_module(name)
     measured = crt0_measurement(extractor)
     verify_config(measured)
     SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -420,12 +592,37 @@ def check(extractor: Path) -> tuple[int, int, str]:
 
 
 def selftest(extractor: Path) -> bool:
-    roots, functions, version = check(extractor)
-    print(
-        f"PASS positive: {roots} retail-binary roots -> {functions} resident functions; version {version}"
-    )
     measured = crt0_measurement(extractor)
+    verify_config(measured)
+    with tempfile.TemporaryDirectory(
+        prefix="crashbash-recomp-positive-", dir=SCRATCH
+    ) as temporary:
+        directory = Path(temporary)
+        result = invoke_emitter(directory / "main.c")
+        if result.returncode != 0:
+            raise Refused(
+                f"emitter exited {result.returncode}:\n{result.stdout.rstrip()}"
+            )
+        roots, functions, version = generated_measurement(
+            directory, result.stdout, measured
+        )
+        output_hash = generated_output_hash(directory)
+        source = directory / generated_source_names(directory)[0]
+        source.write_bytes(source.read_bytes() + b"\n")
+        changed_output_refused = not generated_complete(directory, output_hash)
+    print(
+        f"PASS positive: {roots} retail-binary roots -> {functions} recompiled functions "
+        f"across resident and loaded modules; version {version}"
+    )
     passed = 1
+    if changed_output_refused:
+        passed += 1
+        print("PASS negative: a changed generated source invalidates the cache")
+    else:
+        print(
+            "FAIL negative: changed generated source passed cache integrity",
+            file=sys.stderr,
+        )
     with tempfile.TemporaryDirectory(
         prefix="crashbash-negative-", dir=SCRATCH
     ) as temporary:
@@ -492,8 +689,38 @@ def selftest(extractor: Path) -> bool:
             print("PASS negative: a duplicated main/main_reentry seed is rejected")
         else:
             print("FAIL negative: duplicated re-entry seed passed", file=sys.stderr)
-    print(f"SELFTEST {passed}/6")
-    return passed == 6
+
+        wrong_module = directory / "BOOT.BIN"
+        module_data = bytearray(MODULES["BOOT"].read_bytes())
+        module_data[-1] ^= 1
+        wrong_module.write_bytes(module_data)
+        try:
+            require_module("BOOT", wrong_module)
+        except Refused:
+            passed += 1
+            print("PASS negative: a one-byte loaded-module mutation is refused")
+        else:
+            print(
+                "FAIL negative: mutated loaded module passed identity", file=sys.stderr
+            )
+
+        wrong_module_seeds = directory / "wrong-module-seeds.json"
+        wrong_module_seeds.write_text(
+            '{"overlay_bases": {"BOOT": "0x80078C94"}, '
+            '"overlay_seeds": {"BOOT": ["0x80092BDC"]}}\n',
+            encoding="utf-8",
+        )
+        try:
+            verify_module_seed(
+                load_seeds(wrong_module_seeds), "BOOT", require_module("BOOT")
+            )
+        except Mismatch:
+            passed += 1
+            print("PASS negative: a changed BOOT load address is rejected")
+        else:
+            print("FAIL negative: changed BOOT load address passed", file=sys.stderr)
+    print(f"SELFTEST {passed}/9")
+    return passed == 9
 
 
 def default_extractor() -> Path:
@@ -528,7 +755,8 @@ def main() -> int:
             return 0 if selftest(args.crt0_extract) else 1
         outcome = ensure(args.crt0_extract) if args.ensure else check(args.crt0_extract)
         print(
-            f"PASS: {outcome[0]} retail-binary roots -> {outcome[1]} resident functions; "
+            f"PASS: {outcome[0]} retail-binary roots -> {outcome[1]} recompiled functions "
+            "across resident and loaded modules; "
             f"crt0/InitHeap/gameMain present; version {outcome[2]}"
         )
         return 0
