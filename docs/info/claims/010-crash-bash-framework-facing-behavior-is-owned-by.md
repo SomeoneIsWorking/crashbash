@@ -36,4 +36,10 @@ Post-commit Clang CTest passed 8/8; CrashBashRuntime remains installed before Co
 
 ## Re-confirmed 2026-08-22
 
+Against pinned psxport d2266f4b, CrashBashRuntime remains installed before Game construction and
+owns the boot/override virtuals; full Clang CTest passed 8/8 and the real consumer retained its
+BOOT+MENU execution boundary.
+
+## Re-confirmed 2026-08-22
+
 Post-commit Clang CTest passed 8/8; CrashBashRuntime remains installed before Core and owns behavior while legacy GameHooks is empty.

@@ -39,4 +39,10 @@ Post-commit Clang CTest passed 8/8; exact real-media gate executed BOOT and nest
 
 ## Re-confirmed 2026-08-22
 
+Against exact pinned psxport d2266f4b, the Clang real-disc gate passed on 136 runtime lines,
+executed BOOT and nested MENU with no recompilation miss, and traced resident 0x8002DE2C;
+full CTest passed 8/8.
+
+## Re-confirmed 2026-08-22
+
 Post-commit Clang CTest passed 8/8; exact real-media gate executed BOOT and nested MENU with no recomp miss, traced 0x8002DE2C deterministically, and bootstrap passed 9/9 cache-integrity controls.

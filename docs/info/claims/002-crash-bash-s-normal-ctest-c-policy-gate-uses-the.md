@@ -63,4 +63,10 @@ Post-commit Clang CTest passed 8/8; crashbash_cpp_policy passed the tracked five
 
 ## Re-confirmed 2026-08-22
 
+Against clean pinned psxport d2266f4b, Clang rebuilt the current product and full CTest passed 8/8;
+crashbash_cpp_policy passed all five first-party translation units through clang-format, the
+1,200-line structure cap, and compile-database clang-tidy.
+
+## Re-confirmed 2026-08-22
+
 Post-commit Clang CTest passed 8/8; crashbash_cpp_policy passed the tracked five-unit format, structure, and compile-backed clang-tidy gate.

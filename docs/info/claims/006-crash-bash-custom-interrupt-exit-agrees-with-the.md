@@ -61,4 +61,10 @@ Post-commit real consumer gate retained the measured IRQ sequence through 0x8003
 
 ## Re-confirmed 2026-08-22
 
+Pinned psxport d2266f4b retained the measured 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 ->
+0x8003E14C sequence; the 136-line real-disc gate and full 8/8 CTest completed without an earlier
+timeout or recompilation miss.
+
+## Re-confirmed 2026-08-22
+
 Post-commit real consumer gate retained the measured IRQ sequence through 0x8003E14C and full CTest passed the 4/4 oracle comparator plus 7/7 boot verifier controls.

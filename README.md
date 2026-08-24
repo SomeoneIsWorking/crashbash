@@ -10,8 +10,10 @@ without a recomp miss or the former CD timeout. Real CDC/DMA traces now provisio
 BOOT and nested MENU code modules from `CRASHBSH.DAT`; the port executes both and prints `empty prims`.
 Its next honest boundary is shared CD command timing: psxport makes GetTN's response available on the
 command write, so the interrupt handler drains and acknowledges it before Crash Bash enters resident
-poll state `0x8002DE2C`. No full-memory lockstep, game frame, native graphics producer, widescreen
-path, or interpolation path is claimed yet.
+poll state `0x8002DE2C`. The required framework fix is a controller-owned pending-command phase
+machine in emulated CPU time; merely delaying precomputed response bytes still executes drive state
+changes too early and collapses acknowledgement/completion ordering. No full-memory lockstep, game
+frame, native graphics producer, widescreen path, or interpolation path is claimed yet.
 
 ## Run the current product
 

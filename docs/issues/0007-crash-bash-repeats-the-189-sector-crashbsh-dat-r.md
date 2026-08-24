@@ -88,9 +88,9 @@ verified CD/FMV progress into the shared watchdog owner rather than weakening it
 
 The current shipping game code has no native graphics producer and cannot present a game picture yet.
 With the verified USA disc and the binary built from the unchanged shipping `game/` sources against
-exact recorded psxport pin `ad5cf802`, `tools/verify_boot.py` now proves that the native GPU initializes,
+exact recorded psxport pin `d2266f4b`, `tools/verify_boot.py` proves that the native GPU initializes,
 BOOT and nested MENU execute through retained generated bodies, and execution reaches resident
-0x8002DE2C without a recomp miss. The same environment passes all 8 CTest gates.
+0x8002DE2C without a recomp miss. The 136-line gate and all 8 CTest gates pass.
 
 Graphics work remains downstream of shared CDC timing. The landed port drains and acknowledges a GetTN
 response in 0x8003E14C before resident 0x8002DE2C can observe it, as tracked in issue 0009. Adding a

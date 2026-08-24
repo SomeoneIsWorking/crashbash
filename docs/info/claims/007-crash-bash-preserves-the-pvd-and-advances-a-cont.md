@@ -59,4 +59,9 @@ Post-commit real consumer completed both measured loads and executed nested MENU
 
 ## Re-confirmed 2026-08-22
 
+Pinned psxport d2266f4b completed both measured loads and executed nested MENU without cant-find,
+timeout, retry, depletion, or recompilation miss before resident 0x8002DE2C.
+
+## Re-confirmed 2026-08-22
+
 Post-commit real consumer completed both measured loads and executed nested MENU without cant-find, timeout, retry, or recomp miss before resident 0x8002DE2C.
