@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,harness,irq
 depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
-reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:47
+reconfirmed: 2026-08-24
+verified_at: 2026-08-24 19:37:51
 ---
 
 ## Claim
@@ -68,3 +68,7 @@ timeout or recompilation miss.
 ## Re-confirmed 2026-08-22
 
 Post-commit real consumer gate retained the measured IRQ sequence through 0x8003E14C and full CTest passed the 4/4 oracle comparator plus 7/7 boot verifier controls.
+
+## Re-confirmed 2026-08-24
+
+Post-commit audit at recorded d2266f4b: Clang product and 7/7 CTest passed the oracle IRQ comparator; the already-recorded 136-line real-disc trace retains the ordered CD service boundary.

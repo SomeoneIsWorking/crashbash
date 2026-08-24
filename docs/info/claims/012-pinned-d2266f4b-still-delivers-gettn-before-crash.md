@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-22
 tags: cdc,timing,first-frame
 depends: psxport.pin, tools/verify_command_response_timing.py#diagnose, tools/verify_boot.py#judge
-reconfirmed: 2026-08-22
-verified_at: 2026-08-22 20:01:03
+reconfirmed: 2026-08-24
+verified_at: 2026-08-24 19:37:55
 ---
 
 ## Claim
@@ -27,3 +27,7 @@ calling the poller, so synchronous shared-controller response availability is th
 A product built at the recorded pin exposes the GetTN response to 0x8002DE2C before handler
 acknowledgement, advances beyond this state into a presented game frame, or no longer executes the
 measured send-return-store-poll guest sequence.
+
+## Re-confirmed 2026-08-24
+
+Post-commit audit at recorded d2266f4b: command-order controls passed and the recorded bounded trace still shows GetTN drain and acknowledgement before 1,500 empty caller polls.

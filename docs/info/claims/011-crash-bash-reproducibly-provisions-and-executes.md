@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-22
 tags: loaded-code,boot
 depends: tools/loaded_module.py#verify_source, tools/provision.py#provision, tools/recomp_bootstrap.py#generated_measurement, tools/verify_boot.py#judge, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, psxport.pin
-reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:47
+reconfirmed: 2026-08-24
+verified_at: 2026-08-24 19:37:54
 ---
 
 ## Claim
@@ -46,3 +46,7 @@ full CTest passed 8/8.
 ## Re-confirmed 2026-08-22
 
 Post-commit Clang CTest passed 8/8; exact real-media gate executed BOOT and nested MENU with no recomp miss, traced 0x8002DE2C deterministically, and bootstrap passed 9/9 cache-integrity controls.
+
+## Re-confirmed 2026-08-24
+
+Post-commit audit at recorded d2266f4b: 7/7 CTest passed; the recorded 136-line real-disc gate still provisions and executes BOOT and nested MENU before resident 0x8002DE2C.

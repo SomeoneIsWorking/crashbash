@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,cdrom,harness
 depends: tools/verify_read_completion.py#completion_contract, psxport.pin
-reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:47
+reconfirmed: 2026-08-24
+verified_at: 2026-08-24 19:37:53
 ---
 
 ## Claim
@@ -64,3 +64,7 @@ Post-commit full CTest retained the historical causal positive: measured loads d
 ## Re-confirmed 2026-08-22
 
 Post-commit full CTest retained the historical causal positive: measured loads do not repeat, while the read-completion comparator passed all 5 controlled answers.
+
+## Re-confirmed 2026-08-24
+
+Post-commit audit at recorded d2266f4b: the controlled read-completion comparator retained all 5 answers, and the recorded deterministic real-disc trace retains removal of the historical same-range retry.

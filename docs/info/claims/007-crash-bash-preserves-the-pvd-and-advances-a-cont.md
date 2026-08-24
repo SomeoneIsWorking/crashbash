@@ -5,8 +5,8 @@ status: holds
 created: 2026-08-21
 tags: boot,cdrom,cdc
 depends: psxport.pin, tools/verify_boot.py#judge
-reconfirmed: 2026-08-22
-verified_at: 2026-08-22 18:30:47
+reconfirmed: 2026-08-24
+verified_at: 2026-08-24 19:37:52
 ---
 
 ## Claim
@@ -65,3 +65,7 @@ timeout, retry, depletion, or recompilation miss before resident 0x8002DE2C.
 ## Re-confirmed 2026-08-22
 
 Post-commit real consumer completed both measured loads and executed nested MENU without cant-find, timeout, retry, or recomp miss before resident 0x8002DE2C.
+
+## Re-confirmed 2026-08-24
+
+Post-commit audit at recorded d2266f4b: 7/7 CTest passed and the recorded real-disc trace still completes both measured module loads without retry, depletion, timeout, or recompilation miss.
