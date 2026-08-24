@@ -5,7 +5,7 @@ status: investigating
 symptom: After MENU executes and prints empty prims, the port never presents a frame and spins in resident 0x8002DE2C reading CD IRQ flag E0
 tags: cdc,timing,interrupt,framework,first-frame
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-25
 ---
 
 ## Root cause
@@ -28,7 +28,7 @@ guest sequence: state-machine function `0x8002D4F4` calls command sender `0x8002
 the next state, and only then calls poller `0x8002DE2C`. The guest does not reorder the state store;
 real hardware response latency is the missing operation.
 
-## Generic candidate audit (2026-08-24)
+## Rejected delay-only candidate (2026-08-24)
 
 The isolated framework candidate under review correctly moves response visibility onto emulated CPU
 time, but delaying a response prepared at command-register write time is not the controller contract.
@@ -61,3 +61,37 @@ INT3/INT2 separation, replacement by a newer command, and the command/sector tie
 `GameRuntime` at d2266f4b exposes no command-timing policy to override, and it should not: this is
 shared hardware behavior. A title-only method, game-local CD override, delayed fake command, fake
 response, or watchdog relaxation would hide the framework defect and is prohibited.
+
+## Shared implementation status (2026-08-24)
+
+The clean psxport `9c2e3f1c` worktree at `scratch/wt/cdc-command-phases` now implements the proper
+shared phase machine, not the rejected delay-only candidate. `cdc_command_phase.{h,cpp}` owns the
+12,315-tick write/receive phase, 1,815-tick argument transfers, and 8,500-tick execution phase.
+`cdc_native.cpp` performs command effects and samples status only at execution, holds multi-phase
+INT2 completion until the preceding IRQ is acknowledged, exposes BUSYSTS, and services drive events
+before command events on an exact tie. `Setloc` now owns a command target separate from the physical
+head, so deterministic seek timing follows the vendored oracle formula instead of a fixed shortcut.
+
+`test_cdc_command_phases` passes 8/8 cases and 48 checks, the focused CDC regression pair passes, and
+the full Clang framework CTest passes 97/97. A separate `BUILD_TESTING=OFF` Crash Bash integration
+tree configured with Clang 22.1.8 against that worktree, contained no CTest files, and linked only the
+real `crashbash_port` product target. Because this task is explicitly forbidden from executing the
+game binary, the real consumer has not yet falsified or confirmed the predicted GetTN handoff; this
+issue remains investigating until a bounded runtime trace shows resident `0x8002DE2C` observing INT3
+and advancing to the next divergence.
+
+## Landed framework and consumer gate (2026-08-25)
+
+The generic phase machine is pushed in psxport `8611d756` after the combined Clang framework gate
+passed 100/100, and this consumer now records that exact pin. The earlier dirty candidate trace
+`scratch/logs/crashbash-cdc-phases-once.log` already provides the expected opposite answer: one GetTN
+returns `02 01 01`, the former `0x8002DE2C` poll occurs zero times, and execution advances through
+6 Setloc, 1 Setmode, 6 ReadN, and 5 Pause commands into continuous ranges 35799..35987 and
+17558..17655. That trace proves the candidate behavior but is not clean landed-product evidence.
+
+`tools/verify_cdc_phase_progress.py` now owns the clean consumer gate. It requires those exact command
+denominators, response bytes, zero old polls, both continuous ranges, and no fatal/miss/timeout/
+unhandled-command/controller-zero failure. It stops only its exact child PID after positive target
+LBA 17655; reaching its wall-clock timeout refuses. Its hermetic and subprocess controls pass 7/7.
+This issue remains investigating until that verifier passes against the clean product built from the
+recorded `8611d756` pin.

@@ -36,7 +36,13 @@ DEFAULT_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "SCUS_945.70"
 DEFAULT_MODULE_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "BOOT.BIN"
 DEFAULT_MENU_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "MENU.BIN"
 DEFAULT_DISCDUMP = (
-    ROOT / "scratch" / "build-clang" / "psxport_build" / "tools" / "discdump"
+    ROOT
+    / "scratch"
+    / "build"
+    / "maintainer"
+    / "psxport_build"
+    / "tools"
+    / "discdump"
 )
 ENV_KEYS = ("PSXPORT_CRASHBASH_DISC", "PSXPORT_DISC")
 

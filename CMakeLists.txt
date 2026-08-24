@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(crash_bash_port LANGUAGES C CXX)
 
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  message(FATAL_ERROR "Crash Bash C++ must be compiled with clang++; got ${CMAKE_CXX_COMPILER_ID} "
-                      "(${CMAKE_CXX_COMPILER}). Reconfigure with CC=clang CXX=clang++.")
-endif()
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-enable_testing()
+include(CTest)
 
 # PSXPORT_DIR — the framework. external/psxport is NOT a git submodule (2026-08-16): it is a symlink
 # to the workspace's shared framework clone, or a private clone at this repo's psxport.pin on a fresh
@@ -18,7 +13,8 @@ set(PSXPORT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/psxport" CACHE PATH
     "psxport framework source directory (default: external/psxport)")
 if(NOT EXISTS "${PSXPORT_DIR}/cmake/psxport.cmake")
   message(FATAL_ERROR "PSXPORT_DIR=${PSXPORT_DIR} has no cmake/psxport.cmake — run "
-                      "`python3 tools/psxport_sync.py --auto`, or point PSXPORT_DIR at a psxport checkout.")
+                      "`uv run --frozen python tools/psxport_sync.py --auto`, or point PSXPORT_DIR "
+                      "at a psxport checkout.")
 endif()
 # RECORD WHAT THIS CONFIGURE RESOLVED, so `tools/psxport_sync.py --check` can compare the built
 # framework against the one psxport.pin RECORDS.
@@ -69,54 +65,64 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
       ENABLE_EXPORTS ON
       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scratch/bin"
   )
-  add_test(
-    NAME crashbash_boot_boundary_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py"
-      --selftest --port $<TARGET_FILE:crashbash_port>
-  )
+  if(BUILD_TESTING)
+    add_test(
+      NAME crashbash_boot_boundary_selftest
+      COMMAND
+        "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py"
+        --selftest --port $<TARGET_FILE:crashbash_port>
+    )
+  endif()
 else()
   message(STATUS "crashbash_port: generated substrate absent; run tools/recomp_bootstrap.py --ensure")
 endif()
 
-add_test(
-  NAME crashbash_cpp_policy
-  COMMAND
-    "${Python3_EXECUTABLE}" "${PSXPORT_DIR}/tools/check_cpp_style.py"
-    --root "${CMAKE_CURRENT_SOURCE_DIR}" --compile-commands "${CMAKE_BINARY_DIR}"
-    --allow-empty-scaffold
-)
-add_test(
-  NAME crashbash_provision_selftest
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_provision.py"
-)
-add_test(
-  NAME crashbash_psxport_pin
-  COMMAND
-    "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/psxport_sync.py"
-    --check --build-dir "${CMAKE_BINARY_DIR}"
-)
-add_test(
-  NAME crashbash_recomp_bootstrap_selftest
-  COMMAND
-    "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/recomp_bootstrap.py"
-    --selftest --crt0-extract $<TARGET_FILE:crt0_extract>
-)
-add_test(
-  NAME crashbash_oracle_irq_compare_selftest
-  COMMAND
-    "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
-    --selftest
-)
-add_test(
-  NAME crashbash_read_completion_compare_selftest
-  COMMAND
-    "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_read_completion.py"
-    --selftest
-)
-add_test(
-  NAME crashbash_command_response_timing_selftest
-  COMMAND
-    "${Python3_EXECUTABLE}" -B
-    "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_command_response_timing.py" --selftest
-)
+if(BUILD_TESTING)
+  add_test(
+    NAME crashbash_cpp_policy
+    COMMAND
+      "${Python3_EXECUTABLE}" "${PSXPORT_DIR}/tools/check_cpp_style.py"
+      --root "${CMAKE_CURRENT_SOURCE_DIR}" --compile-commands "${CMAKE_BINARY_DIR}"
+      --allow-empty-scaffold
+  )
+  add_test(
+    NAME crashbash_provision_selftest
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_provision.py"
+  )
+  add_test(
+    NAME crashbash_psxport_pin
+    COMMAND
+      "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/psxport_sync.py"
+      --check --build-dir "${CMAKE_BINARY_DIR}"
+  )
+  add_test(
+    NAME crashbash_recomp_bootstrap_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/recomp_bootstrap.py"
+      --selftest --crt0-extract $<TARGET_FILE:crt0_extract>
+  )
+  add_test(
+    NAME crashbash_oracle_irq_compare_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
+      --selftest
+  )
+  add_test(
+    NAME crashbash_read_completion_compare_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_read_completion.py"
+      --selftest
+  )
+  add_test(
+    NAME crashbash_command_response_timing_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_command_response_timing.py" --selftest
+  )
+  add_test(
+    NAME crashbash_cdc_phase_progress_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_cdc_phase_progress.py" --selftest
+  )
+endif()

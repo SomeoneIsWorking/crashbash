@@ -8,50 +8,88 @@ emitted and verified, and the Clang-built port's custom interrupt exit agrees wi
 Beetle interpreter running the real disc. The port reaches the master dispatcher and CD IRQ callback
 without a recomp miss or the former CD timeout. Real CDC/DMA traces now provision and emit the initial
 BOOT and nested MENU code modules from `CRASHBSH.DAT`; the port executes both and prints `empty prims`.
-Its next honest boundary is shared CD command timing: psxport makes GetTN's response available on the
-command write, so the interrupt handler drains and acknowledges it before Crash Bash enters resident
-poll state `0x8002DE2C`. The required framework fix is a controller-owned pending-command phase
-machine in emulated CPU time; merely delaying precomputed response bytes still executes drive state
-changes too early and collapses acknowledgement/completion ordering. No full-memory lockstep, game
-frame, native graphics producer, widescreen path, or interpolation path is claimed yet.
+The shared controller-owned pending-command phase machine is now pinned at psxport `8611d756`: its
+receive, argument, execution, and completion phases run in emulated CPU time instead of publishing
+GetTN synchronously. A bounded pre-landing consumer trace crossed the former resident
+`0x8002DE2C` empty-poll boundary and continued through Setloc, Setmode, ReadN, and Pause into later
+continuous reads. The clean pinned product still needs the same bounded runtime gate before that
+candidate observation becomes landed-product evidence. No full-memory lockstep, game frame, native
+graphics producer, widescreen path, or interpolation path is claimed yet.
 
 ## Run the current product
 
-`./run.sh` is the default product path. With no arguments it resolves media through the normal
-environment / `.env` / drop-in policy; an optional USA CHD path may be supplied explicitly. The thin
-launcher delegates sync, Clang configuration, provisioning, emission, and the product build to
-`tools/run.py`.
+`./run.sh` is the fresh-clone and default product path. With no arguments it resolves media through
+the normal environment / `.env` / drop-in policy, builds `crashbash_port`, and opens the current
+player. An optional USA CHD path may be supplied explicitly:
+
+```sh
+./run.sh
+./run.sh "/path/to/Crash Bash (USA).chd"
+```
+
+The only Python prerequisite is `uv`. The launcher enters the checked-in `uv.lock`, passes that exact
+Python interpreter to CMake and every project tool, and does not require Ghidra. It honors `CC` and
+`CXX` when set; otherwise CMake selects the available C and C++ compilers. The player path does not
+whitelist or blacklist compiler identities.
+
+Native prerequisites can be checked without syncing, provisioning, building, or launching:
+
+```sh
+./run.sh --check
+```
+
+Missing dependencies are refused with an exact `sudo dnf install ...`, `sudo apt install ...`, or
+`brew install ...` command selected for the host. Run `./run.sh --prepare-only [disc.chd]` to complete
+the same provisioning and product build without opening a window. Neither non-launching mode runs
+CTest.
+
+`run.sh` is deliberately only a stable repository-root handoff to
+`uv run --frozen python bootstrap.py`; dependency discovery, sync, provisioning, build policy, and
+launch behavior have one owner in `bootstrap.py`. The player uses the isolated
+`scratch/build/player` tree with `BUILD_TESTING=OFF` and builds only `crashbash_port`.
 
 ## Build and verify explicitly
 
 ```sh
-python3 tools/psxport_sync.py --auto
-CCACHE_DISABLE=1 cmake -S . -B scratch/build-clang \
-  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-CCACHE_DISABLE=1 cmake --build scratch/build-clang --target discdump crt0_extract -j16
-python3 tools/provision.py "/path/to/Crash Bash (USA).chd"
-python3 tools/recomp_bootstrap.py --ensure \
-  --crt0-extract scratch/build-clang/psxport_build/tools/crt0_extract
-CCACHE_DISABLE=1 cmake -S . -B scratch/build-clang \
-  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-CCACHE_DISABLE=1 cmake --build scratch/build-clang --target crashbash_port -j16
+LOCKED_PYTHON="$(uv run --frozen python -c 'import sys; print(sys.executable)')"
+uv run --frozen python tools/psxport_sync.py --auto
+CC=clang CXX=clang++ cmake --fresh -S . -B scratch/build/maintainer \
+  -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
+cmake --build scratch/build/maintainer --target discdump crt0_extract -j16
+uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
+uv run --frozen python tools/recomp_bootstrap.py --ensure \
+  --crt0-extract scratch/build/maintainer/psxport_build/tools/crt0_extract
+CC=clang CXX=clang++ cmake -S . -B scratch/build/maintainer \
+  -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
+cmake --build scratch/build/maintainer --target crashbash_port -j16
 PSXPORT_CRASHBASH_DISC="/path/to/Crash Bash (USA).chd" \
-  ctest --test-dir scratch/build-clang --output-on-failure
+  ctest --test-dir scratch/build/maintainer --output-on-failure
+uv run --frozen python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 The normal CTest suite includes real and forced-negative recompilation/boot-boundary checks, a
 forced-negative oracle/port interrupt-order comparator, a command-response-order diagnostic, and the
-first-party C++ gate. The shared checker applies this repository's tracked `clang-format` and
+positive CDC phase-progress verifier selftest. The shared checker applies this repository's tracked `clang-format` and
 `clang-tidy` policy and the 1,200-line ownership cap to all five first-party translation units without
 linting `external/psxport` or generated code.
+
+The positive-progress verifier can audit a recorded trace without launching, or run the already-built
+headless product directly. Its runtime path terminates only its exact child PID after reaching LBA
+17655; a timeout is a refusal, never success:
+
+```sh
+uv run --frozen python tools/verify_cdc_phase_progress.py --selftest
+uv run --frozen python tools/verify_cdc_phase_progress.py --trace scratch/logs/crashbash-cdc-phases-once.log
+uv run --frozen python tools/verify_cdc_phase_progress.py
+```
 
 ## Provision the selected retail inputs
 
 Build `discdump` with Clang, then run the title-local provisioner:
 
 ```sh
-CCACHE_DISABLE=1 cmake --build scratch/build-clang --target discdump -j16
-python3 tools/provision.py "/path/to/Crash Bash (USA).chd"
+cmake --build scratch/build/maintainer --target discdump -j16
+uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
 ```
 
 With no argument, disc resolution is `PSXPORT_CRASHBASH_DISC`, then `PSXPORT_DISC`, the same keys in

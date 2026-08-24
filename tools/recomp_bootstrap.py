@@ -724,14 +724,7 @@ def selftest(extractor: Path) -> bool:
 
 
 def default_extractor() -> Path:
-    candidates = (
-        ROOT / "scratch/build-clang/psxport_build/tools/crt0_extract",
-        ROOT / "scratch/build/psxport_build/tools/crt0_extract",
-    )
-    for path in candidates:
-        if path.is_file():
-            return path
-    return candidates[0]
+    return ROOT / "scratch/build/maintainer/psxport_build/tools/crt0_extract"
 
 
 def main() -> int:

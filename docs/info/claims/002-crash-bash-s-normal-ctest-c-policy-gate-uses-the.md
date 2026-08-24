@@ -1,12 +1,13 @@
 ---
 id: C002
 kind: claim
-status: holds
+status: falsified
 created: 2026-08-21
 tags:
 depends: CMakeLists.txt
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 18:30:47
+falsified_on: 2026-08-24
 ---
 
 ## Claim
@@ -70,3 +71,9 @@ crashbash_cpp_policy passed all five first-party translation units through clang
 ## Re-confirmed 2026-08-22
 
 Post-commit Clang CTest passed 8/8; crashbash_cpp_policy passed the tracked five-unit format, structure, and compile-backed clang-tidy gate.
+
+## FALSIFIED 2026-08-24
+
+The player contract now intentionally accepts the compiler selected through CC/CXX or CMake; CMake's non-Clang identity guard was removed. Maintainer verification still uses Clang format/tidy, but compiler rejection is no longer a shipping invariant.
+
+> Anything that cited this claim as proof must be re-checked. Grep the repo for it.

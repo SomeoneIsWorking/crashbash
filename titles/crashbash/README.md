@@ -55,16 +55,15 @@ with zero disagreement or unresolved values before dispatching guest main `0x800
 Build the framework tools explicitly with Clang, then inspect and extract from a provisioned disc:
 
 ```sh
-CCACHE_DISABLE=1 cmake -S . -B scratch/build-clang \
-  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-CCACHE_DISABLE=1 cmake --build scratch/build-clang --target discdump crt0_extract -j16
-scratch/build-clang/psxport_build/tools/discdump list "$CRASHBASH_DISC"
-scratch/build-clang/psxport_build/tools/discdump get SYSTEM.CNF "$CRASHBASH_DISC" scratch/raw/crashbash-usa
-scratch/build-clang/psxport_build/tools/discdump get SCUS_945.70 "$CRASHBASH_DISC" scratch/raw/crashbash-usa
-scratch/build-clang/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/SCUS_945.70
+CC=clang CXX=clang++ cmake -S . -B scratch/build/maintainer
+cmake --build scratch/build/maintainer --target discdump crt0_extract -j16
+scratch/build/maintainer/psxport_build/tools/discdump list "$CRASHBASH_DISC"
+scratch/build/maintainer/psxport_build/tools/discdump get SYSTEM.CNF "$CRASHBASH_DISC" scratch/raw/crashbash-usa
+scratch/build/maintainer/psxport_build/tools/discdump get SCUS_945.70 "$CRASHBASH_DISC" scratch/raw/crashbash-usa
+scratch/build/maintainer/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/SCUS_945.70
 ```
 
 Disc images and extracted files stay under external storage or gitignored `scratch/`; neither is tracked.
-For normal provisioning, `python3 tools/provision.py [disc.chd]` owns disc resolution, validates
+For normal provisioning, `uv run --frozen python tools/provision.py [disc.chd]` owns disc resolution, validates
 `SYSTEM.CNF`, checks these same 11 executable facts plus both module identities, and atomically
 publishes only the verified executable and payload set.

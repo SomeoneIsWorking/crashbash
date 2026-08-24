@@ -20,3 +20,10 @@ inheritance, `game_config.cpp` and `game_hooks.cpp` are bounded compatibility fa
 framework code that still reads `Core::cfg/Core::hooks`, and `recomp_register.cpp` is the sole
 generated adapter. Project automation remains in Python under `tools/`; do not grow the process entry
 point or move game behavior into compatibility tables or the generated adapter.
+
+The player entry point is `./run.sh`, a slim repository-root handoff to the frozen uv environment and
+root `bootstrap.py`. Zero arguments provision, build, and launch `crashbash_port`; `--check` and
+`--prepare-only` are the non-launching paths. The bootstrap passes its exact interpreter into CMake,
+honors `CC`/`CXX` without compiler identity policy, and owns platform-specific dependency refusals.
+Its isolated `scratch/build/player` tree has `BUILD_TESTING=OFF`; tests belong only to the separate
+maintainer build.
