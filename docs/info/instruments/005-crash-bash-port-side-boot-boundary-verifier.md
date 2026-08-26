@@ -7,21 +7,28 @@ created: 2026-08-21
 
 ## Instrument
 
-Crash Bash tools/verify_boot.py port-side CD-interrupt service verifier
+Crash Bash `tools/verify_boot.py` deterministic loaded-module/MENU boundary verifier
 
 ## Validated by
 
-It launches the real Clang-built port against the verified executable plus measured BOOT and MENU
-modules. It requires the ordered 0x80031AE8 -> 0x80031B58 -> 0x8003F5F0 -> 0x8003E14C service, two
-`load file start` / `done loading` pairs, `empty prims`, generated MENU execution, and the measured
-resident boundary at 0x8002DE2C. It excludes any recomp miss, segmentation fault, the former CD
-timeout, and `Cant find CRASHBSH.DAT`. Its selftest accepts the real boundary and rejects five
-controlled mutations plus removal of the resident-poll trace (7/7). The poll-state reachability fact
-comes from deterministic guest function tracing; the asynchronous watchdog backtrace is used only as
-the terminal no-frame boundary and is not treated as a stable sampling location.
+Its default CTest mode is a hermetic judge/runner selftest and never launches the game. Explicit
+`--run` launches the real Clang-built port against the verified executable and stops only that exact
+child after the positive boundary. The judge requires exactly two ordered `load file start` / `done
+loading` pairs, then `empty prims`, then exactly one game-owned marker proving measured MENU entry
+`0x800B5244` from `ra=0x8001E7C0`. That marker wraps and immediately super-calls the retained
+generated body; it is not an async stack sample or unsupported generic trace knob. The judge rejects
+STUCK/INTERRUPT watchdog terminals, fatal output, recompilation misses, segmentation faults, the
+former CD timeout, and a missing DAT.
+
+The controlled suite passes 12/12, including missing/wrong/reordered module and MENU facts, a real
+STUCK line, and an exact-child cleanup whose SIGTERM handler emits `[watchdog] INTERRUPT` only after
+the positive boundary. Cleanup output is deliberately excluded from pre-boundary product evidence.
+The serialized exact-pin `784e5212` run passes on 72 judged lines with 2/2 loads, `empty prims`,
+and the exact MENU entry/caller marker.
 
 ## Known failure modes
 
-This verifier judges a bounded port trace, not guest memory equality against a true oracle. The paired
-true-oracle comparison is owned by instrument I006; neither instrument proves full-RAM lockstep or
-correctness after the resident 0x8002DE2C boundary. Command-response ordering there is owned by I008.
+This verifier judges a bounded port trace, not guest memory equality against a true oracle. It stops
+at MENU entry and therefore proves neither completion of that generated body nor a presented game
+frame. The paired true-oracle comparison is owned by instrument I006; command-response ordering is
+owned by I008.

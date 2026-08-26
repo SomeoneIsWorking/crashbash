@@ -4,8 +4,9 @@ title: Crash Bash repeats the 189-sector CRASHBSH.DAT read instead of completing
 status: investigating
 symptom: After continuous ReadN advances through LBA 35799..35987, the game restarts Setloc at LBA 35799 and never prints done loading
 tags: boot,cdrom,libcd,dma,watchdog
+state_items: S002,S007
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-26
 ---
 
 ## Root cause
@@ -80,12 +81,13 @@ Keep the deterministic drive schedule. The landed phase candidate no longer show
 coalescing mechanism: after each of its 5 Pause commands, INT3 is acknowledged before a fresh
 `0x8003F5F0` handler entry observes INT2. The positive gate passes that candidate trace and rejects a
 fixture with the second handler entry removed. The remaining serialized check is therefore narrower:
-capture `0x800348A8` / `0x80027944` returns on the clean product at recorded pin `17981527` and compare
+capture `0x800348A8` / `0x80027944` returns on the clean product at recorded pin `99a42aa3` and compare
 them against the oracle's returned `1 -> 0` sequence. Distinct hardware edges and continued reads do
 not by themselves prove the guest observed the intermediate completion-pending value. BOOT and nested
 MENU have since been measured, provisioned, emitted, and executed; that work does not resolve the
-oracle-visible result check. Separately, route verified CD/FMV progress into the shared watchdog owner
-rather than weakening its timeout.
+oracle-visible result check. This pin includes later shared XA/CDC changes from `f9b5db8f`, so the old
+candidate trace cannot certify it. Separately, route verified CD/FMV progress into the shared watchdog
+owner rather than weakening its timeout.
 
 ## Rendering audit (2026-08-22)
 

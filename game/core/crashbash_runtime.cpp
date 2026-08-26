@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "legacy_game_interface.h"
+#include "menu_boundary.h"
 
 #include <cstdlib>
 
@@ -12,7 +13,7 @@ namespace crashbash {
 CrashBashRuntime::CrashBashRuntime() : LegacyGameRuntimeAdapter(legacy::measuredConfig, legacy::compatibilityHooks) {}
 
 void CrashBashRuntime::registerOverrides(Game &) {
-  // No native game function is owned yet. The empty override set preserves guest execution.
+  diagnostics::registerMenuBoundary();
 }
 
 void CrashBashRuntime::bootInit(Core &core) {

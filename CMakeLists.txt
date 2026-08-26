@@ -35,10 +35,11 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/game_hooks.cpp
   game/core/main.cpp
   game/core/recomp_register.cpp
+  game/diagnostics/menu_boundary.cpp
 )
 add_library(crashbash_seam OBJECT ${CRASHBASH_SEAM_SOURCES})
 set_target_properties(crashbash_seam PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-target_include_directories(crashbash_seam PRIVATE game/core)
+target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics)
 target_link_libraries(crashbash_seam PRIVATE psxport)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
@@ -53,7 +54,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
   )
   add_executable(crashbash_port ${CRASHBASH_SEAM_SOURCES} ${GEN_REC_SRCS})
   target_compile_definitions(crashbash_port PRIVATE CRASHBASH_HAVE_SUBSTRATE=1)
-  target_include_directories(crashbash_port PRIVATE game/core generated)
+  target_include_directories(crashbash_port PRIVATE game/core game/diagnostics generated)
   target_compile_options(crashbash_port PRIVATE -O2 -g)
   target_link_libraries(crashbash_port PRIVATE psxport)
   add_dependencies(crashbash_port gen_gpu_shaders)
@@ -65,19 +66,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
       ENABLE_EXPORTS ON
       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scratch/bin"
   )
-  if(BUILD_TESTING)
-    add_test(
-      NAME crashbash_boot_boundary_selftest
-      COMMAND
-        "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py"
-        --selftest --port $<TARGET_FILE:crashbash_port>
-    )
-  endif()
 else()
   message(STATUS "crashbash_port: generated substrate absent; run tools/recomp_bootstrap.py --ensure")
 endif()
 
 if(BUILD_TESTING)
+  add_test(
+    NAME crashbash_boot_boundary_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py" --selftest
+  )
   add_test(
     NAME crashbash_cpp_policy
     COMMAND
@@ -124,5 +122,17 @@ if(BUILD_TESTING)
     COMMAND
       "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_cdc_phase_progress.py" --selftest
+  )
+  add_test(
+    NAME crashbash_render_anchor_inventory_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/inventory_render_anchors.py" --selftest
+  )
+  add_test(
+    NAME crashbash_render_anchor_reach_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_render_anchor_reach.py" --selftest
   )
 endif()

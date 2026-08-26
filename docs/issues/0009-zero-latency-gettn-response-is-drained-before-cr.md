@@ -1,16 +1,22 @@
 ---
 id: 9
-title: Zero-latency GetTN response is drained before Crash Bash enters its poll state
+title: Exact-pin Crash Bash reaches MENU but presents no game frame
 status: investigating
-symptom: After MENU executes and prints empty prims, the port never presents a frame and spins in resident 0x8002DE2C reading CD IRQ flag E0
+symptom: The clean current product completes both loaded modules and reaches the resident/BOOT/MENU chain, then presents zero game frames before the watchdog
 tags: cdc,timing,interrupt,framework,first-frame
+state_items: S002,S007
 created: 2026-08-22
-updated: 2026-08-25
+updated: 2026-08-27
 ---
 
-## Root cause
+## Historical root cause on the pre-phase-machine framework
 
-The shared CDC executes command `0x13` synchronously on the command-register write and immediately queues INT3. During Crash Bash's `0x8002D4F4` send-state to poll-state transition, `rec_irq_poll` enters `0x8003E14C`, drains response bytes `02 01 01`, and acknowledges them. When the state machine reaches `0x8002DE2C`, the controller queue is already empty; every bank-1 IRQ-flag read returns `E0`.
+Before the shared command-phase machine landed, the CDC executed command `0x13` synchronously on the
+command-register write and immediately queued INT3. During Crash Bash's `0x8002D4F4` send-state to
+poll-state transition, `rec_irq_poll` entered `0x8003E14C`, drained response bytes `02 01 01`, and
+acknowledged them. When the state machine reached `0x8002DE2C`, the controller queue was already
+empty; every bank-1 IRQ-flag read returned `E0`. The clean current-pin run below does not carry the
+diagnostics required to establish that this historical mechanism recurred.
 
 ## Evidence
 
@@ -47,7 +53,7 @@ the command-busy phase in the status register, and services a due command before
 due sector even though the oracle services the drive counter first. Those are controller-wide
 ordering defects, not Crash Bash policy, so this candidate must not be used as the title milestone.
 
-## Proper fix
+## Proper fix for the historical cause
 
 Give the shared controller one pending-command phase machine driven by the existing authoritative
 emulated CPU clock. A command write must latch the command and arguments and expose the busy/FIFO
@@ -98,7 +104,7 @@ verifier passes against the clean product built from the recorded framework pin.
 
 ## Response-edge milestone (2026-08-26)
 
-The recorded consumer pin is now `17981527`, a descendant of `8611d756` with no changes to
+The then-recorded consumer pin was `17981527`, a descendant of `8611d756` with no changes to
 `cdc_native.cpp`, `cdc_command_phase.cpp`, `cdc_command_phase.h`, or `cdc_state.h`. At that pin,
 phase-2 completion is held while the response queue is nonempty; acknowledging a response increments
 `irq_sequence` when the next queued response becomes current. The existing 8,606-line candidate trace
@@ -110,3 +116,81 @@ the GetTN and sector-progress contract. Its 8/8 controls include a coalesced fix
 handler entry removed, which is rejected. This rules out the old single-handler response coalescing
 mechanism in the candidate trace; it does not prove that the clean pinned product exposes Crash
 Bash's guest-visible async result `1 -> 0`. C015 records that deliberately narrower claim.
+
+The current recorded pin is `99a42aa3`. Its static Clang gate passes 10/10, but it includes the later
+shared XA/CDC commit `f9b5db8f`; therefore the `17981527` candidate trace is not runtime evidence for
+the current product. The operator-owned serialized CDC/completion run remains required.
+
+The positive verifier is a process-driving gate, not a positional-log parser. Its clean invocation is
+`uv run --frozen python tools/verify_cdc_phase_progress.py --port
+scratch/bin/crashbash_port --executable scratch/bin/crashbash/SCUS_945.70 --timeout 30`; it launches
+and stops only that exact child and refuses unless it observes positive LBA 17655. A previously saved
+trace is judged only with the explicit `--trace PATH` option. The render-anchor log below did not
+enable the CDC diagnostics and cannot satisfy this contract.
+
+## Clean exact-pin first-frame falsifier (2026-08-26)
+
+The operator ran the clean product built against exact recorded psxport `99a42aa3` with
+`PSXPORT_DEBUG=rtpcaller` and a 30-second watchdog. The process exited 134 after the watchdog reported
+`[watchdog] STUCK`; `tools/verify_render_anchor_reach.py` correctly refused that forbidden terminal
+and the absence of any completed 50-frame histogram. The exact output is retained locally at
+`scratch/logs/crashbash-render-anchor-reach.log`.
+
+This is a real current-pin result: it opens the retail disc, completes both `load file start` / `done
+loading` pairs, enters resident code, executes BOOT and nested MENU, prints `empty prims`, and presents
+zero game frames. The watchdog sampled this symbolized path; only the leading libc/signal and
+`std::string_view` frames are omitted, while the generated/dispatch ancestry is retained exactly:
+
+`lucent::detail::channel_enabled -> lucent::debug -> Core::io_write ->
+gen_func_8002DE2C -> func_8002DE2C -> gen_func_8002D4F4 -> func_8002D4F4 -> rec_dispatch ->
+ov_boot_gen_8008E5BC -> ov_boot_func_8008E5BC -> rec_dispatch ->
+ov_menu_gen_800B5218 -> ov_menu_func_800B5218 -> rec_dispatch ->
+gen_func_8001E610 -> func_8001E610 -> rec_dispatch ->
+ov_boot_gen_80092BA0 -> ov_boot_func_80092BA0 -> rec_dispatch ->
+gen_func_80010394 -> func_80010394 -> rec_dispatch ->
+gen_func_800270F0 -> func_800270F0 -> gen_func_80010158 -> func_80010158 ->
+gen_func_8002718C -> func_8002718C -> rec_dispatch -> native_boot_run -> main`.
+
+The signal-time backtrace proves reachability of that live nested chain, not that logging is the
+guest divergence or that `0x8002DE2C` is continuously spinning. The early CVar audit also reported
+`PSXPORT_NATIVE_FRAMES` and `PSXPORT_VK_HEADLESS` as UNKNOWN before the stall; because the abort
+prevented an exit audit, this run cannot claim either knob was honored. It contains no `rtpcaller`
+histogram, no CDC-phase trace, and no guest-visible completion capture, so issues 0007/0009 remain
+investigating at the no-present boundary rather than reverting to the older GetTN root-cause claim.
+
+## Dirty unpinned sampling (non-authoritative, 2026-08-26)
+
+During a Clang candidate build configured against the shared psxport tree while its worktree was
+dirty at HEAD `dbdb2baf`, `ctest --test-dir scratch/build/crashbash-progress --output-on-failure -E
+crashbash_psxport_pin` unintentionally included the product-launching
+`crashbash_boot_boundary_selftest`. The bounded child exited by itself after 3.24 seconds and the
+judge refused its 135-line trace: it observed two loaded-module starts but only one completion and
+did not reach MENU `empty prims`, `ov_menu_gen_800B5218`, or resident fntrace `0x8002DE2C`.
+
+This is recorded only so the observation is not rediscovered or misquoted. It is not exact-pin or
+clean-framework evidence, it does not supersede the recorded-pin result, and it does not establish a
+regression. The operator-owned serialized run must rebuild against one clean recorded commit and run
+the positive CDC/completion gate before this boundary can change state.
+
+## Watchdog phase root cause and corrected boot boundary (2026-08-27)
+
+The normal boot gate's post-MENU watchdog was not evidence of a CDC stall. `native_boot_run` calls
+`gpu_clear_display` for an intentional black transition before guest crt0; that helper used the same
+untyped completion path as a real main game frame and prematurely ended the 45-second boot grace.
+The smallest shared fix classifies presentation completion as `MainFrame` or `Transition`:
+`gpu_clear_display` records progress without claiming main-present readiness, while real presents
+retain the one-way steady-timeout transition. It adds no CDC heartbeat and changes no timeout.
+
+Landed psxport `784e5212` passes 107/107 Clang CTests, including a production-seam
+`test_gpu_clear_watchdog` that was killed by the steady timeout before the fix and now survives under
+boot grace. Crash Bash passes 11/11 CTests against that exact recorded pin. Its explicit serialized product
+gate passes on 72 judged lines: two ordered module loads complete, `empty prims` prints, then a
+game-owned one-shot observer reaches measured MENU entry `0x800B5244` from `ra=0x8001E7C0`; no
+`[watchdog] STUCK`, fatal output, or recompilation miss occurs. The observer immediately super-calls
+the retained generated MENU body and does not bypass game behavior.
+
+This fixes the false watchdog phase transition and makes the boot boundary deterministic. It does
+not resolve this issue's CDC/completion contract or prove a game frame: the run intentionally stops
+at the MENU entry and carries no
+CDC-phase diagnostics. The next evidence remains the process-driving CDC gate and capture of the
+retail guest-visible completion result `1 -> 0`.

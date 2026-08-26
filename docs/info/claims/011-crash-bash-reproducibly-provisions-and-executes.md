@@ -4,22 +4,22 @@ kind: claim
 status: holds
 created: 2026-08-22
 tags: loaded-code,boot
-depends: tools/loaded_module.py#verify_source, tools/provision.py#provision, tools/recomp_bootstrap.py#generated_measurement, tools/verify_boot.py#judge, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, psxport.pin
-reconfirmed: 2026-08-24
+depends: tools/loaded_module.py#verify_source, tools/provision.py#provision, tools/recomp_bootstrap.py#generated_measurement, tools/verify_boot.py#judge, game/diagnostics/menu_boundary.cpp, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, psxport.pin
+reconfirmed: 2026-08-27
 verified_at: 2026-08-24 19:37:54
 ---
 
 ## Claim
 
-Crash Bash reproducibly provisions and executes the measured BOOT and nested MENU CRASHBSH.DAT code modules before its next resident CD boundary
+Crash Bash reproducibly provisions and executes the measured BOOT and nested MENU CRASHBSH.DAT code modules through the measured MENU entry
 
 ## Evidence
 
-Real USA DAT verification passes 14/14 module facts; recompilation emits 1,063 roots into 1,724 resident/BOOT/MENU functions; the Clang real-disc boundary passes 8/8 facts and 7/7 controlled answers, executes ov_menu_gen_800B5218 with no recomp miss, and deterministically traces resident 0x8002DE2C.
+Real USA DAT verification passes 14/14 module facts. Current recompilation emits 2,005 resident/BOOT/MENU functions. The serialized Clang real-disc boundary completes exactly two module loads, prints `empty prims`, and reaches measured MENU entry 0x800B5244 from ra=0x8001E7C0 without a watchdog stall or recomp miss; its controlled verifier passes 12/12.
 
 ## What would falsify it
 
-If a verified USA DAT changes either payload identity/entry, generated ranges omit either module, or the real consumer no longer executes MENU before the next recomp/hardware boundary.
+If a verified USA DAT changes either payload identity/entry, generated ranges omit either module, or the real consumer no longer reaches the measured MENU entry after both loads.
 
 ## Re-confirmed 2026-08-22
 
@@ -50,3 +50,11 @@ Post-commit Clang CTest passed 8/8; exact real-media gate executed BOOT and nest
 ## Re-confirmed 2026-08-24
 
 Post-commit audit at recorded d2266f4b: 7/7 CTest passed; the recorded 136-line real-disc gate still provisions and executes BOOT and nested MENU before resident 0x8002DE2C.
+
+## Re-confirmed 2026-08-27
+
+Against exact recorded psxport `784e5212`, full Clang gates pass
+107/107 in psxport and 11/11 in Crash Bash. The explicit serialized product gate passes on 72 judged
+lines in the measured order `2/2 module loads -> empty prims -> MENU 0x800B5244 from
+ra=0x8001E7C0`, with no STUCK watchdog, fatal output, or recompilation miss. Its 12/12 hermetic
+controls show the missing, wrong-address, wrong-caller, wrong-order, and fatal answers.
