@@ -17,10 +17,11 @@ CD IRQ, and settled the read state before `FUN_8003470C` returned from starting 
 start, returns `-1`, and the higher-level loader retries the same file range.
 
 This was a shared drive-timing defect, not a game-local file-loader defect. Scheduling sector-ready
-events in deterministic guest CPU time removes the retry. The resulting run exposes a second,
-shared ordering defect: psxport coalesces the completion and clear causes into one CD interrupt drain,
-so the guest cannot observe the pending state at the corresponding `0x800348A8` / `0x80027944`
-return.
+events in deterministic guest CPU time removes the retry. The pre-phase-machine run exposed a second,
+shared ordering defect: that psxport revision coalesced the completion and clear causes into one CD
+interrupt drain, so the guest could not observe the pending state at the corresponding `0x800348A8` /
+`0x80027944` return. The landed phase candidate now separates the controller response edges; a clean
+guest-visible result capture remains required before declaring that second defect resolved.
 
 ## Oracle/port comparison
 
@@ -75,14 +76,16 @@ debugger stop was probe overhead, not evidence that the deterministic drive cloc
 
 ## Next investigation
 
-Keep the deterministic drive schedule, then stop the shared CD response/IRQ path from coalescing the
-bit-4 completion callback and bit-2 clear callback into one `0x8003F5F0` drain. The completion-pending
-state must remain observable at `0x800348A8` and `0x80027944` between those hardware edges.
-Resolution still requires the oracle's returned `1 -> 0` sequence, not merely `done loading` and no
-retry. The deterministic framework is landed. The independent response/IRQ ordering defect remains
-the resolution criterion. BOOT and nested MENU have since been measured, provisioned, emitted, and
-executed; that work does not resolve the oracle-visible completion-order mismatch. Separately, route
-verified CD/FMV progress into the shared watchdog owner rather than weakening its timeout.
+Keep the deterministic drive schedule. The landed phase candidate no longer shows the old response
+coalescing mechanism: after each of its 5 Pause commands, INT3 is acknowledged before a fresh
+`0x8003F5F0` handler entry observes INT2. The positive gate passes that candidate trace and rejects a
+fixture with the second handler entry removed. The remaining serialized check is therefore narrower:
+capture `0x800348A8` / `0x80027944` returns on the clean product at recorded pin `17981527` and compare
+them against the oracle's returned `1 -> 0` sequence. Distinct hardware edges and continued reads do
+not by themselves prove the guest observed the intermediate completion-pending value. BOOT and nested
+MENU have since been measured, provisioned, emitted, and executed; that work does not resolve the
+oracle-visible result check. Separately, route verified CD/FMV progress into the shared watchdog owner
+rather than weakening its timeout.
 
 ## Rendering audit (2026-08-22)
 

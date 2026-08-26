@@ -24,6 +24,13 @@ TARGET_LINE = "[cdc] sector LBA 17655 "
 GET_TN = "[cdc] cmd 0x13 args=0"
 COMMAND = re.compile(r"^\[cdc\] cmd 0x(?P<command>[0-9A-F]{2}) args=")
 HANDLER_RESPONSE = re.compile(r"^\[cdcr\] r\[1801\]=(?P<byte>[0-9A-F]{2}).*pc=8003E14C")
+IRQ_HANDLER_ENTRY = re.compile(
+    r"^\[cdcr\] r\[1800\]=[0-9A-F]{2} bank=0 status pc=8003F5F0"
+)
+IRQ_RESPONSE = re.compile(
+    r"^\[cdcr\] r\[1803\]=E(?P<type>[0-7]) bank=1 irq pc=8003E14C"
+)
+IRQ_ACK = re.compile(r"^\[cdcw\] w\[1803\]=07 bank=1 .*pc=8003E14C")
 SECTOR = re.compile(r"^\[cdc\] sector LBA (?P<lba>[0-9]+) ")
 OLD_EMPTY_POLL = "pc=8002DE2C"
 EXPECTED_COMMAND_COUNTS = {0x13: 1, 0x02: 6, 0x0E: 1, 0x06: 6, 0x09: 5}
@@ -55,6 +62,7 @@ class Verdict:
     response: tuple[int, ...]
     command_counts: dict[int, int]
     sectors: int
+    separated_pause_responses: int
 
 
 def _ordered_after(commands: list[int], start: int, expected: Sequence[int]) -> bool:
@@ -65,6 +73,50 @@ def _ordered_after(commands: list[int], start: int, expected: Sequence[int]) -> 
         except ValueError:
             return False
     return True
+
+
+def _pause_response_is_separated(lines: list[str]) -> bool:
+    first_int3 = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if (match := IRQ_RESPONSE.match(line)) is not None
+            and match.group("type") == "3"
+        ),
+        None,
+    )
+    if first_int3 is None:
+        return False
+    first_ack = next(
+        (
+            index
+            for index in range(first_int3 + 1, len(lines))
+            if IRQ_ACK.match(lines[index])
+        ),
+        None,
+    )
+    if first_ack is None:
+        return False
+    second_handler = next(
+        (
+            index
+            for index in range(first_ack + 1, len(lines))
+            if IRQ_HANDLER_ENTRY.match(lines[index])
+        ),
+        None,
+    )
+    if second_handler is None:
+        return False
+    second_int2 = next(
+        (
+            index
+            for index in range(second_handler + 1, len(lines))
+            if (match := IRQ_RESPONSE.match(lines[index])) is not None
+            and match.group("type") == "2"
+        ),
+        None,
+    )
+    return second_int2 is not None
 
 
 def judge(text: str) -> Verdict:
@@ -118,6 +170,26 @@ def judge(text: str) -> Verdict:
     if response != (0x02, 0x01, 0x01):
         raise Refused(f"GetTN response is {response}, expected (2, 1, 1)")
 
+    pause_positions = [
+        command_lines[index]
+        for index, command in enumerate(commands)
+        if command == 0x09
+    ]
+    separated_pause_responses = 0
+    for pause_line in pause_positions:
+        next_command_line = next(
+            (line for line in command_lines if line > pause_line), len(lines)
+        )
+        if _pause_response_is_separated(lines[pause_line + 1 : next_command_line]):
+            separated_pause_responses += 1
+    expected_pauses = EXPECTED_COMMAND_COUNTS[0x09]
+    if separated_pause_responses != expected_pauses:
+        raise Refused(
+            "Pause response-edge separation mismatch: "
+            f"{separated_pause_responses}/{expected_pauses} commands expose "
+            "INT3 acknowledgement and INT2 completion in distinct IRQ-handler entries"
+        )
+
     old_polls = sum(OLD_EMPTY_POLL in line for line in lines)
     if old_polls:
         raise Refused(
@@ -139,7 +211,9 @@ def judge(text: str) -> Verdict:
     if TARGET_LINE not in text:
         raise Refused("positive target LBA 17655 was not observed")
 
-    return Verdict(len(lines), response, counts, len(sectors))
+    return Verdict(
+        len(lines), response, counts, len(sectors), separated_pause_responses
+    )
 
 
 def _reader(stream, output: queue.Queue[str | None]) -> None:
@@ -264,7 +338,19 @@ def _fixture() -> str:
     ]
     command_counts = ((0x02, 6), (0x0E, 1), (0x06, 6), (0x09, 5))
     for command, count in command_counts:
-        lines.extend(f"[cdc] cmd 0x{command:02X} args=0" for _ in range(count))
+        for _ in range(count):
+            lines.append(f"[cdc] cmd 0x{command:02X} args=0")
+            if command == 0x09:
+                lines.extend(
+                    (
+                        "[cdcr] r[1800]=78 bank=0 status pc=8003F5F0 ra=80031C34",
+                        "[cdcr] r[1803]=E3 bank=1 irq pc=8003E14C ra=8003F62C",
+                        "[cdcw] w[1803]=07 bank=1 a0=80068AAC s1=00000000 pc=8003E14C ra=8003F62C",
+                        "[cdcr] r[1800]=78 bank=0 status pc=8003F5F0 ra=80031C34",
+                        "[cdcr] r[1803]=E2 bank=1 irq pc=8003E14C ra=8003F62C",
+                        "[cdcw] w[1803]=07 bank=1 a0=80068AAC s1=00000000 pc=8003E14C ra=8003F62C",
+                    )
+                )
     for expected_range in EXPECTED_RANGES:
         lines.extend(
             f"[cdc] sector LBA {lba} file=0 chan=0 submode=0x08 audio=0 -> data FIFO"
@@ -276,7 +362,7 @@ def _fixture() -> str:
 def selftest() -> bool:
     fixture = _fixture()
     passed = 0
-    cases = 7
+    cases = 8
     try:
         verdict = judge(fixture)
         passed += 1
@@ -296,6 +382,17 @@ def selftest() -> bool:
         (fixture.replace("r[1801]=01", "r[1801]=00", 1), "wrong GetTN response"),
         (fixture.replace("[cdc] cmd 0x09 args=0\n", "", 1), "command denominator"),
         (fixture + "[recomp-MISS forced-negative]\n", "forbidden runtime error"),
+        (
+            fixture.replace(
+                "[cdcw] w[1803]=07 bank=1 a0=80068AAC s1=00000000 pc=8003E14C ra=8003F62C\n"
+                "[cdcr] r[1800]=78 bank=0 status pc=8003F5F0 ra=80031C34\n"
+                "[cdcr] r[1803]=E2 bank=1 irq pc=8003E14C ra=8003F62C\n",
+                "[cdcw] w[1803]=07 bank=1 a0=80068AAC s1=00000000 pc=8003E14C ra=8003F62C\n"
+                "[cdcr] r[1803]=E2 bank=1 irq pc=8003E14C ra=8003F62C\n",
+                1,
+            ),
+            "Pause completion coalesced without a second IRQ-handler entry",
+        ),
     )
     for changed, label in negatives:
         try:
@@ -352,7 +449,8 @@ def main() -> int:
         return 2
     print(
         f"PASS: {verdict.lines} lines; GetTN {verdict.response}; "
-        f"commands {verdict.command_counts}; {verdict.sectors} sector events through LBA 17655"
+        f"commands {verdict.command_counts}; {verdict.sectors} sector events through LBA 17655; "
+        f"{verdict.separated_pause_responses} Pause INT3/INT2 response pairs separated"
     )
     return 0
 

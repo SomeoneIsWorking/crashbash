@@ -92,6 +92,21 @@ returns `02 01 01`, the former `0x8002DE2C` poll occurs zero times, and executio
 `tools/verify_cdc_phase_progress.py` now owns the clean consumer gate. It requires those exact command
 denominators, response bytes, zero old polls, both continuous ranges, and no fatal/miss/timeout/
 unhandled-command/controller-zero failure. It stops only its exact child PID after positive target
-LBA 17655; reaching its wall-clock timeout refuses. Its hermetic and subprocess controls pass 7/7.
-This issue remains investigating until that verifier passes against the clean product built from the
-recorded `8611d756` pin.
+LBA 17655; reaching its wall-clock timeout refuses. Its hermetic and subprocess controls now pass
+8/8, including the response-edge negative below. This issue remains investigating until that
+verifier passes against the clean product built from the recorded framework pin.
+
+## Response-edge milestone (2026-08-26)
+
+The recorded consumer pin is now `17981527`, a descendant of `8611d756` with no changes to
+`cdc_native.cpp`, `cdc_command_phase.cpp`, `cdc_command_phase.h`, or `cdc_state.h`. At that pin,
+phase-2 completion is held while the response queue is nonempty; acknowledging a response increments
+`irq_sequence` when the next queued response becomes current. The existing 8,606-line candidate trace
+shows that mechanism in the real title path: all 5 Pause commands expose INT3 acknowledgement and
+INT2 completion under distinct `0x8003F5F0` handler entries.
+
+`tools/verify_cdc_phase_progress.py` now requires those 5/5 separated response pairs in addition to
+the GetTN and sector-progress contract. Its 8/8 controls include a coalesced fixture with the second
+handler entry removed, which is rejected. This rules out the old single-handler response coalescing
+mechanism in the candidate trace; it does not prove that the clean pinned product exposes Crash
+Bash's guest-visible async result `1 -> 0`. C015 records that deliberately narrower claim.
