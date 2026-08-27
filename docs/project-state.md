@@ -97,8 +97,12 @@ sufficient alone.
 
 The port now reaches and runs the MENU scene: the application-shell process state, the BOOT-overlay app
 mode, and the scene pointer into the loaded MENU image are each measured, with update/present called
-every frame. The guest still performs zero projection work there, and a 600-frame run aborts on an
-indirect call through an uninitialised function pointer (issue 0014), which is the next boundary.
+every frame. Issue 0014 is resolved: the emitter was binding a direct call into the nested MENU range
+to the BOOT module's own stale body, so the port executed the wrong module's code once MENU loaded.
+Direct calls into a narrower overlapping module's range now route through the resident-overlay router.
+The 600-frame run is free of recompilation misses and advances to the next first-reached guest VSync
+site, the object-update method 0x8008BB48 (issue 0012), which is the next top-down owner. The guest
+still performs zero projection work in the MENU scene.
 
 Gap: Issues 0009, 0012 and 0014 remain open until a real non-black game frame is presented. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and

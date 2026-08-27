@@ -1,7 +1,7 @@
 ---
 id: 14
-title: The BOOT scene indirect-calls an uninitialised function pointer around frame 256
-status: investigating
+title: A direct call into the nested MENU range was bound to BOOT's own stale body
+status: resolved
 symptom: A 600-frame run aborts on [recomp-MISS] for 0x80070000, an address that is all zeros in both the retail executable and live RAM
 state_items: S002,S004
 tags: boot,scene,indirect-call,recomp-miss,menu-module
@@ -70,8 +70,50 @@ where the retail instruction at `0x80012420` is `jalr $v0` (invisible to static 
 `0x80012678` is a real entry (`addiu sp,sp,-0x38`, then `sw s7/ra/s6..s0`). Seeding it took the
 substrate from 2,005 to 2,006 functions and moved the run past that point to the miss above.
 
-## Next step
+## Root cause
 
-Identify which object supplies the pointer dispatched near `0x800B5A40`, and what should have
-initialised it. Do not seed `0x80070000`: it is not a function, and adding it would convert a real
-uninitialised-pointer bug into a silent jump to zeros.
+The uninitialised pointer was a SYMPTOM. The port was executing the wrong module's code.
+
+`0x800B5A40` lies inside BOTH modules: the MENU image `[0x800B32B4,0x800BB2B4)` is nested inside the
+BOOT image `[0x80078C90,0x800D7490)`. BOOT contains a real direct `jal 0x800B5A40` at `0x80096130`.
+The emitter's `call_or_dispatch` bound any target in the emitting module's own function set
+statically, so that call became `ov_boot_func_800B5A40` — BOOT's own body for that address. Once MENU
+was loaded over the region, the RAM there held MENU code while the port kept running BOOT's stale
+bytes. Those stale bytes then read a pointer out of a structure that only makes sense in the other
+module's layout and dispatched through it, which is why both the reported target (`0x80070000`) and
+the return address were garbage.
+
+The backtrace is what proved it: there is no `rec_dispatch` frame between `ov_boot_gen_8009608C` and
+`ov_boot_func_800B5A40`, so the call was static, not routed. The runtime router was never wrong — it
+already resolves an address to the narrowest RESIDENT overlay — it was simply never consulted.
+
+An earlier hypothesis, that the title's synchronous file-read owner fails to call
+`overlay_note_load`, was FALSIFIED by comparing both baked signatures against the live RAM dump at
+the failure point: MENU's signature matched, so MENU was correctly identified as resident all along.
+
+## Fix
+
+`tools/recomp/emit.py` (framework): a direct call may no longer be bound statically when the target
+also lies inside a NARROWER overlapping module's range, because at runtime the resident module owns
+those bytes and only the router knows which module that is. The emitter now computes, per module, the
+set of fixed module ranges that overlap it and are narrower than it (`g_shadow`), and routes calls
+into them. Equal-width overlaps are excluded: those are alternative modules sharing one slot, which
+the router already distinguishes by signature and where neither shadows the other. Overlay images are
+now loaded before MAIN is emitted so MAIN gets the same treatment — its declared text runs to
+`0x80079000` while BOOT loads at `0x80078C90`, and two MAIN functions sit in that overlap.
+
+`RECOMP_VERSION` is bumped to `2026-08-27.1` so a stale `generated/` is detected.
+
+## Evidence
+
+After regeneration both call sites emit `rec_dispatch(c, 0x800B5A40u)` instead of the static call, and
+MAIN's calls to `0x80078CA4` / `0x80078DD4` likewise route. The 600-frame run no longer produces any
+`[recomp-MISS]`. Gates: 12/12 CTest, `verify_boot.py --run` PASS, and a clean 200-frame run (exit 0,
+no watchdog, fatal, recomp miss, or guest VSync violation).
+
+## What it exposed next
+
+With the correct module now executing, the 600-frame run reaches a NEW first-time guest VSync site and
+fail-fasts as designed: `GUEST VSYNC VIOLATION: reached 0x800320EC a0=1 ra=0x8008BB88`, via
+`ov_boot 0x8007976C -> ov_boot 0x8008BB48`. That is the next top-down owner, tracked in issue 0012 —
+not a regression from this fix.

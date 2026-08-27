@@ -113,6 +113,29 @@ Presentation is reached but every captured PRESENT is 0% non-black, so no real g
 produced yet. That is the native-graphics gap (S004, issue 0011), not a VSync-ownership defect. This
 issue stays open only for that final clause of its gate.
 
+## Next owner: the object-update method 0x8008BB48
+
+Once the nested-module routing defect (issue 0014) was fixed, the 600-frame run advanced and
+fail-fasted on a NEW first-reached guest VSync site:
+`GUEST VSYNC VIOLATION: reached 0x800320EC a0=1 ra=0x8008BB88`, chain
+`ov_boot 0x8007976C -> ov_boot 0x8008BB48`.
+
+Retail `0x800320EC` decompiles to a single primitive with two non-waiting query modes and one wait
+path. For `a0 == 1` it returns `(*DAT_80068BC0 - DAT_80068BC4) & 0xFFFF` — the root-counter delta
+since the last sync, a SUB-FRAME timer — and skips the wait entirely; for `a0 < 0` it returns the
+vblank counter `0x8006D8DC`. `0x8008BB48` calls `VSync(1)` twice: once on entry, whose value becomes
+the animation time base passed to `FUN_80020344`, and once near the end with the result discarded.
+
+Implementing `VSync(1)` natively is NOT the fix even though it does not wait. The framework trap is
+explicit that nothing may reach libetc VSync "not to wait for a vblank and not to query the counter",
+every one of the seven sibling ports traps it and none implements it, and this project's standing
+directive is never to return a guest VSync clock.
+
+The owner is therefore `0x8008BB48` itself, and it is a real piece of work rather than a leaf: about
+496 lines of generated C, and it is reached as a VIRTUAL METHOD — `0x8007976C` walks an object list
+and calls slot `[0x13]` of each object's table — so sibling methods reached the same way are likely to
+need the same treatment. Size and shape are recorded here so the port is scoped before it is started.
+
 ## Resolution gate
 
 Run the serialized product boundary with the shared memory-card enumeration fix. It must progress
