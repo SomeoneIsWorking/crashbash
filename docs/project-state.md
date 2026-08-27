@@ -95,16 +95,21 @@ started" — so the caller waited forever on an operation that was never begun. 
 real disc proves the title wiring and the shared completion event are each necessary and neither is
 sufficient alone.
 
-The port now reaches and runs the MENU scene: the application-shell process state, the BOOT-overlay app
-mode, and the scene pointer into the loaded MENU image are each measured, with update/present called
-every frame. Issue 0014 is resolved: the emitter was binding a direct call into the nested MENU range
-to the BOOT module's own stale body, so the port executed the wrong module's code once MENU loaded.
-Direct calls into a narrower overlapping module's range now route through the resident-overlay router.
-The 600-frame run is free of recompilation misses and advances to the next first-reached guest VSync
-site, the object-update method 0x8008BB48 (issue 0012), which is the next top-down owner. The guest
-still performs zero projection work in the MENU scene.
+The port now reaches the Crash Bash TITLE SCREEN. Two defects were resolved to get there. Issue 0014:
+the emitter was binding a direct call into the nested MENU range to the BOOT module's own stale body,
+so the port executed the wrong module's code once MENU loaded; direct calls into a narrower
+overlapping module's range now route through the resident-overlay router. Issue 0012: the two BOOT
+object callbacks `0x8008ADA4` and `0x8008BB48` are natively owned in `boot_object_callbacks.cpp`,
+taking guest-VSync ownership to 25 of 51 sites with 26 guarded residuals.
 
-Gap: Issues 0009, 0012 and 0014 remain open until a real non-black game frame is presented. The strict MENU
+The 600-frame product run now exits 0 with no guest-VSync violation, recompilation miss, watchdog
+stall or fatal trap, and the guest submits 737,668 primitives (previously 2). Rendered through the
+diagnostic PSX path as an oracle it presents the title screen at 92.9%/98.9%/83.6% non-black, which
+proves the simulation is producing a real picture. The SHIPPING native path still presents black
+because no native producer exists — that is S004, below.
+
+Gap: Issue 0009 remains open. Issues 0012 and 0014 are resolved. A non-black frame on the SHIPPING
+native path still requires S004's native producers. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
 lifecycle boundaries and do not certify picture content.
 
@@ -129,9 +134,12 @@ including the stable resident `0x80015780 -> 0x8001CD04 -> {0x800193A8, 0x8001AF
 three individual anchor addresses differ. `CrashBashRuntime` now declares the intended
 `interpolatedNative` product policy, but policy does not create a producer; runtime attribution and
 state semantics remain unproven.
-`tools/verify_render_anchor_reach.py` passes 8/8 known/unknown/zero/empty/fatal controls and correctly
-refuses the exact-pin live attempt: the log ends in forbidden `[watchdog] STUCK` and has no completed
-50-frame histogram. It therefore has no real positive trace yet. See issue 0011 and
+`tools/verify_render_anchor_reach.py` passes 8/8 known/unknown/zero/empty/fatal controls and NOW HAS
+ITS FIRST REAL POSITIVE TRACE: once the BOOT object callbacks were owned, a 600-frame run produced
+8 histograms and 765,553 projection calls attributed to exactly the two anchors the static inventory
+predicted, `0x800193A8` and `0x8001AF2C`, reached from `0x80019DAC` and `0x80019D7C`. That proves
+runtime projection ancestry only; camera semantics, scene state, primitive ownership, 4:3 parity,
+widescreen and interpolation all remain unproven. See issue 0011 and
 `docs/findings/render-anchor-inventory.md`.
 
 ### S005 — Widescreen camera

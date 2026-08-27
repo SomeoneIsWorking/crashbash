@@ -17,15 +17,22 @@ count.
 | Other GPU library fragments | two hidden functions following `0x800313E4`; hidden function following the callable `0x8003165C` body | 3 | residual; generated root coverage must be split before they can execute faithfully |
 | Other CD controller and libcd paths | `0x80034040`, `0x80034384`, `0x8003470C`, `0x800348A8`, `0x8003E930`, `0x8003F47C` | 19 | residual; port only a top-down path proven reachable after the measured command/sync chokepoints |
 | Lifetime, diagnostics, teardown, UI | `0x800101E0`, `0x80027408`, `0x8002AB44` | 4 | residual; migrate only when its top-down caller is proven reachable |
-| BOOT object callbacks | `0x8008ADA4`, `0x8008BB48` | 4 | residual; `0x8008BB48` is installed in callback-table entries `0x800989A4` and `0x80098D70` and directly calls `0x8008ADA4`, but the active entry at the first native driver step is not statically proven |
+| BOOT object callbacks | `0x8008ADA4`, `0x8008BB48` | 4 | owned by `boot_object_callbacks.cpp`; a live 600-frame run confirmed both are reached once the BOOT scene begins animating an object, which the static inventory could not prove |
 
 `0x8008BB48` samples `VSync(1)` at entry, calls `0x8008ADA4`, and samples again before its normal
-return; `0x8008ADA4` also samples at entry and return. Thus the normal nested callback path accounts
-for all four BOOT sites, while one early `0x8008BB48` exit can account for only its entry sample.
-That narrows interpretation of a future trap/trace but does not prove that either callback-table
-entry is the active object.
+return; `0x8008ADA4` also samples at entry and return. A live trap at `ra=0x8008BB88` via
+`0x8007976C -> 0x8008BB48` later confirmed the path, and both functions are now natively owned.
 
-The working tree owns 21 sites, leaving 30 retail call sites. That number is inventory, not a
+All four are DEAD samples, which the retail disassembly settles rather than assumes. `VSync(1)` takes
+no wait and writes nothing — it returns `(*(u16*)0x1F801110 - snapshot) & 0xFFFF`. In `0x8008ADA4`
+the exit sample is loaded at `0x8008B260` and immediately overwritten by the entry sample at
+`0x8008B264`, which is itself immediately overwritten by `lw $v0, 0x24($s4)`. In `0x8008BB48` the
+exit sample is overwritten the same way at `0x8008C334`, and the entry sample survives only as the
+return value, which the scene walk `0x8007976C` discards. The native owners therefore reproduce the
+sample from the framework's own deterministic `Timing::hSyncCounter()` — the same source
+`display_frame.cpp` already uses — and no guest clock is returned and no wait is dispatched.
+
+The working tree owns 25 sites, leaving 26 retail call sites. That number is inventory, not a
 completion claim. The fatal `0x800320EC` trap remains the runtime falsifier; it may not be replaced
 with a counter or wait. The next serialized product trace must name the first residual reachable
 owner. Static analysis alone cannot decide an indirect BOOT callback-table selection.

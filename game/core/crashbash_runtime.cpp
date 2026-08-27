@@ -1,5 +1,6 @@
 #include "crashbash_runtime.h"
 
+#include "boot_object_callbacks.h"
 #include "cd_file_read.h"
 #include "cd_license_startup.h"
 #include "cd_startup.h"
@@ -34,6 +35,7 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   registerMemoryCardStartupOverride();
   registerGpuTimeoutOverrides();
   registerDisplayFrameOverride();
+  registerBootObjectCallbackOverrides();
   diagnostics::registerMenuBoundary();
 }
 

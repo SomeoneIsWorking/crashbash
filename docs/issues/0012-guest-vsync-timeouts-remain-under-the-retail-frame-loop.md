@@ -1,7 +1,7 @@
 ---
 id: 12
 title: Guest VSync timeouts remain under the retail Crash Bash frame loop
-status: investigating
+status: resolved
 symptom: The MENU-reaching product trace prints seven `VSync: timeout` lines and presents no game frame
 state_items: S002,S007
 tags: boot,frame-loop,vsync,native-ownership,timing,presentation
@@ -135,6 +135,32 @@ The owner is therefore `0x8008BB48` itself, and it is a real piece of work rathe
 496 lines of generated C, and it is reached as a VIRTUAL METHOD — `0x8007976C` walks an object list
 and calls slot `[0x13]` of each object's table — so sibling methods reached the same way are likely to
 need the same treatment. Size and shape are recorded here so the port is scoped before it is started.
+
+## Owned, and the result
+
+Both BOOT object callbacks are now natively owned in `boot_object_callbacks.cpp`, taking VSync
+ownership from 21 of 51 sites to 25, with 26 guarded residuals and the exact fatal trap still
+covering every one of them.
+
+`0x8008ADA4` advances each animation channel: one pass binds channels the track has newly reached
+and precomputes their per-tick deltas, a second advances the bound ones and lets the track retire
+them. `0x8008BB48` is the object update: per channel it either interpolates the object's transform
+between two keyframes itself (slerp for rotation channels, three linear interpolations otherwise, at
+1/256-tick resolution) or hands the channel list to `0x8008ADA4`. Both keep their generated bodies as
+A/B supers. The retail 0x50-byte frame is descended for real because the channel-list callback is
+handed `sp+0x18` as an in/out word, and the MIPS `div` edge cases go through `cpu_div` plus the same
+`break 0x1c00` / `break 0x1800` checks the retail compiler emits.
+
+Result of the first run with both owners: **exit 0 over 600 frames** with no guest-VSync violation,
+recompilation miss, watchdog stall or fatal trap — and the guest began submitting geometry.
+Primitives went from 2 to **737,668**. `PSXPORT_DEBUG=rtpcaller` now produces the histograms that had
+never existed, and `tools/verify_render_anchor_reach.py` passes its first real positive trace:
+8 histograms, 765,553 projection calls, through exactly the two anchors the static inventory
+predicted (`0x800193A8` and `0x8001AF2C`). Rendered through the diagnostic PSX path as an oracle, the
+run presents the Crash Bash title screen at 92.9% / 98.9% / 83.6% non-black.
+
+The shipping native path still presents black, because no native producer exists yet. That is S004
+and issue 0011, not a VSync-ownership defect, and this issue closes.
 
 ## Resolution gate
 
