@@ -6,13 +6,15 @@
 
 namespace crashbash::render {
 
+using ModelRotation = std::array<std::array<std::int16_t, 3>, 3>;
+
 enum class ModelSubmitter : std::uint32_t {
   Standard = 0x80019F1Cu,
   Alternate = 0x8001DD50u,
 };
 
 struct ModelTransform {
-  std::array<std::array<std::int16_t, 3>, 3> rotation{};
+  ModelRotation rotation{};
   std::array<std::int32_t, 3> translation{};
   std::int32_t projectionX = 0;
   std::int32_t projectionY = 0;
@@ -53,10 +55,15 @@ struct ModelDraw {
   std::uint32_t modelAsset = 0;
   std::uint32_t modelData = 0;
   std::uint16_t frameCode = 0;
+  std::int16_t depthBias = 0;
+  std::int16_t depthLimit = 0;
   ModelTransform transform;
   std::vector<ModelFace> faces;
   std::uint32_t texturedFaces = 0;
   std::uint32_t nativeFacesSubmitted = 0;
+  std::uint32_t nativeZeroDepthRejected = 0;
+  std::uint32_t nativeFarDepthRejected = 0;
+  std::uint32_t nativeWindingRejected = 0;
 };
 
 bool isRenderableModelDraw(const ModelDraw &draw);

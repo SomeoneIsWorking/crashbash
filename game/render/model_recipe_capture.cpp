@@ -1,6 +1,7 @@
 #include "model_recipe_capture.h"
 
 #include "core.h"
+#include "model_frame_source.h"
 
 #include <array>
 #include <cstdint>
@@ -13,10 +14,9 @@ namespace {
 
 constexpr std::uint32_t kRamBegin = 0x80000000u;
 constexpr std::uint32_t kRamEnd = 0x80200000u;
-constexpr std::uint32_t kFixedFrameFamily = 0x2000u;
 constexpr std::uint32_t kFrameFamilyMask = 0x7000u;
-constexpr std::uint32_t kFrameIndexMask = 0x0FFFu;
-constexpr std::uint32_t kFrameRecordOffset = 0x24u;
+constexpr std::uint32_t kDirectFrameFamily = 0x2000u;
+constexpr std::uint32_t kResolvedFrameFamily = 0x5000u;
 constexpr std::uint32_t kFrameRecordStride = 0x34u;
 constexpr std::uint32_t kMaxGroups = 4096u;
 constexpr std::uint32_t kMaxFaces = 65536u;
@@ -112,22 +112,16 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
   ModelRecipeCensus census{};
   draw.faces.clear();
   draw.texturedFaces = 0;
-  if ((draw.frameCode & kFrameFamilyMask) != kFixedFrameFamily) {
+  const std::uint32_t frameFamily = draw.frameCode & kFrameFamilyMask;
+  if (frameFamily != kDirectFrameFamily && frameFamily != kResolvedFrameFamily) {
     return census;
   }
   census.status = ModelRecipeStatus::InvalidSource;
-  const std::uint32_t frameIndex = draw.frameCode & kFrameIndexMask;
-  if (!ramRange(draw.modelData, 0x58u) ||
-      static_cast<std::int32_t>(core.mem_r32(draw.modelData + 0x54u)) < static_cast<std::int32_t>(frameIndex)) {
-    return census;
-  }
-  const std::uint64_t frameAddress = static_cast<std::uint64_t>(draw.modelData) + kFrameRecordOffset +
-                                     static_cast<std::uint64_t>(frameIndex) * kFrameRecordStride;
-  if (frameAddress > std::numeric_limits<std::uint32_t>::max()) {
-    return census;
-  }
-  const std::uint32_t frame = static_cast<std::uint32_t>(frameAddress);
-  if (!ramRange(frame, kFrameRecordStride)) {
+  const auto readWord = [&core](std::uint32_t address) -> std::optional<std::uint32_t> {
+    return ramRange(address, 4u) ? std::optional<std::uint32_t>(core.mem_r32(address)) : std::nullopt;
+  };
+  const std::optional<std::uint32_t> frame = resolveModelFrameSource(draw.frameCode, draw.modelData, readWord);
+  if (!frame || !ramRange(*frame, kFrameRecordStride)) {
     return census;
   }
 
@@ -138,10 +132,10 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
   std::uint32_t textureDescriptors = 0;
   std::uint32_t colorTable = 0;
   std::uint32_t uvTable = 0;
-  if (!relativeTarget(core, frame, 0x10u, 0x24u, vertices) || !relativeTarget(core, frame, 0x14u, 0x14u, topology) ||
-      !relativeTarget(core, frame, 0x18u, 0x18u, textureIndices) ||
-      !relativeTarget(core, frame, 0x1Cu, 0x1Cu, textureDescriptors) ||
-      !relativeTarget(core, frame, 0x20u, 0x20u, materials) ||
+  if (!relativeTarget(core, *frame, 0x10u, 0x24u, vertices) || !relativeTarget(core, *frame, 0x14u, 0x14u, topology) ||
+      !relativeTarget(core, *frame, 0x18u, 0x18u, textureIndices) ||
+      !relativeTarget(core, *frame, 0x1Cu, 0x1Cu, textureDescriptors) ||
+      !relativeTarget(core, *frame, 0x20u, 0x20u, materials) ||
       !relativeTarget(core, draw.modelData, 0x20u, 0x20u, colorTable) ||
       !relativeTarget(core, draw.modelData, 0x24u, 0x24u, uvTable)) {
     return census;

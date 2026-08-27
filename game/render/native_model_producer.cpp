@@ -2,10 +2,12 @@
 
 #include "core.h"
 #include "game.h"
+#include "model_face_coverage.h"
 #include "native_projection.h"
 #include "producer_scope.h"
 #include "render_queue.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 
@@ -14,26 +16,28 @@ namespace {
 
 constexpr std::uint32_t kProducerKey = 0x80019F1Cu;
 
-bool frontFacing(const std::array<psxport::native_projection::NativeProjectedVertex, 3> &projected,
-                 std::uint16_t flags) {
-  if ((flags & 2u) != 0) {
-    return true;
+class RenderNodeScope {
+public:
+  RenderNodeScope(Core &core, std::uint32_t object) : core_(core), previous_(core.rsub.diag.currentNode()) {
+    core_.rsub.diag.beginObject(object);
   }
-  const std::int64_t area = static_cast<std::int64_t>(projected[0].sx) * projected[1].sy +
-                            static_cast<std::int64_t>(projected[1].sx) * projected[2].sy +
-                            static_cast<std::int64_t>(projected[2].sx) * projected[0].sy -
-                            static_cast<std::int64_t>(projected[0].sx) * projected[2].sy -
-                            static_cast<std::int64_t>(projected[1].sx) * projected[0].sy -
-                            static_cast<std::int64_t>(projected[2].sx) * projected[1].sy;
-  return (flags & 1u) == 0 ? area > 0 : area <= 0;
-}
+  ~RenderNodeScope() {
+    core_.rsub.diag.beginObject(previous_);
+  }
+  RenderNodeScope(const RenderNodeScope &) = delete;
+  RenderNodeScope &operator=(const RenderNodeScope &) = delete;
+
+private:
+  Core &core_;
+  std::uint32_t previous_;
+};
 
 } // namespace
 
-std::uint32_t submitFixedModel(Core &core, const ModelDraw &draw) {
+NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
   if (!draw.transform.valid || draw.faces.empty() || core.game == nullptr || core.game->oracle ||
       core.rsub.mode.psxRender()) {
-    return 0;
+    return {};
   }
   psxport::native_projection::FixedAffine affine{
       .m = draw.transform.rotation,
@@ -47,22 +51,40 @@ std::uint32_t submitFixedModel(Core &core, const ModelDraw &draw) {
   RenderQueue &queue = core.game->rq;
   const GpuState gpu = core.game->gpu;
   if (gpu.s_da_x0 > gpu.s_da_x1 || gpu.s_da_y0 > gpu.s_da_y1) {
-    return 0;
+    return {};
   }
 
-  std::uint32_t submitted = 0;
+  NativeModelSubmitResult result;
   ProducerScope producer(&core.rsub.producerScope, kProducerKey, "model:fixed");
-  RenderQueue::PainterObjectScope painter(queue, draw.object);
+  RenderNodeScope renderNode(core, draw.object);
   for (const ModelFace &face : draw.faces) {
     std::array<psxport::native_projection::NativeProjectedVertex, 3> projected{};
-    bool visible = true;
     for (std::uint32_t i = 0; i < 3; ++i) {
       const ModelVertex &vertex = face.vertices[i];
       projected[i] =
           psxport::native_projection::project(affine, projection, {.x = vertex.x, .y = vertex.y, .z = vertex.z});
-      visible = visible && projected[i].sz != 0;
     }
-    if (!visible || !frontFacing(projected, face.vertices[2].flags)) {
+    const std::array<ProjectedFaceVertex, 3> coverageVertices{{
+        {.x = projected[0].sx, .y = projected[0].sy, .depth = projected[0].sz},
+        {.x = projected[1].sx, .y = projected[1].sy, .depth = projected[1].sz},
+        {.x = projected[2].sx, .y = projected[2].sy, .depth = projected[2].sz},
+    }};
+    const ModelFaceCoverage coverage = classifyFixedModelFace(
+        coverageVertices, face.textured, face.vertices[2].flags, draw.depthBias, draw.depthLimit);
+    if (!coverage.accepted()) {
+      switch (coverage.rejection) {
+      case ModelFaceRejection::ZeroUntexturedDepth:
+        ++result.zeroDepthRejected;
+        break;
+      case ModelFaceRejection::FarDepth:
+        ++result.farDepthRejected;
+        break;
+      case ModelFaceRejection::Winding:
+        ++result.windingRejected;
+        break;
+      case ModelFaceRejection::None:
+        break;
+      }
       continue;
     }
 
@@ -88,6 +110,8 @@ std::uint32_t submitFixedModel(Core &core, const ModelDraw &draw) {
     const int clutY = face.textured ? (face.clut >> 6u) & 0x1FFu : 0;
     const int blendMode = face.textured ? (face.texturePage >> 5u) & 3u : face.blendMode;
     const int dither = face.textured ? (face.texturePage >> 9u) & 1u : gpu.s_tp_dither;
+    const int sortKey = static_cast<int>(coverage.sortKey);
+    const float keyOrd = core.rsub.projParams.pzToOrd(std::max(1.0f, static_cast<float>(coverage.sortKey) * 2.0f));
     queue.emitOrQueue(&core,
                       1,
                       RQ_WORLD,
@@ -120,13 +144,13 @@ std::uint32_t submitFixedModel(Core &core, const ModelDraw &draw) {
                       gpu.s_da_y1,
                       blendMode,
                       nullptr,
-                      -1,
-                      0.0f,
+                      sortKey,
+                      keyOrd,
                       1,
                       dither);
-    ++submitted;
+    ++result.submitted;
   }
-  return submitted;
+  return result;
 }
 
 } // namespace crashbash::render

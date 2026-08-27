@@ -4,6 +4,7 @@
 #include "crashbash_frame_driver.h"
 #include "model_recipe_capture.h"
 #include "model_transform_capture.h"
+#include "model_transform_input_diagnostic.h"
 #include "native_model_producer.h"
 #include "override_registry.h"
 #include "scene_snapshot.h"
@@ -21,6 +22,8 @@ namespace {
 
 constexpr std::uint32_t kStandardModelSubmit = 0x80019F1Cu;
 constexpr std::uint32_t kAlternateModelSubmit = 0x8001DD50u;
+constexpr std::uint32_t kBaseDepthBias = 0x800569C8u;
+constexpr std::uint32_t kDepthLimit = 0x800569DEu;
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
 ModelDraw decodeDraw(Core &core,
@@ -30,16 +33,23 @@ ModelDraw decodeDraw(Core &core,
                      std::uint32_t translation,
                      std::uint32_t callFlags) {
   const std::uint32_t modelAsset = core.mem_r32(object + 0x6Cu);
+  std::uint16_t depthBias = core.mem_r16(kBaseDepthBias);
+  const std::uint32_t objectFlags = core.mem_r32(object);
+  if (submitter == ModelSubmitter::Alternate || (objectFlags & 0x02000000u) != 0) {
+    depthBias = static_cast<std::uint16_t>(depthBias + core.mem_r16(object + 0x68u));
+  }
   return ModelDraw{
       .submitter = submitter,
       .object = object,
-      .objectFlags = core.mem_r32(object),
+      .objectFlags = objectFlags,
       .matrix = matrix,
       .translation = translation,
       .callFlags = callFlags,
       .modelAsset = modelAsset,
       .modelData = modelAsset == 0 ? 0u : core.mem_r32(modelAsset + 0x0Cu),
       .frameCode = core.mem_r16(object + 0x74u),
+      .depthBias = static_cast<std::int16_t>(depthBias),
+      .depthLimit = static_cast<std::int16_t>(core.mem_r16(kDepthLimit)),
   };
 }
 
@@ -56,7 +66,11 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
       captureFixedModelRecipe(core, draw);
     }
     ModelDraw &stored = history.record(std::move(draw));
-    stored.nativeFacesSubmitted = submitFixedModel(core, stored);
+    const NativeModelSubmitResult submitted = submitFixedModel(core, stored);
+    stored.nativeFacesSubmitted = submitted.submitted;
+    stored.nativeZeroDepthRejected = submitted.zeroDepthRejected;
+    stored.nativeFarDepthRejected = submitted.farDepthRejected;
+    stored.nativeWindingRejected = submitted.windingRejected;
   }
 }
 
@@ -64,13 +78,19 @@ void standardModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Standard, core->r[4], core->r[5], core->r[5] + 0x14u, core->r[6]);
   resetModelTransformCapture(*core, draw.object);
   gen_func_80019F1C(core);
-  takeModelTransformCapture(*core, draw.object, draw.transform);
+  if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
+    observeInstalledModelTransformInputs(draw.transform, draw.submitter);
+  }
   recordIfRenderable(*core, std::move(draw));
 }
 
 void alternateModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Alternate, core->r[4], 0u, 0u, 0u);
+  resetModelTransformCapture(*core, draw.object);
   gen_func_8001DD50(core);
+  if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
+    observeInstalledModelTransformInputs(draw.transform, draw.submitter);
+  }
   recordIfRenderable(*core, std::move(draw));
 }
 #endif

@@ -45,9 +45,12 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/main.cpp
   game/core/recomp_register.cpp
   game/diagnostics/menu_boundary.cpp
+  game/render/model_face_coverage.cpp
+  game/render/model_frame_source.cpp
   game/render/model_submit_capture.cpp
   game/render/model_recipe_capture.cpp
   game/render/model_transform_capture.cpp
+  game/render/model_transform_input_diagnostic.cpp
   game/render/native_model_producer.cpp
   game/render/scene_snapshot.cpp
 )
@@ -96,6 +99,55 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_scene_snapshot COMMAND crashbash_scene_snapshot_test)
+  add_executable(
+    crashbash_model_face_coverage_test
+    tests/test_model_face_coverage.cpp
+    game/render/model_face_coverage.cpp
+  )
+  target_include_directories(crashbash_model_face_coverage_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_model_face_coverage_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_face_coverage COMMAND crashbash_model_face_coverage_test)
+  add_executable(
+    crashbash_model_frame_source_test
+    tests/test_model_frame_source.cpp
+    game/render/model_frame_source.cpp
+  )
+  target_include_directories(crashbash_model_frame_source_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_model_frame_source_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_frame_source COMMAND crashbash_model_frame_source_test)
+  add_executable(
+    crashbash_model_transform_math_test
+    tests/test_model_transform_math.cpp
+    game/render/model_transform_capture.cpp
+  )
+  target_include_directories(crashbash_model_transform_math_test PRIVATE game/core game/render)
+  target_link_libraries(crashbash_model_transform_math_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_transform_math_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_transform_math COMMAND crashbash_model_transform_math_test)
+  add_executable(
+    crashbash_model_transform_input_diagnostic_test
+    tests/test_model_transform_input_diagnostic.cpp
+    game/render/model_transform_input_diagnostic.cpp
+  )
+  target_include_directories(crashbash_model_transform_input_diagnostic_test PRIVATE game/core game/render)
+  target_link_libraries(crashbash_model_transform_input_diagnostic_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_transform_input_diagnostic_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(
+    NAME crashbash_model_transform_input_diagnostic
+    COMMAND crashbash_model_transform_input_diagnostic_test
+  )
   add_test(
     NAME crashbash_boot_boundary_selftest
     COMMAND

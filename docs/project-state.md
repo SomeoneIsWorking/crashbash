@@ -12,18 +12,35 @@
 
 ## Current focus
 
-S004 is the current focus. The first source-owned producer now copies the title-composed affine and
-projection state at `0x8001965C`, decodes fixed-frame Gouraud triangle strips plus their descriptor-run
-UV, texture-page, and CLUT state from model source records, stores them in `SceneSnapshotHistory`, and
-submits through the native render queue under producer key `0x80019F1C`. It retains every generated
-super and reads no GTE result, ordering table, or GP0 packet. At real-disc frame 255 all 71 accepted
-models carry copied transforms; 1,542 faces are captured, including 382 textured faces, and 1,010
-survive winding/depth rejection. The 4:3 native capture is non-black at 627672/691200 pixels and the
-before/after image visibly gains three sampled gradient squares plus particle points; the serialized
-PSX reference is 668153/691200. This proves a textured source path, not 4:3 picture correctness: at
-frame 300 the native producer still renders only central Eurocom-letter fragments while the PSX path
-renders the complete logo. The next unit is source-owned ordering/coverage parity for `0x80019F1C`,
-not widescreen or interpolation.
+S004 is the current focus. The source-owned producer now copies the title-composed affine/projection
+state, decodes direct `0x2000` and two-level `0x5000` fixed-frame records, and reconstructs
+`0x800193A8` depth rejection, winding, and OT bucket keys without reading GTE, OT, or GP0 output. A
+Clang build against recorded psxport `fb08d30f` passes 16/16 CTests. Serialized native PID 3368774
+completed 301/301 frames with no guest-VSync violation, watchdog, fatal, or recompilation miss. Its
+frame-300 capture materially changes the picture from isolated central fragments to the complete
+EUROCOM letter geometry, proving that source bucket ownership reaches visible output. It is still
+wrong: the model layer appears enlarged/cropped and blacks out much of the starfield versus the
+retained PSX reference. Static re-check after that run corrected one branch detail (only the
+untextured path rejects `SZ3 == 0`), so the corrected branch has focused test/build evidence but no
+new visual witness. A second bounded native run forced global Authored mode and retained the same
+scale/crop (266224 versus 266233 non-black pixels), falsifying cross-object OT policy as its cause.
+Current-build PSX-path PID 3410230 then produced 642043/691200 non-black pixels at frame 300 and is
+pixel-identical (`AE=0`) to the retained PSX reference. This falsifies stale timing/provenance and
+isolates the visible scale/crop to the native producer's projection-input or coordinate
+interpretation.
+
+The title-owned source/GTE diagnostic has now produced the failing answer in-product. Exact PID
+3579702 completed 301 reconciled frames; 673/673 standard rotations and translations agreed, while
+all 673 projection comparisons disagreed at H (`0x0200` captured versus retail `0x0140`). Ghidra
+resolves the ownership error: `0x8009440C` sources H from `camera + 0x18`, while `0x80019F1C` uses the
+separate `projectionGlobals + 4` value only to calculate OFX. The capture now keeps those inputs
+separate and the exact-pin Clang shipping target plus focused transform/comparator/policy tests pass.
+Exact post-fix PID 3589261 then completed 301 reconciled frames with 673/673 standard input matches and
+zero mismatch categories. Its frame-300 capture rises from 266233 to 340553 non-black pixels and
+visibly removes the 1.6x scale/crop: the full EUROCOM word and subtitle fit at retail scale. Large black
+native faces still occlude substantial starfield and glyph edges versus the PSX reference, so 4:3 parity
+is not verified. Their source model/material color, texture, and semitransparency decode is the current
+boundary. Widescreen and interpolation remain downstream of visually correct 4:3 output.
 
 ## Capability details
 
@@ -132,8 +149,16 @@ extends that boundary through source fixed-frame topology/material/UV decode and
 submission: frame 255 captures 1,542 faces, of which 382 are textured, submits 1,010, and produces a
 visibly non-black 90.81% native picture versus the 96.67% PSX reference. A retained untextured capture
 compared with the new capture visibly proves the textured faces contribute sampled gradient squares
-and particles. Frame-300 inspection nevertheless shows incomplete logo geometry, so source-owned OT
-sort/coverage parity and remaining producer families are still missing.
+and particles. The next keyed-order candidate exposes the complete EUROCOM letter set at frame 300,
+but visibly enlarged/cropped and occluding most of the starfield. The copied `0x8001965C` affine and
+`0x80019F1C` projection calculation agree with retail, and `native_projection` is GTE-differentially
+verified, so a projection scale factor would be a bandaid. Exact PID 3396467 forced global Authored
+mode and completed cleanly, but the frame remained enlarged/cropped at 266224/691200 non-black versus
+Depth's 266233/691200. This falsifies cross-object OT policy. Current-build PSX-path PID 3410230
+completed 301 frames cleanly at build `a263bce-dirty+psxport-d3d67848`; its 642043/691200 frame-300
+capture is pixel-identical (`AE=0`) to the retained PSX image. The retained reference is therefore
+not stale, and the scale/crop belongs to the native projection-input/coordinate boundary. The
+post-run zero-depth branch correction has a controlled unit test but no second native visual claim.
 
 ### S005 — Widescreen camera
 

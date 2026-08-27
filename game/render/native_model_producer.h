@@ -8,6 +8,13 @@ struct Core;
 
 namespace crashbash::render {
 
-std::uint32_t submitFixedModel(Core &core, const ModelDraw &draw);
+struct NativeModelSubmitResult {
+  std::uint32_t submitted = 0;
+  std::uint32_t zeroDepthRejected = 0;
+  std::uint32_t farDepthRejected = 0;
+  std::uint32_t windingRejected = 0;
+};
+
+NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw);
 
 } // namespace crashbash::render

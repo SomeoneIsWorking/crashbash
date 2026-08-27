@@ -136,3 +136,55 @@ invariant (`refused=3`) and reverted; reclassifying 3D model work as HUD is not 
 next grounded unit is the source-owned sort/coverage behavior around `0x800193A8`, followed by any
 remaining frame/submitter families. Widescreen and interpolation remain downstream of visual 4:3
 correctness.
+
+### Note (2026-08-27)
+Static source boundary advanced on the unlanded fb08d30f candidate: generated `0x800193A8`
+proves untextured-only `SZ3 == 0` rejection, unsigned `((SZ3 + signed depth bias) >> 1)`
+bucket comparison against the signed halfword limit, and winding/no-cull behavior. The native producer
+now supplies that bucket to the keyed world queue without `PainterObjectScope`. Retail `0x800159C4 ->
+0x8001DD20` grounds family `0x5000` as a two-level source-frame resolver, while `0x8001D894` grounds
+the alternate submitter transform from object/camera matrices and large signed translation. Clang
+shipping build, 16/16 CTests, policy, and pin provenance pass. Serialized native PID 3368774 then
+completed 301 frames and produced the complete EUROCOM letter geometry at frame 300, but the model
+layer is visibly over-scaled/cropped and blacks out much of the starfield. This materially advances
+coverage while falsifying 4:3 parity. Exact PID 3396467 then forced global Authored mode and completed
+cleanly, but retained the same scale/crop at 266224/691200 non-black versus Depth's 266233/691200.
+This falsifies cross-object OT policy as the cause. The retained PSX frame-300 image predates current
+framework provenance, so a current-build PSX-path witness is required before changing projection.
+
+### Note (2026-08-27, current-build PSX falsifier)
+Exact PID 3410230 completed the authorized 301-frame PSX-path run cleanly at build
+`a263bce-dirty+psxport-d3d67848`. Frame 300 contains 642043/691200 non-black pixels and is
+pixel-identical (`AE=0`) to the retained PSX reference despite its older framework provenance. The
+reference is not stale. Together with the Authored-mode falsifier, this isolates the enlarged/cropped
+EUROCOM layer to the native producer's projection-input or coordinate interpretation, not global OT
+ordering or frame timing. No projection constant was changed. The next grounded falsifier is an
+input-side comparison between the source-composed projection state and the guest GTE registers at the
+same draw; GTE results remain prohibited as native product input.
+
+### Note (2026-08-28, projection-input owner localized)
+
+`model_transform_input_diagnostic` compares the source-captured rotation, translation, OFX, OFY, and
+H with GTE control inputs immediately after each retained submitter super. It only records attribution
+evidence and never supplies product rendering state. Its focused test proves the matching answer plus
+independently forced rotation, translation, and projection mismatches. Exact native PID 3579702 then
+completed 301 reconciled frames and returned from native crt0 without a guest-VSync violation, fatal,
+or watchdog. Frame 300 retained the enlarged/cropped picture at 266233/691200 non-black pixels. The
+denominator was 673 standard comparisons and zero alternate comparisons: all 673 rotations and
+translations agreed, while all 673 projection comparisons disagreed first at H (`expected=0x0200`,
+`actual=0x0140`). The 1.6 ratio is the observed picture enlargement.
+
+Ghidra decompilation resolves the cause rather than endorsing a scale patch. `0x8009440C` loads retail
+H from the camera record at `camera + 0x18` before calling `0x80019F1C`; `0x80019F1C` uses the separate
+`projectionGlobals + 4` halfword only in the OFX formula. The title capture had conflated that
+horizontal projection scale with GTE H. Standard and alternate captures now retain the horizontal
+scale solely for OFX and source H from the camera record. The exact-pin Clang shipping target builds;
+transform/comparator/policy tests pass 3/3. Exact post-fix PID 3589261 completed 301 reconciled frames
+and returned cleanly. All 673 standard comparisons now match rotation, translation, and projection;
+all mismatch counts are zero. Frame 300 rises from 266233 to 340553 non-black pixels, and visual
+inspection against the retained before/PSX images shows the 1.6x enlargement and crop are removed:
+the full EUROCOM word and subtitle fit at the retail scale. This resolves the projection-input owner,
+not 4:3 parity. Large black native polygons still mask much of the purple starfield, and the first/last
+letter edges remain occluded versus the PSX reference. The next grounded boundary is to attribute those
+black faces to their source model/material records and verify color, texture, and semitransparency
+decode; do not compensate with ordering, clipping, or projection arithmetic.

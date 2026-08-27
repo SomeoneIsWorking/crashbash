@@ -21,6 +21,8 @@ int main() {
       .modelAsset = 0x800A0000u,
       .modelData = 0x800A1000u,
       .frameCode = 0x2001u,
+      .depthBias = -7,
+      .depthLimit = 0x1234,
       .faces = {ModelFace{
           .textureCoordinates = {0x1020u, 0x3040u, 0x5060u},
           .texturePage = 0x0123u,
@@ -49,7 +51,8 @@ int main() {
     return EXIT_FAILURE;
   }
   const ModelDraw &previousDraw = history.previous().models.front();
-  if (previousDraw.texturedFaces != 1u || previousDraw.faces.size() != 1u || !previousDraw.faces.front().textured ||
+  if (previousDraw.depthBias != -7 || previousDraw.depthLimit != 0x1234 || previousDraw.texturedFaces != 1u ||
+      previousDraw.faces.size() != 1u || !previousDraw.faces.front().textured ||
       previousDraw.faces.front().textureCoordinates[2] != 0x5060u ||
       previousDraw.faces.front().texturePage != 0x0123u || previousDraw.faces.front().clut != 0x0456u) {
     return EXIT_FAILURE;

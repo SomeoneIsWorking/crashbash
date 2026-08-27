@@ -5,6 +5,7 @@
 #include "game.h"
 #include "measured_guest_call.h"
 #include "model_transform_capture.h"
+#include "model_transform_input_diagnostic.h"
 #include "snapshot.h"
 
 #include <cstdlib>
@@ -178,20 +179,28 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
   std::uint32_t capturedFaces = 0;
   std::uint32_t texturedFaces = 0;
   std::uint32_t submittedFaces = 0;
+  std::uint32_t zeroDepthRejected = 0;
+  std::uint32_t farDepthRejected = 0;
+  std::uint32_t windingRejected = 0;
   std::uint32_t transformedModels = 0;
   std::uint32_t fixedModels = 0;
   for (const render::ModelDraw &draw : sceneSnapshots_.current().models) {
     capturedFaces += static_cast<std::uint32_t>(draw.faces.size());
     texturedFaces += draw.texturedFaces;
     submittedFaces += draw.nativeFacesSubmitted;
+    zeroDepthRejected += draw.nativeZeroDepthRejected;
+    farDepthRejected += draw.nativeFarDepthRejected;
+    windingRejected += draw.nativeWindingRejected;
     transformedModels += draw.transform.valid ? 1u : 0u;
     fixedModels += (draw.frameCode & 0x7000u) == 0x2000u ? 1u : 0u;
   }
   const render::ModelTransformCaptureCensus &transformCensus = render::modelTransformCaptureCensus();
+  const render::ModelTransformInputCensus &inputCensus = render::modelTransformInputCensus();
   lucent::info("crashbash-frame",
                "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
                "{} field(s) delivered, {} accepted pre-GTE model draw(s) ({} transformed / {} fixed), "
-               "{} fixed face(s) captured ({} textured) / {} submitted, vblank counter 0x{:08X}, "
+               "{} fixed face(s) captured ({} textured) / {} submitted (rejected zero/far/winding "
+               "{}/{}/{}), vblank counter 0x{:08X}, "
                "app mode 0x{:08X} unchanged for "
                "the whole dwell)",
                frame,
@@ -206,22 +215,41 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
                capturedFaces,
                texturedFaces,
                submittedFaces,
+               zeroDepthRejected,
+               farDepthRejected,
+               windingRejected,
                core.mem_r32(guest::kVblankCounter),
                appMode_);
   lucent::info("crashbash-render",
-               "transform census attempts={} captured={} mismatch={} output={} rotation={} translation={} "
-               "projection={} last=({:08X},{:08X},{:08X},{:08X})",
+               "transform census attempts={} captured={} mismatch={} output={} rotation={} translation={} camera={} "
+               "projection={} last=({:08X},{:08X},{:08X},{:08X},{:08X})",
                transformCensus.attempts,
                transformCensus.captured,
                transformCensus.pendingMismatch,
                transformCensus.invalidOutput,
                transformCensus.invalidRotation,
                transformCensus.missingTranslation,
+               transformCensus.invalidCamera,
                transformCensus.invalidProjection,
                transformCensus.lastOutput,
                transformCensus.lastRotation,
                transformCensus.lastTranslation,
+               transformCensus.lastCamera,
                transformCensus.lastProjection);
+  lucent::info("crashbash-render",
+               "source/GTE input census standard={}/{} alternate={}/{} mismatched rotation/translation/projection="
+               "{}/{}/{} first=(kind={},index={},expected={:08X},actual={:08X})",
+               inputCensus.standardMatched,
+               inputCensus.standardCompared,
+               inputCensus.alternateMatched,
+               inputCensus.alternateCompared,
+               inputCensus.rotationMismatches,
+               inputCensus.translationMismatches,
+               inputCensus.projectionMismatches,
+               static_cast<std::uint32_t>(inputCensus.firstMismatch.firstMismatch),
+               inputCensus.firstMismatch.firstMismatchIndex,
+               inputCensus.firstMismatch.firstExpected,
+               inputCensus.firstMismatch.firstActual);
 }
 
 CrashBashFrameDriver &frameDriver(Core &core) {
