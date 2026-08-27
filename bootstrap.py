@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ctypes.util
 import os
+import runpy
 import shlex
 import shutil
 import subprocess
@@ -388,8 +389,10 @@ def prepare_product(
         raise LaunchError(
             f"build did not produce required product input(s): {rendered}"
         )
-    environment.setdefault("PSXPORT_ASSET_DIR", str(ROOT / "external" / "psxport"))
-    environment["PSXPORT_VK_WINDOW"] = "1"
+    framework = Path(environment.get("PSXPORT_DIR", ROOT / "external" / "psxport"))
+    policy = runpy.run_path(str(framework / "tools/port/launch_environment.py"))
+    environment = policy["player_environment"](environment)
+    environment.setdefault("PSXPORT_ASSET_DIR", str(framework))
     return environment
 
 

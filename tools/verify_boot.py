@@ -223,6 +223,7 @@ def run(port: Path, executable: Path, timeout: float) -> str:
     environment.pop("PSXPORT_WATCHDOG", None)
     environment.update(
         PSXPORT_ASSET_DIR=str(ROOT / "external/psxport"),
+        PSXPORT_VK_HEADLESS="1",
         PSXPORT_NOPACE="1",
         PSXPORT_NOAUDIO="1",
     )

@@ -117,7 +117,18 @@ class ProductWorkflowTest(unittest.TestCase):
             def record(arguments, _environment):
                 commands.append(list(arguments))
 
-            with mock.patch.object(bootstrap, "check_native_dependencies"):
+            with (
+                mock.patch.object(bootstrap, "check_native_dependencies"),
+                mock.patch.dict(
+                    bootstrap.os.environ,
+                    {
+                        "PSXPORT_VK_HEADLESS": "1",
+                        "PSXPORT_NOAUDIO": "1",
+                        "PSXPORT_NOPACE": "1",
+                    },
+                    clear=False,
+                ),
+            ):
                 environment = bootstrap.prepare_product(
                     None, paths=paths, runner=record
                 )
@@ -159,6 +170,12 @@ class ProductWorkflowTest(unittest.TestCase):
             str(paths.build / "psxport_build" / "tools" / "discdump"),
         )
         self.assertEqual(environment["PSXPORT_VK_WINDOW"], "1")
+        for agent_key in (
+            "PSXPORT_VK_HEADLESS",
+            "PSXPORT_NOAUDIO",
+            "PSXPORT_NOPACE",
+        ):
+            self.assertNotIn(agent_key, environment)
 
     def test_dependency_refusal_runs_no_setup_command(self):
         commands: list[list[str]] = []
