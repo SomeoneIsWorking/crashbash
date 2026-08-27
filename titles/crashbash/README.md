@@ -12,6 +12,8 @@ contains a Spyro 3 demo payload, but that is not the configured boot executable.
 | executable fact | measured value |
 |---|---|
 | disc path | `SCUS_945.70` |
+| disc extent | LBA 23, 432,128 bytes |
+| disc layout | one 75,774-sector data track; `SYSTEM.CNF` at LBA 234; `CRASHBSH.DAT` at LBA 236 |
 | file size | 432,128 bytes |
 | SHA-1 | `c4a06208612ff2625b9083596d36fdf60b01be5f` |
 | SHA-256 | `fd5727a18feb2a2d5a6359a55966f0266284d1e50f64ee9b8a127a97091bd516` |

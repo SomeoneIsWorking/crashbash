@@ -1,6 +1,7 @@
 // Crash Bash's measured framework compatibility facts. Unmeasured address groups stay zero by
 // omission. CrashBashRuntime owns behavior; this table exists only while generic psxport algorithms
 // still read Core::cfg.
+#include "crashbash_guest.h"
 #include "game_iface.h"
 #include "legacy_game_interface.h"
 
@@ -55,6 +56,15 @@ static const GameConfig kCrashBashConfig = {
     .recMainLo = kRecMainLo,
     .recMainHi = kRecMainHi,
     .discEnvVar = "PSXPORT_CRASHBASH_DISC",
+    .cdCommand = crashbash::guest::kCdCommand,
+    .cdSync = crashbash::guest::kCdSync,
+    .cdSearchFile = crashbash::guest::kCdSearchFile,
+    .hle =
+        {
+            .windowLo = {crashbash::guest::kVSync.begin, crashbash::guest::kCdInitHandshake},
+            .windowHi = {crashbash::guest::kVSync.end, crashbash::guest::kCdCommand + 4u},
+            .vsyncTrap = crashbash::guest::kVSync.begin,
+        },
     .windowTitle = "Crash Bash",
     .stackBias = {1, kCrt0StackBias},
 };

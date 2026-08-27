@@ -38,6 +38,7 @@ FORBIDDEN = (
     re.compile(r"\[recomp-MISS", re.IGNORECASE),
     re.compile(r"Segmentation fault", re.IGNORECASE),
     re.compile(r"CD timeout:", re.IGNORECASE),
+    re.compile(r"VSync:\s*timeout", re.IGNORECASE),
     re.compile(r"Cant find CRASHBSH\.DAT", re.IGNORECASE),
 )
 
@@ -245,7 +246,6 @@ def _fixture() -> str:
 10 field(s) AGREE, 0 DISAGREE, 0 unresolved
 {LOAD_START}
 {LOAD_COMPLETE}
-VSync: timeout
 {LOAD_START}
 {LOAD_COMPLETE}
 {EMPTY_PRIMS}
@@ -256,7 +256,7 @@ VSync: timeout
 def selftest() -> bool:
     fixture = _fixture()
     passed = 0
-    cases = 12
+    cases = 13
     try:
         verdict = judge(fixture)
         passed += 1
@@ -276,8 +276,8 @@ def selftest() -> bool:
         (fixture.replace(LOAD_COMPLETE + "\n", "", 1), "missing load completion"),
         (
             fixture.replace(
-                f"{LOAD_COMPLETE}\nVSync: timeout\n{LOAD_START}",
-                f"{LOAD_START}\nVSync: timeout\n{LOAD_COMPLETE}",
+                f"{LOAD_COMPLETE}\n{LOAD_START}",
+                f"{LOAD_START}\n{LOAD_COMPLETE}",
             ),
             "interleaved load progression",
         ),
@@ -294,6 +294,7 @@ def selftest() -> bool:
         (fixture + "[watchdog] STUCK: forced negative\n", "watchdog failure"),
         (fixture + "FATAL: forced negative\n", "fatal runtime failure"),
         (fixture + "[recomp-MISS forced-negative]\n", "recompilation miss"),
+        (fixture + "VSync: timeout\n", "guest VSync timeout"),
     )
     for changed, label in negatives:
         try:
@@ -379,7 +380,7 @@ def main() -> int:
             f"{verdict.load_starts}/{verdict.load_completions} module loads completed, "
             "then empty prims and the game-owned MENU 0x800B5244 observer from "
             "ra=0x8001E7C0; no watchdog stall, fatal error, "
-            "or recompilation miss observed"
+            "recompilation miss, or guest VSync timeout observed"
         )
         return 0
     except (OSError, Refused) as error:

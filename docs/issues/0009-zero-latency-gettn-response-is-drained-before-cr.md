@@ -194,3 +194,26 @@ not resolve this issue's CDC/completion contract or prove a game frame: the run 
 at the MENU entry and carries no
 CDC-phase diagnostics. The next evidence remains the process-driving CDC gate and capture of the
 retail guest-visible completion result `1 -> 0`.
+
+## Native-ownership first-frame falsifier (2026-08-27)
+
+The shipping product now owns measured file read `0x80027790` synchronously from real CHD sectors.
+Its strict 67-line run completes both loads and reaches MENU with no timeout or guest-VSync violation,
+resolving issue 0007 for the current product contract. A separate direct run requested 120 native
+frames and PRESENT captures at 0, 1, 2, 30, 60, and 119. Exact child PID `2579916` exited by itself
+with code 139 at the fatal VSync trap; no cleanup signal was needed. Only `present_1.ppm` and
+`present_2.ppm` existed, and each was 960x720 with exactly 0/691200 non-black pixels.
+
+The exact fatal was `VSync(-1)`, `ra=0x8002D9E4`, under resident disc/license state machine
+`0x8002D4F4`, reached through BOOT `0x8008E5BC`. Emitted code and Ghidra agree that six states use
+VSync only as a delay clock. The first native candidate forced state 16 and called `0x8002E0F0`;
+visual inspection then showed only the red copy-protection warning, while the trace ended that body
+at BIOS `B0:38 exit`. This falsifies the original "success continuation" interpretation. The
+authentic-disc route instead completes Pause in state 18 and returns to idle state 0. The corrected
+owner verifies the measured SCUS-94570 track/file layout and exact SYSTEM.CNF before recording state
+0. Its direct run accepted that identity and did not enter the failure renderer, then exposed a
+separate psxport firstfile/nextfile completion omission: the empty directory return reached stock
+libmcrd's HwCARD wait at `0x800476EC`, but no callback was delivered. The focused shared candidate
+now preserves the zero result and invokes the interrupt-mode completion exactly once. This issue
+remains investigating until a new direct run progresses beyond that owner and produces a real game
+frame; the historical async completion comparison is no longer the shipping file-read gate.

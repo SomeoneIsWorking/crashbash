@@ -18,13 +18,15 @@ loading` pairs, then `empty prims`, then exactly one game-owned marker proving m
 `0x800B5244` from `ra=0x8001E7C0`. That marker wraps and immediately super-calls the retained
 generated body; it is not an async stack sample or unsupported generic trace knob. The judge rejects
 STUCK/INTERRUPT watchdog terminals, fatal output, recompilation misses, segmentation faults, the
-former CD timeout, and a missing DAT.
+former CD timeout, every `VSync: timeout`, and a missing DAT.
 
-The controlled suite passes 12/12, including missing/wrong/reordered module and MENU facts, a real
-STUCK line, and an exact-child cleanup whose SIGTERM handler emits `[watchdog] INTERRUPT` only after
-the positive boundary. Cleanup output is deliberately excluded from pre-boundary product evidence.
-The serialized exact-pin `784e5212` run passes on 72 judged lines with 2/2 loads, `empty prims`,
-and the exact MENU entry/caller marker.
+The controlled suite passes 13/13, including missing/wrong/reordered module and MENU facts, a real
+STUCK line, a guest-VSync-timeout negative, and an exact-child cleanup whose SIGTERM handler emits
+`[watchdog] INTERRUPT` only after the positive boundary. Cleanup output is deliberately excluded
+from pre-boundary product evidence. The old serialized exact-pin trace still contains the ordered
+2/2 loads, `empty prims`, and exact MENU entry/caller marker, but the corrected judge refuses it for
+seven `VSync: timeout` lines. The current 67-line post-native-ownership product trace provides the
+other answer and passes with no forbidden terminal or guest-VSync output.
 
 ## Known failure modes
 

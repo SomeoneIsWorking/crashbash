@@ -1,12 +1,12 @@
 ---
 id: 7
 title: Crash Bash repeats the 189-sector CRASHBSH.DAT read instead of completing
-status: investigating
+status: resolved
 symptom: After continuous ReadN advances through LBA 35799..35987, the game restarts Setloc at LBA 35799 and never prints done loading
 tags: boot,cdrom,libcd,dma,watchdog
 state_items: S002,S007
 created: 2026-08-21
-updated: 2026-08-26
+updated: 2026-08-27
 ---
 
 ## Root cause
@@ -23,6 +23,21 @@ shared ordering defect: that psxport revision coalesced the completion and clear
 interrupt drain, so the guest could not observe the pending state at the corresponding `0x800348A8` /
 `0x80027944` return. The landed phase candidate now separates the controller response edges; a clean
 guest-visible result capture remains required before declaring that second defect resolved.
+
+## Shipping resolution (2026-08-27)
+
+The product architecture no longer exposes this title-level read as an asynchronous guest operation.
+`game/core/cd_file_read.cpp` owns measured entry `0x80027790`, derives the descriptor-relative LBA,
+copies every requested 2048-byte sector from the real CHD into guest RAM, clears the retail active
+flag, and returns success only after the complete interval is present. The generated async body is
+retained as the A/B super; nested legacy controller paths remain guarded by the fatal VSync trap.
+
+The serialized strict product gate provides the runtime falsifier: it opens the verified USA CHD,
+completes both `load file start` / `done loading` pairs without restarting the 189-sector range, then
+prints `empty prims` and reaches measured MENU entry `0x800B5244` from `ra=0x8001E7C0`. Its 67 judged
+lines contain no timeout, fatal, recompilation miss, watchdog terminal, or guest-VSync violation.
+The historical oracle comparison below remains valid evidence for the retired asynchronous path; it
+is no longer the shipping completion contract.
 
 ## Oracle/port comparison
 
@@ -75,19 +90,13 @@ it trapped on every poll-loop return. A normal live run completed in under one s
 state-word watch captured the exact guest-cycle sequence without changing the watchdog. That first
 debugger stop was probe overhead, not evidence that the deterministic drive clock had stalled.
 
-## Next investigation
+## Residual oracle scope
 
-Keep the deterministic drive schedule. The landed phase candidate no longer shows the old response
-coalescing mechanism: after each of its 5 Pause commands, INT3 is acknowledged before a fresh
-`0x8003F5F0` handler entry observes INT2. The positive gate passes that candidate trace and rejects a
-fixture with the second handler entry removed. The remaining serialized check is therefore narrower:
-capture `0x800348A8` / `0x80027944` returns on the clean product at recorded pin `99a42aa3` and compare
-them against the oracle's returned `1 -> 0` sequence. Distinct hardware edges and continued reads do
-not by themselves prove the guest observed the intermediate completion-pending value. BOOT and nested
-MENU have since been measured, provisioned, emitted, and executed; that work does not resolve the
-oracle-visible result check. This pin includes later shared XA/CDC changes from `f9b5db8f`, so the old
-candidate trace cannot certify it. Separately, route verified CD/FMV progress into the shared watchdog
-owner rather than weakening its timeout.
+The landed phase candidate no longer shows the old response-coalescing mechanism: after each of its
+five Pause commands, INT3 is acknowledged before a fresh `0x8003F5F0` handler entry observes INT2.
+That remains useful hardware-emulation evidence, but the shipping synchronous file owner neither
+waits for nor claims the oracle's intermediate `1 -> 0` async result. A future generic async-CD mode
+would still need that comparison; it is not a dependency of the current product path.
 
 ## Rendering audit (2026-08-22)
 
@@ -97,7 +106,7 @@ exact recorded psxport pin `d2266f4b`, `tools/verify_boot.py` proves that the na
 BOOT and nested MENU execute through retained generated bodies, and execution reaches resident
 0x8002DE2C without a recomp miss. The 136-line gate and all 8 CTest gates pass.
 
-Graphics work remains downstream of shared CDC timing. The landed port drains and acknowledges a GetTN
-response in 0x8003E14C before resident 0x8002DE2C can observe it, as tracked in issue 0009. Adding a
-guest-packet fallback, a fabricated boot picture, or camera constants before that execution spine
-advances would hide the boundary rather than advance the port.
+The current strict product path now completes both loads and reaches MENU through synchronous native
+disc ownership. Graphics work remains downstream of an actual non-black presented frame, tracked by
+issues 0009 and 0012. A fabricated boot picture or guessed camera constants would still hide that
+boundary rather than advance the port.

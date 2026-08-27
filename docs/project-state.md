@@ -12,12 +12,41 @@
 
 ## Current focus
 
-S002 is the current focus. The controller-level response-edge fix is landed and candidate-tested. A
-serialized product run against exact recorded pin `784e5212` now
-completes both module loads, prints `empty prims`, and reaches the measured MENU entry `0x800B5244`
-from resident caller `0x8001E7C0` without a watchdog stall. It still does not contain the CDC
-diagnostics needed to judge phase progress or the retail guest-visible completion result `1 -> 0`,
-and it does not demonstrate a presented game frame.
+S002 is the current focus. The current strict serialized product gate completes both module loads,
+prints `empty prims`, and reaches measured MENU entry `0x800B5244` from resident caller
+`0x8001E7C0` with no guest-VSync violation, timeout, fatal, watchdog, or recompilation miss.
+The current working tree replaces the retail lifetime process runner with a finite Crash Bash
+FrameDriver and owns display function `0x800272AC` plus its nested allocator without calling guest
+VSync. The first bounded post-change product run then reached the mandatory fatal trap during
+boot-time memory-card BIOS/vector startup at `0x800486DC`, from `ra=0x80048700` and ancestry
+`0x80027F00 -> 0x8002C894 -> 0x8003ABAC`. A new title-local owner preserves that setup without the
+ownerless `VSync(0)`. The next bounded run validated it and reached a distinct `VSync(-1)` timeout
+query from `ra=0x8003E6EC` during `CD_init`. The rebuilt candidate now owns the controller-ready
+handshake and routes the measured libcd command, sync, and ISO lookup entries through psxport's
+synchronous native CD implementation. That run had no VSync violation or timeout, but exposed a
+`GetTN` readiness loop at `0x800349AC -> 0x8003584C`: the no-controller command has no invented status
+packet. The rebuilt title owner now derives readiness from a real parsed CHD TOC. The next run
+validated readiness, opened the real CHD, and
+reached `load file start`, then trapped at the guest async read starter through
+`0x800134FC -> 0x80027790 -> 0x8003470C`. The rebuilt candidate now owns the higher file-read
+contract, copying every requested real sector into guest RAM before returning; the strict pass
+validated both loads and MENU. A separate direct 120-frame run then exited 139 at the fatal VSync
+trap from `ra=0x8002D9E4` under disc/license state machine `0x8002D4F4`; PRESENT frames 1 and 2 were
+both 960x720 and 0% non-black. The first owner candidate then produced only the red copy-protection
+failure screen: visual inspection and BIOS call `B0:38 exit` proved state 16 / `0x8002E0F0` is the
+failure path. The corrected title owner binds the runtime disc to the measured SCUS-94570 layout and
+records the authentic-disc idle state 0 without a guest clock. Its serialized run accepted that
+identity and removed the red failure screen, then watchdoged in stock libmcrd directory enumeration:
+psxport's synchronous firstfile/nextfile returned an empty result without delivering the HwCARD
+completion that `0x800476EC` waits on. That shared fix alone did NOT clear the trap: a
+`PSXPORT_DEBUG=card,ev` trace proved `firstfile` was never reached, because Crash Bash never called
+`card_overrides_init` and so the `"bu"` BIOS device was absent from the kernel device table that its
+libmcrd walks itself (issue 0013). With the title wiring added, the direct 120-frame run now exits 0,
+completes 120/120 frames, and returns from the native crt0 with no watchdog stall, fatal trap,
+recompilation miss, or guest `VSync: timeout`, and the strict serialized MENU gate passes on the same
+build. Static VSync ownership remains 21 of 51 sites with 30 mapped residuals and no further guest
+VSync root was reached. The sole remaining S002 gap is presentation content: every captured PRESENT
+is still 0% non-black, which is the native-graphics gap (S004), not a boot or timing defect.
 
 ## Capability details
 
@@ -32,18 +61,43 @@ bytes are tracked.
 
 The port preserves the independent Beetle interrupt-exit prefix, executes both measured loaded
 modules, and the landed CDC phase candidate crosses the former GetTN boundary through later reads.
-On former exact pin `99a42aa3`, the clean product completed both loads and printed `empty prims`,
+On former exact pin `99a42aa3`, the product completed both loads and printed `empty prims`,
 but an intentional bootstrap black clear incorrectly marked the main presenter ready and the process
 exited 134 on the steady `[watchdog] STUCK` timeout. Exact recorded pin `784e5212` fixes that phase
-ownership with typed main-frame versus transition completion. Its serialized product gate
-observes the deterministic order `2/2 loads -> empty prims -> MENU 0x800B5244 from ra=0x8001E7C0`
-without STUCK, fatal output, or a recompilation miss. The framework passes 107/107 CTests and the
-consumer passes 11/11 CTests against that clean pin.
+ownership with typed main-frame versus transition completion. Its serialized trace observes the
+deterministic order `2/2 loads -> empty prims -> MENU 0x800B5244 from ra=0x8001E7C0` without STUCK,
+fatal output, or a recompilation miss, but it is not a passing product gate: seven guest
+`VSync: timeout` lines were previously accepted. `tools/verify_boot.py` now rejects them and passes
+13/13 controlled answers. The current native-ownership candidate has a typed fatal VSync trap,
+finite boot/process ownership, and retained display/GPU overrides. Its first serialized launch
+proved the trap and named boot-time memory-card setup `0x800486DC` as the next owner before MENU. A
+second serialized launch validated that owner, then identified Sony libcd's controller/IRQ timeout
+path through `0x8003E6B0` and `0x8003EBF8`. The current Clang build retains both generated bodies,
+owns the controller handshake at `0x80034B8C`, and uses the framework's synchronous CD command, sync,
+and ISO lookup owners. A third serialized launch had zero VSync violations/timeouts and exposed the
+distinct `GetTN` status hang at `0x800349AC -> 0x8003584C`. The rebuilt candidate owns that top-down
+readiness contract from the actual CHD TOC. A fourth run validated it and reached the distinct guest
+async file-read path at `0x80027790 -> 0x8003470C`. The rebuilt candidate performs that read
+synchronously from the real CHD, with the generated body retained. A fifth serialized launch passes
+the strict `2/2 loads -> empty prims -> MENU` gate without a VSync violation. The direct 120-frame
+run then names disc/license state machine `0x8002D4F4` as the next fatal root and captures two fully
+black presents. A first synchronous owner rendered only the red copy-protection failure screen,
+falsifying its state-16 interpretation. The corrected owner follows measured state-18-to-0 success;
+its direct launch accepted the authentic disc and removed that failure path, then exposed an
+independent missing HwCARD completion after an empty firstfile result. A focused shared psxport
+regression now proves firstfile and nextfile each preserve zero and invoke the interrupt-mode
+completion callback exactly once; another serialized launch remains required.
 
-Gap: The corrected boot log is not a CDC trace. Issues 0007 and 0009 remain open until the process-driving
-`tools/verify_cdc_phase_progress.py --port ... --executable ... --timeout 30` gate reaches LBA 17655,
-the guest-visible completion result `1 -> 0` is captured, and the post-MENU no-present cause is
-identified. Saved CDC logs require `--trace PATH`; positional logs are rejected.
+The memory-card boundary is now resolved. Issue 0013 records the root cause: the framework entry that
+publishes the card as a BIOS device was never called by this title, and libmcrd's own device-table
+walk at `0x8004799C` returns 0 for "no such device" — the same value it returns for "request
+started" — so the caller waited forever on an operation that was never begun. A three-way A/B on the
+real disc proves the title wiring and the shared completion event are each necessary and neither is
+sufficient alone.
+
+Gap: Issues 0009 and 0012 remain open until a real non-black game frame is presented. The strict MENU
+gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
+lifecycle boundaries and do not certify picture content.
 
 ### S003 — Executable recompilation substrate
 

@@ -15,7 +15,7 @@ Crash Bash reproducibly provisions and executes the measured BOOT and nested MEN
 
 ## Evidence
 
-Real USA DAT verification passes 14/14 module facts. Current recompilation emits 2,005 resident/BOOT/MENU functions. The serialized Clang real-disc boundary completes exactly two module loads, prints `empty prims`, and reaches measured MENU entry 0x800B5244 from ra=0x8001E7C0 without a watchdog stall or recomp miss; its controlled verifier passes 12/12.
+Real USA DAT verification passes 14/14 module facts. Current recompilation emits 2,005 resident/BOOT/MENU functions. The current serialized Clang trace completes exactly two module loads, prints `empty prims`, and reaches measured MENU entry 0x800B5244 from ra=0x8001E7C0 without a watchdog stall, fatal, recomp miss, or guest-VSync timeout. The corrected verifier passes 13/13 controls and accepts the 67-line strict product trace.
 
 ## What would falsify it
 
@@ -53,8 +53,17 @@ Post-commit audit at recorded d2266f4b: 7/7 CTest passed; the recorded 136-line 
 
 ## Re-confirmed 2026-08-27
 
-Against exact recorded psxport `784e5212`, full Clang gates pass
-107/107 in psxport and 11/11 in Crash Bash. The explicit serialized product gate passes on 72 judged
-lines in the measured order `2/2 module loads -> empty prims -> MENU 0x800B5244 from
-ra=0x8001E7C0`, with no STUCK watchdog, fatal output, or recompilation miss. Its 12/12 hermetic
-controls show the missing, wrong-address, wrong-caller, wrong-order, and fatal answers.
+Against exact recorded psxport `784e5212`, full Clang gates passed 107/107 in psxport and 11/11 in
+Crash Bash. The serialized trace contains the measured order
+`2/2 module loads -> empty prims -> MENU 0x800B5244 from ra=0x8001E7C0`, with no STUCK watchdog,
+fatal output, or recompilation miss. Re-audit on 2026-08-27 found seven `VSync: timeout` lines that
+the old positive fixture incorrectly accepted. The corrected 13/13 hermetic suite rejects those
+lines.
+
+## Re-confirmed 2026-08-27
+
+The synchronous real-sector owner completed both requested load intervals from the verified CHD. The
+strict 67-line product trace reaches `2/2 loads -> empty prims -> MENU 0x800B5244 from
+ra=0x8001E7C0` with no timeout, fatal, watchdog terminal, recompilation miss, or guest-VSync
+violation. This reconfirms module execution only; the subsequent direct run still presents black and
+aborts at a later residual VSync owner.

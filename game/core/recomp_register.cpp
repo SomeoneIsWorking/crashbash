@@ -6,8 +6,7 @@
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
 #include "overlay_table.h"
-
-extern void shard_set_override(uint32_t, void (*)(Core *));
+#include "rec_decls.h"
 
 static const RecompRegistry kCrashBashRecomp = {
     .main_dispatch = main_dispatch,

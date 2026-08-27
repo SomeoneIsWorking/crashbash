@@ -30,7 +30,15 @@ set(PSXPORT_BUILD_SMOKE OFF CACHE BOOL "Build the framework agnosticism smoke" F
 add_subdirectory("${PSXPORT_DIR}" psxport_build)
 
 set(CRASHBASH_SEAM_SOURCES
+  game/core/cd_file_read.cpp
+  game/core/cd_license_startup.cpp
+  game/core/cd_startup.cpp
+  game/core/crashbash_boot.cpp
+  game/core/crashbash_frame_driver.cpp
   game/core/crashbash_runtime.cpp
+  game/core/display_frame.cpp
+  game/core/gpu_timeout.cpp
+  game/core/memory_card_startup.cpp
   game/core/game_config.cpp
   game/core/game_hooks.cpp
   game/core/main.cpp
@@ -75,6 +83,12 @@ if(BUILD_TESTING)
     NAME crashbash_boot_boundary_selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py" --selftest
+  )
+  add_test(
+    NAME crashbash_native_ownership_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_native_ownership.py" --selftest
   )
   add_test(
     NAME crashbash_cpp_policy
