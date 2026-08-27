@@ -95,7 +95,12 @@ started" — so the caller waited forever on an operation that was never begun. 
 real disc proves the title wiring and the shared completion event are each necessary and neither is
 sufficient alone.
 
-Gap: Issues 0009 and 0012 remain open until a real non-black game frame is presented. The strict MENU
+The port now reaches and runs the MENU scene: the application-shell process state, the BOOT-overlay app
+mode, and the scene pointer into the loaded MENU image are each measured, with update/present called
+every frame. The guest still performs zero projection work there, and a 600-frame run aborts on an
+indirect call through an uninitialised function pointer (issue 0014), which is the next boundary.
+
+Gap: Issues 0009, 0012 and 0014 remain open until a real non-black game frame is presented. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
 lifecycle boundaries and do not certify picture content.
 

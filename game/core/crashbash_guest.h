@@ -31,6 +31,12 @@ inline constexpr std::uint32_t kInitialStateEnter = 0x80010410u;
 inline constexpr std::uint32_t kInitialStateUpdate = 0x80010394u;
 inline constexpr std::uint32_t kInitialStatePresent = 0x80010278u;
 
+// The application shell state (kInitialProcessState) dispatches enter/update/present through a
+// second, nested mode object. kAppModeVtable holds the POINTER to it; the three handlers are its
+// words +0/+4/+8. This is the machine that actually selects boot / menu / gameplay, so a run that
+// never changes this pointer is not running the game, however healthy the outer frame loop looks.
+inline constexpr std::uint32_t kAppModeVtable = 0x8004E0DCu;
+
 inline constexpr std::uint32_t kDisplayFieldsPerFrame = 0x8004E0E0u;
 inline constexpr std::uint32_t kVblankCounter = 0x8006D8DCu;
 inline constexpr std::uint32_t kVblankRoot = 0x8003ADD4u;

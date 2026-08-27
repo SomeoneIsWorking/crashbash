@@ -24,6 +24,16 @@ void CrashBashFrameDriver::enterProcessState(Core &core, std::uint32_t state) {
   }
   measuredGuestCall(core, enter, 0x80027120u, 4u);
   rec_guest_instruction_ticks(&core, 4u);
+  ++stateEntries_;
+  dwellFrames_ = 0;
+  dwellReports_ = 0;
+  lucent::info("crashbash-frame",
+               "process state -> 0x{:08X} (entry #{}, enter=0x{:08X} update=0x{:08X} present=0x{:08X})",
+               state,
+               stateEntries_,
+               enter,
+               core.mem_r32(state + 4u),
+               core.mem_r32(state + 8u));
 }
 
 void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields) {
@@ -101,17 +111,76 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
       lucent::error("crashbash-frame", "process state 0x{:08X} has an incomplete update/present pair", activeState_);
       std::abort();
     }
+    updateFn_ = update;
+    presentFn_ = present;
     measuredGuestCall(core, update, 0x80027144u, 4u);
     measuredGuestCall(core, present, 0x80027154u, 4u);
     rec_guest_instruction_ticks(&core, 4u);
   }
 
+  reportProgress(core, frame);
   snapshot_tick(&core);
   if (deliveredFields_ == 0) {
     game_.presentation.commitUnpresented(&core);
   } else {
     game_.presentation.commit(&core, static_cast<int>(deliveredFields_), game_.temporalPresentation.get());
   }
+}
+
+// One line per call site, never wrapped in an `if (debug)`. The cap is on the BORING case: a state
+// the machine is merely dwelling in reports on a geometric-ish schedule (frames 1, 2, 4, 8, ... of
+// the dwell) so a stuck state is loud early and quiet later, while every transition is reported by
+// enterProcessState with no cap at all. A frame that ran no update/present pair says so explicitly
+// rather than printing nothing, because silence there is indistinguishable from "never measured".
+void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
+  // The nested app-mode object, reported on every change with no cap: this is the machine that
+  // selects boot / menu / gameplay, and a run that never changes it is not running the game.
+  const std::uint32_t mode = core.mem_r32(guest::kAppModeVtable);
+  if (mode != appMode_) {
+    appMode_ = mode;
+    ++appModeChanges_;
+    if (mode == 0) {
+      lucent::info("crashbash-frame", "f{}: app mode cleared to 0 — no mode handlers are installed", frame);
+    } else {
+      lucent::info("crashbash-frame",
+                   "f{}: app mode -> 0x{:08X} (change #{}, enter=0x{:08X} update=0x{:08X} present=0x{:08X})",
+                   frame,
+                   mode,
+                   appModeChanges_,
+                   core.mem_r32(mode),
+                   core.mem_r32(mode + 4u),
+                   core.mem_r32(mode + 8u));
+    }
+  }
+
+  ++dwellFrames_;
+  if (activeState_ == 0) {
+    lucent::info("crashbash-frame", "f{}: no process state is active — nothing was updated or presented", frame);
+    return;
+  }
+  if (updateFn_ == 0) {
+    lucent::info("crashbash-frame",
+                 "f{}: state 0x{:08X} is active but its update/present pair did NOT run this frame",
+                 frame,
+                 activeState_);
+    return;
+  }
+  if ((dwellFrames_ & (dwellFrames_ - 1u)) != 0) {
+    return; // dwelling, and this is not one of the capped boring samples
+  }
+  ++dwellReports_;
+  lucent::info("crashbash-frame",
+               "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
+               "{} field(s) delivered, vblank counter 0x{:08X}, app mode 0x{:08X} unchanged for "
+               "the whole dwell)",
+               frame,
+               activeState_,
+               dwellFrames_,
+               updateFn_,
+               presentFn_,
+               deliveredFields_,
+               core.mem_r32(guest::kVblankCounter),
+               appMode_);
 }
 
 CrashBashFrameDriver &frameDriver(Core &core) {
