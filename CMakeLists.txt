@@ -45,10 +45,15 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/main.cpp
   game/core/recomp_register.cpp
   game/diagnostics/menu_boundary.cpp
+  game/render/model_submit_capture.cpp
+  game/render/model_recipe_capture.cpp
+  game/render/model_transform_capture.cpp
+  game/render/native_model_producer.cpp
+  game/render/scene_snapshot.cpp
 )
 add_library(crashbash_seam OBJECT ${CRASHBASH_SEAM_SOURCES})
 set_target_properties(crashbash_seam PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics)
+target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics game/render)
 target_link_libraries(crashbash_seam PRIVATE psxport)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
@@ -63,7 +68,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
   )
   add_executable(crashbash_port ${CRASHBASH_SEAM_SOURCES} ${GEN_REC_SRCS})
   target_compile_definitions(crashbash_port PRIVATE CRASHBASH_HAVE_SUBSTRATE=1)
-  target_include_directories(crashbash_port PRIVATE game/core game/diagnostics generated)
+  target_include_directories(crashbash_port PRIVATE game/core game/diagnostics game/render generated)
   target_compile_options(crashbash_port PRIVATE -O2 -g)
   target_link_libraries(crashbash_port PRIVATE psxport)
   add_dependencies(crashbash_port gen_gpu_shaders)
@@ -80,6 +85,17 @@ else()
 endif()
 
 if(BUILD_TESTING)
+  add_executable(
+    crashbash_scene_snapshot_test
+    tests/test_scene_snapshot.cpp
+    game/render/scene_snapshot.cpp
+  )
+  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_scene_snapshot_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_scene_snapshot COMMAND crashbash_scene_snapshot_test)
   add_test(
     NAME crashbash_boot_boundary_selftest
     COMMAND

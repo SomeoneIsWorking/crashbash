@@ -3,18 +3,15 @@
 PC-native PlayStation port of Crash Bash, built on
 [psxport](https://github.com/SomeoneIsWorking/psxport).
 
-Current status: the North American executable is reproducibly provisioned, its resident substrate is
-emitted and verified, and the Clang-built port's custom interrupt exit agrees with an independent
-Beetle interpreter running the real disc. The port reaches the master dispatcher and CD IRQ callback
-without a recomp miss or the former CD timeout. Real CDC/DMA traces now provision and emit the initial
-BOOT and nested MENU code modules from `CRASHBSH.DAT`; the port executes both and prints `empty prims`.
-The shared controller-owned pending-command phase machine is now pinned at psxport `8611d756`: its
-receive, argument, execution, and completion phases run in emulated CPU time instead of publishing
-GetTN synchronously. A bounded pre-landing consumer trace crossed the former resident
-`0x8002DE2C` empty-poll boundary and continued through Setloc, Setmode, ReadN, and Pause into later
-continuous reads. The clean pinned product still needs the same bounded runtime gate before that
-candidate observation becomes landed-product evidence. No full-memory lockstep, game frame, native
-graphics producer, widescreen path, or interpolation path is claimed yet.
+Current status: the North American executable plus its BOOT and nested MENU modules are reproducibly
+provisioned and emitted into a 2,006-function substrate. A title-owned finite FrameDriver runs 600
+frames of the real disc without a guest-VSync violation, timeout, watchdog, recompilation miss, or
+fatal, and the diagnostic PSX path visibly reaches the Eurocom and Crash Bash title screens. The
+first 4:3 native producer now copies title-owned transforms and fixed-frame source model records;
+frame 255 captures 1,542 faces (382 textured), submits 1,010, and produces the animated background,
+a title-letter fragment, and sampled textured particles. The corresponding PSX picture still has
+substantially more logo geometry; full 4:3 parity, widescreen, and presentation interpolation are not
+yet claimed.
 
 ## Run the current product
 

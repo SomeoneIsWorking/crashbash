@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -80,6 +82,23 @@ class DependencyTest(unittest.TestCase):
 
 
 class ProductWorkflowTest(unittest.TestCase):
+    def test_help_exits_before_dependency_or_product_discovery(self):
+        for option in ("-h", "--help"):
+            with (
+                self.subTest(option=option),
+                mock.patch.object(bootstrap, "check_native_dependencies") as check,
+                mock.patch.object(bootstrap, "prepare_product") as prepare,
+                mock.patch.object(bootstrap.os, "execve") as execute,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+                self.assertRaises(SystemExit) as stopped,
+            ):
+                bootstrap.main([option])
+            self.assertEqual(stopped.exception.code, 0)
+            self.assertIn("usage:", output.getvalue().lower())
+            check.assert_not_called()
+            prepare.assert_not_called()
+            execute.assert_not_called()
+
     def test_prepare_uses_locked_interpreter_and_required_product_target(self):
         (ROOT / "scratch").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT / "scratch") as directory:

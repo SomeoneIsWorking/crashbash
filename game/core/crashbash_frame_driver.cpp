@@ -4,6 +4,7 @@
 #include "crashbash_guest.h"
 #include "game.h"
 #include "measured_guest_call.h"
+#include "model_transform_capture.h"
 #include "snapshot.h"
 
 #include <cstdlib>
@@ -12,6 +13,10 @@
 namespace crashbash {
 
 CrashBashFrameDriver::CrashBashFrameDriver(Game &game) : game_(game) {}
+
+render::SceneSnapshotHistory &CrashBashFrameDriver::sceneSnapshots() {
+  return sceneSnapshots_;
+}
 
 void CrashBashFrameDriver::enterProcessState(Core &core, std::uint32_t state) {
   activeState_ = state;
@@ -74,6 +79,7 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   core.rsub.otAttr.beginLogicFrame(frame);
   game_.pad.serviceFrame();
   deliveredFields_ = 0;
+  sceneSnapshots_.beginFrame(frame);
 
   std::uint32_t state = core.mem_r32(guest::kCurrentProcessState);
   bool enteredState = false;
@@ -169,9 +175,24 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
     return; // dwelling, and this is not one of the capped boring samples
   }
   ++dwellReports_;
+  std::uint32_t capturedFaces = 0;
+  std::uint32_t texturedFaces = 0;
+  std::uint32_t submittedFaces = 0;
+  std::uint32_t transformedModels = 0;
+  std::uint32_t fixedModels = 0;
+  for (const render::ModelDraw &draw : sceneSnapshots_.current().models) {
+    capturedFaces += static_cast<std::uint32_t>(draw.faces.size());
+    texturedFaces += draw.texturedFaces;
+    submittedFaces += draw.nativeFacesSubmitted;
+    transformedModels += draw.transform.valid ? 1u : 0u;
+    fixedModels += (draw.frameCode & 0x7000u) == 0x2000u ? 1u : 0u;
+  }
+  const render::ModelTransformCaptureCensus &transformCensus = render::modelTransformCaptureCensus();
   lucent::info("crashbash-frame",
                "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
-               "{} field(s) delivered, vblank counter 0x{:08X}, app mode 0x{:08X} unchanged for "
+               "{} field(s) delivered, {} accepted pre-GTE model draw(s) ({} transformed / {} fixed), "
+               "{} fixed face(s) captured ({} textured) / {} submitted, vblank counter 0x{:08X}, "
+               "app mode 0x{:08X} unchanged for "
                "the whole dwell)",
                frame,
                activeState_,
@@ -179,8 +200,28 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
                updateFn_,
                presentFn_,
                deliveredFields_,
+               sceneSnapshots_.current().models.size(),
+               transformedModels,
+               fixedModels,
+               capturedFaces,
+               texturedFaces,
+               submittedFaces,
                core.mem_r32(guest::kVblankCounter),
                appMode_);
+  lucent::info("crashbash-render",
+               "transform census attempts={} captured={} mismatch={} output={} rotation={} translation={} "
+               "projection={} last=({:08X},{:08X},{:08X},{:08X})",
+               transformCensus.attempts,
+               transformCensus.captured,
+               transformCensus.pendingMismatch,
+               transformCensus.invalidOutput,
+               transformCensus.invalidRotation,
+               transformCensus.missingTranslation,
+               transformCensus.invalidProjection,
+               transformCensus.lastOutput,
+               transformCensus.lastRotation,
+               transformCensus.lastTranslation,
+               transformCensus.lastProjection);
 }
 
 CrashBashFrameDriver &frameDriver(Core &core) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game_runtime.h"
+#include "scene_snapshot.h"
 
 #include <cstdint>
 
@@ -18,6 +19,8 @@ public:
   // Called at the exact point native DisplayFrame removes retail VSync(fields). This owns field
   // callbacks and audio; presentation remains the single commit at the frame-driver tail.
   void deliverDisplayFields(Core &core, std::uint32_t fields);
+
+  render::SceneSnapshotHistory &sceneSnapshots();
 
 private:
   void enterProcessState(Core &core, std::uint32_t state);
@@ -39,6 +42,7 @@ private:
   std::uint32_t presentFn_ = 0;
   std::uint32_t appMode_ = 0;
   std::uint32_t appModeChanges_ = 0;
+  render::SceneSnapshotHistory sceneSnapshots_;
 };
 
 CrashBashFrameDriver &frameDriver(Core &core);

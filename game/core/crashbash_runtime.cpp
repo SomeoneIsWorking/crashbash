@@ -13,6 +13,8 @@
 #include "memcard.h"
 #include "memory_card_startup.h"
 #include "menu_boundary.h"
+#include "model_submit_capture.h"
+#include "model_transform_capture.h"
 
 #include <memory>
 
@@ -36,6 +38,8 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   registerGpuTimeoutOverrides();
   registerDisplayFrameOverride();
   registerBootObjectCallbackOverrides();
+  render::registerModelTransformCaptureOverride();
+  render::registerModelSubmitCaptureOverrides();
   diagnostics::registerMenuBoundary();
 }
 

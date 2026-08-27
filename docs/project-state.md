@@ -5,48 +5,25 @@
 | S001 | The selected USA disc, executable, BOOT module, and MENU module are reproducibly identified and derived | verified | — | G001 |
 | S002 | The retail boot reaches a guest-visible first frame with faithful drive timing | partial | S001 | G001 |
 | S003 | Resident, BOOT, and MENU code form a reproducible executable recompilation substrate | verified | S001 | G001 |
-| S004 | Crash Bash graphics are produced natively from decoded game state | missing | S002, S003 | G001, G002, G003 |
+| S004 | Crash Bash graphics are produced natively from decoded game state | partial | S002, S003 | G001, G002, G003 |
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | missing | S004 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | missing | S004 | G003 |
 | S007 | Deterministic checks compare the port with independent retail behavior at proven boundaries | partial | S001 | G001, G002, G003 |
 
 ## Current focus
 
-S002 is the current focus. The current strict serialized product gate completes both module loads,
-prints `empty prims`, and reaches measured MENU entry `0x800B5244` from resident caller
-`0x8001E7C0` with no guest-VSync violation, timeout, fatal, watchdog, or recompilation miss.
-The current working tree replaces the retail lifetime process runner with a finite Crash Bash
-FrameDriver and owns display function `0x800272AC` plus its nested allocator without calling guest
-VSync. The first bounded post-change product run then reached the mandatory fatal trap during
-boot-time memory-card BIOS/vector startup at `0x800486DC`, from `ra=0x80048700` and ancestry
-`0x80027F00 -> 0x8002C894 -> 0x8003ABAC`. A new title-local owner preserves that setup without the
-ownerless `VSync(0)`. The next bounded run validated it and reached a distinct `VSync(-1)` timeout
-query from `ra=0x8003E6EC` during `CD_init`. The rebuilt candidate now owns the controller-ready
-handshake and routes the measured libcd command, sync, and ISO lookup entries through psxport's
-synchronous native CD implementation. That run had no VSync violation or timeout, but exposed a
-`GetTN` readiness loop at `0x800349AC -> 0x8003584C`: the no-controller command has no invented status
-packet. The rebuilt title owner now derives readiness from a real parsed CHD TOC. The next run
-validated readiness, opened the real CHD, and
-reached `load file start`, then trapped at the guest async read starter through
-`0x800134FC -> 0x80027790 -> 0x8003470C`. The rebuilt candidate now owns the higher file-read
-contract, copying every requested real sector into guest RAM before returning; the strict pass
-validated both loads and MENU. A separate direct 120-frame run then exited 139 at the fatal VSync
-trap from `ra=0x8002D9E4` under disc/license state machine `0x8002D4F4`; PRESENT frames 1 and 2 were
-both 960x720 and 0% non-black. The first owner candidate then produced only the red copy-protection
-failure screen: visual inspection and BIOS call `B0:38 exit` proved state 16 / `0x8002E0F0` is the
-failure path. The corrected title owner binds the runtime disc to the measured SCUS-94570 layout and
-records the authentic-disc idle state 0 without a guest clock. Its serialized run accepted that
-identity and removed the red failure screen, then watchdoged in stock libmcrd directory enumeration:
-psxport's synchronous firstfile/nextfile returned an empty result without delivering the HwCARD
-completion that `0x800476EC` waits on. That shared fix alone did NOT clear the trap: a
-`PSXPORT_DEBUG=card,ev` trace proved `firstfile` was never reached, because Crash Bash never called
-`card_overrides_init` and so the `"bu"` BIOS device was absent from the kernel device table that its
-libmcrd walks itself (issue 0013). With the title wiring added, the direct 120-frame run now exits 0,
-completes 120/120 frames, and returns from the native crt0 with no watchdog stall, fatal trap,
-recompilation miss, or guest `VSync: timeout`, and the strict serialized MENU gate passes on the same
-build. Static VSync ownership remains 21 of 51 sites with 30 mapped residuals and no further guest
-VSync root was reached. The sole remaining S002 gap is presentation content: every captured PRESENT
-is still 0% non-black, which is the native-graphics gap (S004), not a boot or timing defect.
+S004 is the current focus. The first source-owned producer now copies the title-composed affine and
+projection state at `0x8001965C`, decodes fixed-frame Gouraud triangle strips plus their descriptor-run
+UV, texture-page, and CLUT state from model source records, stores them in `SceneSnapshotHistory`, and
+submits through the native render queue under producer key `0x80019F1C`. It retains every generated
+super and reads no GTE result, ordering table, or GP0 packet. At real-disc frame 255 all 71 accepted
+models carry copied transforms; 1,542 faces are captured, including 382 textured faces, and 1,010
+survive winding/depth rejection. The 4:3 native capture is non-black at 627672/691200 pixels and the
+before/after image visibly gains three sampled gradient squares plus particle points; the serialized
+PSX reference is 668153/691200. This proves a textured source path, not 4:3 picture correctness: at
+frame 300 the native producer still renders only central Eurocom-letter fragments while the PSX path
+renders the complete logo. The next unit is source-owned ordering/coverage parity for `0x80019F1C`,
+not widescreen or interpolation.
 
 ## Capability details
 
@@ -126,8 +103,8 @@ serialized product runtime.
 
 ### S004 — Native graphics producers
 
-Missing capability: no Crash Bash producer reads decoded game camera/object/material state and
-submits native geometry. `tools/inventory_render_anchors.py` binds its answer to the exact generated
+Partial capability: Crash Bash now has one native producer that reads decoded game camera/object/
+material state and submits fixed-frame untextured and textured geometry. `tools/inventory_render_anchors.py` binds its answer to the exact generated
 input/output hashes and psxport commit. Both previous pin `17981527` (1,724 functions) and substrate
 baseline `99a42aa3` (2,005 functions) contain 31 projection anchors and 17 camera-control anchors,
 including the stable resident `0x80015780 -> 0x8001CD04 -> {0x800193A8, 0x8001AF2C}` chain, although
@@ -142,6 +119,22 @@ runtime projection ancestry only; camera semantics, scene state, primitive owner
 widescreen and interpolation all remain unproven. See issue 0011 and
 `docs/findings/render-anchor-inventory.md`.
 
+The clean `0d4712f` product A/B established the original gap directly: 600/600 native-owned frames complete on
+both paths with no guest-VSync violation, but the shipping native captures are entirely black while
+the PSX diagnostic captures visibly show Eurocom and the Crash Bash title. Semantic decompilation
+now traces the live anchors backward through model decoder `0x80019A60` to pre-GTE object submitters
+`0x80019F1C` / `0x8001DD50`, transform composer `0x8001965C`, and source-vertex decode/interpolation
+`0x8001C1E0` / `0x8001C0F0`. A working candidate captures those accepted object/model/transform
+inputs into two title-owned frame snapshots while retaining the generated supers. A 350-frame
+real-disc run reaches the standard capture 17,004 times and returns cleanly; the history rotation
+selftest passes, and a second run reports 71 accepted model draws in frame 255. The current producer
+extends that boundary through source fixed-frame topology/material/UV decode and 4:3 native
+submission: frame 255 captures 1,542 faces, of which 382 are textured, submits 1,010, and produces a
+visibly non-black 90.81% native picture versus the 96.67% PSX reference. A retained untextured capture
+compared with the new capture visibly proves the textured faces contribute sampled gradient squares
+and particles. Frame-300 inspection nevertheless shows incomplete logo geometry, so source-owned OT
+sort/coverage parity and remaining producer families are still missing.
+
 ### S005 — Widescreen camera
 
 Missing capability: no PC-owned Crash Bash camera/projection producer exists. The nearest measurable
@@ -150,9 +143,10 @@ horizontal view with unchanged vertical framing. GTE/OT/GP0 output cannot be the
 
 ### S006 — Interpolated presentation
 
-Missing capability: no PC-owned pair of consecutive Crash Bash camera/world transform snapshots
-exists. The nearest measurable gate is unchanged simulation with interpolation disabled, then an
-alpha-0.5 native render between verified snapshots without guest-RAM mutation.
+Missing capability: the PC-owned history now retains consecutive copied camera/world transform and
+fixed-face snapshots, but no presentation-time render consumes an interpolated pair. The nearest
+measurable gate is unchanged simulation with interpolation disabled, then an alpha-0.5 native render
+between verified snapshots without guest-RAM mutation.
 
 ### S007 — Differential verification
 
