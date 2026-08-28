@@ -75,7 +75,7 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
         {.x = projected[2].sx, .y = projected[2].sy, .depth = projected[2].sz},
     }};
     const ModelFaceCoverage coverage = classifyFixedModelFace(
-        coverageVertices, face.textured, face.vertices[2].flags, draw.depthBias, draw.depthLimit);
+        coverageVertices, face.textured, face.vertices[2].flags, draw.depthBias, draw.depthLimit, draw.depthScale);
     const std::array<std::array<std::int32_t, 2>, 3> absoluteProjectedVertices{{
         {{projected[0].sx + gpu.s_off_x, projected[0].sy + gpu.s_off_y}},
         {{projected[1].sx + gpu.s_off_x, projected[1].sy + gpu.s_off_y}},

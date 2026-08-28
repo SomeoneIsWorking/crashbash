@@ -13,6 +13,7 @@
 #include "memcard.h"
 #include "memory_card_startup.h"
 #include "menu_boundary.h"
+#include "model_depth_scale_capture.h"
 #include "model_submit_capture.h"
 #include "model_transform_capture.h"
 
@@ -38,6 +39,7 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   registerGpuTimeoutOverrides();
   registerDisplayFrameOverride();
   registerBootObjectCallbackOverrides();
+  render::registerModelDepthScaleCaptureOverride();
   render::registerModelTransformCaptureOverride();
   render::registerModelSubmitCaptureOverrides();
   diagnostics::registerMenuBoundary();

@@ -39,6 +39,17 @@ native 4:3 parity: the separate large black angular starfield/background holes r
 S004 therefore remains partial, and widescreen and interpolation remain downstream of resolving that
 coverage gap.
 
+That coverage gap is now source-identified and product-corrected. Retail fixed-model submitter
+`0x800193A8` classifies triangles with GTE AVSZ3/OTZ; native incorrectly used the third transformed
+SZ, and the title had never published its post-initialization ZSF3. The retained-super owner at
+`0x80033494` now publishes actual post-write CR29/CR30 and the classifier applies signed, saturated
+AVSZ3. Exact PID 4054917 completed 301/301 reconciled frames at
+`138ad0a-dirty+psxport-ff21584d`: object `0x800A0C74` face 261 has matching packet/native SXY,
+ZSF3 341, OTZ 1511, is accepted at sort 1755, and writes display `(234,181)`. The formerly black
+output `(439,543)` becomes `(66,8,90)` versus PSX `(66,0,90)`. Full-frame inspection verifies the
+large angular holes close without regressing the EUROCOM word or subtitle. S004 remains partial only
+because finer facet/gradient and logo-color differences still prevent whole-frame 4:3 parity.
+
 ## Capability details
 
 ### S001 — Reproducible retail inputs
@@ -166,9 +177,15 @@ and visibly restores the full EUROCOM letter edge with no replacement occluder. 
 angular holes across the purple starfield remain, so this closes only the cross-object ordering
 defect and leaves overall native 4:3 image parity partial.
 
-Gap: large black angular holes still replace or mask broad regions of the purple starfield/background;
-their exact source submitter/face family and first incorrect decode or rejection semantic are not yet
-identified. Native 4:3 parity, widescreen, and interpolation remain unverified.
+The subsequent background investigation binds PSX packet `0x800C5394` to native object
+`0x800A0C74`, frame `0x200B`, face 261, material `0x02FB`. Source vertices, transform, projection,
+material, and packet/native SXY match retail exactly. Exact PID 4054917 proves the retained
+`0x80033494` initialization publishes ZSF3 341, yields OTZ 1511/sort 1755, accepts the face, and
+writes display `(234,181)`. Full-frame comparison shows the broad angular holes closed with the logo
+intact.
+
+Gap: smaller facet/gradient and logo-color differences remain against the PSX reference. Native 4:3
+parity, widescreen, and interpolation remain unverified.
 
 ### S005 — Widescreen camera
 

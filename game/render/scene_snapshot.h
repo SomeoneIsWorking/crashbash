@@ -40,6 +40,9 @@ struct ModelFace {
   std::uint8_t blendMode = 0;
   std::array<std::uint32_t, 3> retailColors{};
   std::uint32_t sourceFace = 0;
+  std::uint32_t sourceVertexAddress = 0;
+  std::uint32_t sourceGroup = 0;
+  std::uint32_t sourceGroupFace = 0;
   std::uint16_t sourceMaterial = 0;
   std::uint8_t topologyFlags = 0;
   bool retailSemiTransparent = false;
@@ -63,6 +66,7 @@ struct ModelDraw {
   std::uint16_t frameCode = 0;
   std::int16_t depthBias = 0;
   std::int16_t depthLimit = 0;
+  std::int16_t depthScale = 0;
   std::array<std::int32_t, 3> depthCueFarColor{};
   std::int16_t depthCueFactor = 0;
   ModelTransform transform;

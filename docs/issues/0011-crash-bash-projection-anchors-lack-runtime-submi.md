@@ -266,3 +266,19 @@ verified fixed, while issue 0011 remains investigating because native 4:3 pictur
 separate background coverage gap. The next change must identify that gap's source-owned submitter,
 face family, or rejection/decode semantic; this result does not justify a depth bias, face skip, or
 global ordering change.
+
+### Note (2026-08-28, post-AVSZ3 background visual)
+
+The angular-hole boundary is now named. PSX packet `0x800C5394` and native capture map to object
+`0x800A0C74`, frame `0x200B`, face 261/group 34 local 0, material `0x02FB`, through submitter
+`0x80019F1C -> 0x800193A8`. Source vertices, transforms, projected integer coordinates, and material
+state match retail. Native used third SZ for depth classification; retail executes AVSZ3 and consumes
+saturated OTZ. The final title owner retains `0x80033494`, publishes its actual post-write CR29/CR30,
+and applies exact signed AVSZ3 semantics.
+
+Exact PID `4054917` completed 301/301 reconciled frames and exited zero at
+`138ad0a-dirty+psxport-ff21584d`. At frame 300, face 261 reports matching packet/native SXY,
+ZSF3 341, OTZ 1511, accepted sort 1755, and writes display `(234,181)`. Output `(439,543)` changes
+from black to `(66,8,90)`, versus PSX `(66,0,90)`. Full-frame inspection verifies the large black
+angular holes close while the full EUROCOM word and subtitle remain intact. Issue 0011 remains open
+for finer native 4:3 facet/gradient and logo-color parity.

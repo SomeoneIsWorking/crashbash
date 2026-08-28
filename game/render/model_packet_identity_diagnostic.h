@@ -2,12 +2,37 @@
 
 #include "scene_snapshot.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string_view>
 #include <vector>
 
 namespace crashbash::render {
+
+struct ModelPacketPayload {
+  std::uint32_t packetNode = 0;
+  std::array<std::uint32_t, 10> words{};
+};
+
+struct ModelPacketFillObservation {
+  std::uint32_t packetBlock = 0;
+  std::uint32_t vertexBase = 0;
+  std::uint32_t topologyBase = 0;
+  std::vector<ModelPacketPayload> payloads;
+};
+
+struct ModelPacketGeometryComparison {
+  bool valid = false;
+  bool projectedCoordinatesMatch = false;
+  std::array<std::array<std::int16_t, 2>, 3> packetVertices{};
+  std::array<std::array<std::int16_t, 2>, 3> nativeVertices{};
+  std::array<std::uint16_t, 3> nativeDepths{};
+  std::uint16_t nativeOtz = 0;
+  std::int16_t depthScale = 0;
+  std::uint32_t nativeSortKey = 0;
+  std::uint8_t nativeRejection = 0;
+};
 
 struct ModelPacketIdentity {
   std::uint32_t packetNode = 0;
@@ -17,6 +42,10 @@ struct ModelPacketIdentity {
   std::uint32_t modelData = 0;
   std::uint16_t frameCode = 0;
   ModelSubmitter submitter = ModelSubmitter::Standard;
+  std::uint32_t fillVertexBase = 0;
+  std::uint32_t fillTopologyBase = 0;
+  std::optional<ModelPacketPayload> payload;
+  ModelPacketGeometryComparison geometry;
   ModelFace face;
 };
 
@@ -32,14 +61,15 @@ struct ModelPacketIdentityScan {
 std::optional<ModelPacketIdentity>
 identifyModelPacketNode(const ModelDraw &draw, std::uint32_t packetBlock, std::uint32_t packetNode);
 ModelPacketIdentityScan scanModelPacketIdentity(const ModelDraw &draw,
-                                                const std::vector<std::uint32_t> &packetBlocks,
+                                                const std::vector<ModelPacketFillObservation> &packetBlocks,
                                                 const std::vector<std::uint32_t> &packetNodes);
+ModelPacketGeometryComparison compareModelPacketGeometry(const ModelDraw &draw, const ModelPacketIdentity &identity);
 
 std::optional<std::vector<std::uint32_t>> parseModelPacketIdentityTargets(std::string_view text);
 
 void beginModelPacketIdentityDiagnosticFrame();
 void beginModelPacketIdentityDraw();
-void observeModelPacketBlock(std::uint32_t packetBlock);
+void observeModelPacketBlock(ModelPacketFillObservation observation);
 void finishModelPacketIdentityDraw(const ModelDraw &draw);
 void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame);
 void registerModelPacketIdentityDiagnosticOverride();

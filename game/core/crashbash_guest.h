@@ -18,6 +18,7 @@ inline constexpr std::uint32_t kDisplayFrame = 0x800272ACu;
 inline constexpr std::uint32_t kGpuTimeoutArm = 0x8003126Cu;
 inline constexpr std::uint32_t kGpuTimeoutCheck = 0x800312A0u;
 inline constexpr std::uint32_t kGpuTransfer = 0x8003165Cu;
+inline constexpr std::uint32_t kGteInitialization = 0x80033494u;
 inline constexpr std::uint32_t kCdDriveReady = 0x800349ACu;
 inline constexpr std::uint32_t kCdInitHandshake = 0x80034B8Cu;
 inline constexpr std::uint32_t kCdSearchFile = 0x80034C6Cu;

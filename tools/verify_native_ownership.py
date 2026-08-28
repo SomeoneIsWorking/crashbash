@@ -28,6 +28,7 @@ FRAME_DRIVER = ROOT / "game/core/crashbash_frame_driver.cpp"
 DISPLAY = ROOT / "game/core/display_frame.cpp"
 GPU_TIMEOUT = ROOT / "game/core/gpu_timeout.cpp"
 MEMORY_CARD_STARTUP = ROOT / "game/core/memory_card_startup.cpp"
+MODEL_DEPTH_SCALE = ROOT / "game/render/model_depth_scale_capture.cpp"
 
 # Each PC is the JAL instruction whose return address is visible in the emitted retail body.
 DISPLAY_VSYNC_CALL_SITES = (0x80010530, 0x80010570, 0x8001067C, 0x80027378, 0x80027388)
@@ -60,6 +61,7 @@ REQUIRED_CONSTANTS = {
     "kGpuTimeoutArm": 0x8003126C,
     "kGpuTimeoutCheck": 0x800312A0,
     "kGpuTransfer": 0x8003165C,
+    "kGteInitialization": 0x80033494,
     "kCdDriveReady": 0x800349AC,
     "kCdInitHandshake": 0x80034B8C,
     "kCdSearchFile": 0x80034C6C,
@@ -163,6 +165,7 @@ def verify(
     boot_text: str,
     frame_text: str,
     display_text: str,
+    model_depth_scale_text: str,
     gpu_timeout_text: str,
     memory_card_text: str,
 ) -> None:
@@ -228,6 +231,10 @@ def verify(
         "native ISO lookup binding": ".cdSearchFile = crashbash::guest::kCdSearchFile",
         "boot runner split": "beginProcessRunnerActivation(core)",
         "frame-owned display delivery": "frameDriver(*core).deliverDisplayFields(*core, fields)",
+        "model depth-scale registration": "render::registerModelDepthScaleCaptureOverride()",
+        "model depth-scale retained super": "gen_func_80033494(core)",
+        "model depth-scale post-write CR29": "gte_read_ctrl(kZsf3ControlRegister)",
+        "model depth-scale framework owner": "core.rsub.projParams.setZsf",
         "GPU timeout registration": "registerGpuTimeoutOverrides()",
         "GPU arm retained super": "gen_func_8003126C",
         "GPU check retained super": "gen_func_800312A0",
@@ -248,6 +255,7 @@ def verify(
         boot_text,
         frame_text,
         display_text,
+        model_depth_scale_text,
         gpu_timeout_text,
         memory_card_text,
     )
@@ -315,6 +323,7 @@ def verify_shipping() -> None:
         BOOT.read_text(encoding="utf-8"),
         FRAME_DRIVER.read_text(encoding="utf-8"),
         DISPLAY.read_text(encoding="utf-8"),
+        MODEL_DEPTH_SCALE.read_text(encoding="utf-8"),
         GPU_TIMEOUT.read_text(encoding="utf-8"),
         MEMORY_CARD_STARTUP.read_text(encoding="utf-8"),
     )
@@ -334,6 +343,7 @@ def selftest() -> bool:
         BOOT.read_text(encoding="utf-8"),
         FRAME_DRIVER.read_text(encoding="utf-8"),
         DISPLAY.read_text(encoding="utf-8"),
+        MODEL_DEPTH_SCALE.read_text(encoding="utf-8"),
         GPU_TIMEOUT.read_text(encoding="utf-8"),
         MEMORY_CARD_STARTUP.read_text(encoding="utf-8"),
     ]
@@ -369,6 +379,30 @@ def selftest() -> bool:
             [
                 sources[0].replace(".vsyncTrap = crashbash::guest::kVSync.begin", ""),
                 *sources[1:],
+            ],
+        )
+    )
+    cases.append(
+        (
+            "missing model depth-scale registration",
+            bytes(image),
+            guest_text,
+            [
+                sources[0],
+                sources[1].replace("render::registerModelDepthScaleCaptureOverride();", ""),
+                *sources[2:],
+            ],
+        )
+    )
+    cases.append(
+        (
+            "missing model depth-scale retained super",
+            bytes(image),
+            guest_text,
+            [
+                *sources[:-3],
+                sources[-3].replace("gen_func_80033494(core);", ""),
+                *sources[-2:],
             ],
         )
     )

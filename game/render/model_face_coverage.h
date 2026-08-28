@@ -27,12 +27,17 @@ struct ModelFaceCoverage {
   }
 };
 
-// Source-owned coverage at retail 0x800193A8. `depthBias` and `depthLimit` are the title's signed
-// halfwords; unsigned MIPS addition/shift/comparison semantics are preserved intentionally.
+// Exact AVSZ3 endpoint used by retail 0x800193A8: the GTE multiplies unsigned SZ1+SZ2+SZ3 by signed
+// CR29/ZSF3, writes signed MAC0, shifts by 12, then clamps OTZ to an unsigned halfword.
+std::uint16_t fixedModelAvsz3Otz(const std::array<ProjectedFaceVertex, 3> &vertices, std::int16_t depthScale);
+
+// Source-owned coverage at retail 0x800193A8. `depthBias`, `depthLimit`, and `depthScale` are the
+// title's signed halfwords; unsigned MIPS addition/shift/comparison semantics are preserved.
 ModelFaceCoverage classifyFixedModelFace(const std::array<ProjectedFaceVertex, 3> &vertices,
                                          bool textured,
                                          std::uint16_t faceFlags,
                                          std::int16_t depthBias,
-                                         std::int16_t depthLimit);
+                                         std::int16_t depthLimit,
+                                         std::int16_t depthScale);
 
 } // namespace crashbash::render

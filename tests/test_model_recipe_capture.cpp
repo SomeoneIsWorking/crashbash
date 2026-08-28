@@ -88,6 +88,11 @@ int main() {
           "second group restarts from its own two priming vertices");
     check(draw.faces[0].sourceFace == 0u && draw.faces[1].sourceFace == 1u,
           "source-face identity remains continuous across groups");
+    check(draw.faces[0].sourceVertexAddress == vertices && draw.faces[1].sourceVertexAddress == vertices + 24u,
+          "each face retains the exact source vertex cursor used by the shipping decoder");
+    check(draw.faces[0].sourceGroup == 0u && draw.faces[0].sourceGroupFace == 0u && draw.faces[1].sourceGroup == 1u &&
+              draw.faces[1].sourceGroupFace == 0u,
+          "source group identity retains the independent-group restart");
   }
 
   if (failures != 0) {

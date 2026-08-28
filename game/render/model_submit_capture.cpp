@@ -70,6 +70,7 @@ ModelDraw decodeDraw(Core &core,
       .frameCode = core.mem_r16(object + 0x74u),
       .depthBias = static_cast<std::int16_t>(depthBias),
       .depthLimit = static_cast<std::int16_t>(core.mem_r16(kDepthLimit)),
+      .depthScale = core.rsub.projParams.zsf3(),
       .depthCueFarColor = cue.farColor,
       .depthCueFactor = cue.factor,
   };

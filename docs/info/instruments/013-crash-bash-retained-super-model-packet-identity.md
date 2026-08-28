@@ -22,6 +22,13 @@ corresponding to retained packet `0x800C8D84`), with output `(105,345)` changing
 starfield holes, proving the instrument can isolate its named face pair without incorrectly declaring
 the entire picture repaired.
 
+The expanded source/projection leg then showed both answers on the hole boundary. It maps packet
+`0x800C5394` to object `0x800A0C74`, frame `0x200B`, face 261/material `0x02FB`, and first reported
+matching packet/native SXY with native rejection. Exact PID 4054917 reports the same identity and SXY
+match but, after post-super `0x80033494` publishes ZSF3 341, reports OTZ 1511, accepted sort 1755,
+and a write at display `(234,181)`. This rejection/acceptance pair validates that the leg can show
+both outcomes rather than merely repeat a configured identity.
+
 ## Known failure modes
 
 The diagnostic identifies retained-super allocation blocks and source faces; it does not certify

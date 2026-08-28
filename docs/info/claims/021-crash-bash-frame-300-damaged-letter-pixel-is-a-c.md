@@ -21,7 +21,9 @@ At frame-299 display `(56,115)`, shipping and source OT both select red node `0x
 884, key 3160. The output correspondent `(105,345)` changes from pre-fix native `(33,0,66)` to
 `(247,41,74)`, versus PSX `(255,41,82)`, and visual inspection confirms the full EUROCOM letter edge
 is restored without a new occluder. This confirms the named two-face ordering claim only; the broad
-black angular starfield/background holes remain a separate partial-parity defect.
+black angular starfield/background holes were a separate partial-parity defect in that witness. Later
+PID 4054917 resolved those holes through the independent AVSZ3/ZSF3 ownership path; that result neither
+strengthens nor falsifies this two-face ordering claim.
 
 ## What would falsify it
 
