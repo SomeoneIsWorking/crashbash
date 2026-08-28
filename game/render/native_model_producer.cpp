@@ -3,6 +3,8 @@
 #include "core.h"
 #include "game.h"
 #include "model_face_coverage.h"
+#include "model_face_pixel_diagnostic.h"
+#include "model_material_diagnostic.h"
 #include "native_projection.h"
 #include "producer_scope.h"
 #include "render_queue.h"
@@ -55,6 +57,9 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
   }
 
   NativeModelSubmitResult result;
+  int pixelProbeX = 0;
+  int pixelProbeY = 0;
+  const bool pixelProbeActive = core.game->gpu.pixel_probe_target(pixelProbeX, pixelProbeY);
   ProducerScope producer(&core.rsub.producerScope, kProducerKey, "model:fixed");
   RenderNodeScope renderNode(core, draw.object);
   for (const ModelFace &face : draw.faces) {
@@ -71,7 +76,15 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     }};
     const ModelFaceCoverage coverage = classifyFixedModelFace(
         coverageVertices, face.textured, face.vertices[2].flags, draw.depthBias, draw.depthLimit);
+    const std::array<std::array<std::int32_t, 2>, 3> absoluteProjectedVertices{{
+        {{projected[0].sx + gpu.s_off_x, projected[0].sy + gpu.s_off_y}},
+        {{projected[1].sx + gpu.s_off_x, projected[1].sy + gpu.s_off_y}},
+        {{projected[2].sx + gpu.s_off_x, projected[2].sy + gpu.s_off_y}},
+    }};
     if (!coverage.accepted()) {
+      if (pixelProbeActive) {
+        observeModelFaceAtPixel(draw, face, absoluteProjectedVertices, coverage, false, pixelProbeX, pixelProbeY);
+      }
       switch (coverage.rejection) {
       case ModelFaceRejection::ZeroUntexturedDepth:
         ++result.zeroDepthRejected;
@@ -87,6 +100,13 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
       }
       continue;
     }
+
+    const std::array<std::array<std::int32_t, 2>, 3> projectedVertices{{
+        {{projected[0].sx, projected[0].sy}},
+        {{projected[1].sx, projected[1].sy}},
+        {{projected[2].sx, projected[2].sy}},
+    }};
+    observeModelMaterialFace(draw, face, projectedVertices, coverage.sortKey);
 
     int xs[3]{}, ys[3]{}, us[3]{}, vs[3]{};
     float screenX[3]{}, screenY[3]{}, depth[3]{};
@@ -112,6 +132,7 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     const int dither = face.textured ? (face.texturePage >> 9u) & 1u : gpu.s_tp_dither;
     const int sortKey = static_cast<int>(coverage.sortKey);
     const float keyOrd = core.rsub.projParams.pzToOrd(std::max(1.0f, static_cast<float>(coverage.sortKey) * 2.0f));
+    const unsigned long long pushedBefore = queue.pushed_total;
     queue.emitOrQueue(&core,
                       1,
                       RQ_WORLD,
@@ -148,6 +169,15 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
                       keyOrd,
                       1,
                       dither);
+    if (pixelProbeActive) {
+      observeModelFaceAtPixel(draw,
+                              face,
+                              absoluteProjectedVertices,
+                              coverage,
+                              queue.pushed_total == pushedBefore + 1,
+                              pixelProbeX,
+                              pixelProbeY);
+    }
     ++result.submitted;
   }
   return result;

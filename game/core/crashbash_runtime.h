@@ -12,8 +12,12 @@ class CrashBashRuntime final : public LegacyGameRuntimeAdapter {
 public:
   CrashBashRuntime();
 
+  static constexpr RenderCapabilities titleRenderCapabilities() {
+    return RenderCapabilities::interpolatedNative(FACE_ORDER_AUTHORED);
+  }
+
   RenderCapabilities renderCapabilities() const override {
-    return RenderCapabilities::interpolatedNative();
+    return titleRenderCapabilities();
   }
   void registerOverrides(Game &game) override;
   void bootInit(Core &core) override;

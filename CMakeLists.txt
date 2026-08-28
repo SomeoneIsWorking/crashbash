@@ -46,7 +46,10 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/recomp_register.cpp
   game/diagnostics/menu_boundary.cpp
   game/render/model_face_coverage.cpp
+  game/render/model_face_pixel_diagnostic.cpp
   game/render/model_frame_source.cpp
+  game/render/model_material_diagnostic.cpp
+  game/render/model_packet_identity_diagnostic.cpp
   game/render/model_submit_capture.cpp
   game/render/model_recipe_capture.cpp
   game/render/model_transform_capture.cpp
@@ -99,6 +102,14 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_scene_snapshot COMMAND crashbash_scene_snapshot_test)
+  add_executable(crashbash_render_capabilities_test tests/test_render_capabilities.cpp)
+  target_include_directories(crashbash_render_capabilities_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_link_libraries(crashbash_render_capabilities_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_render_capabilities_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_render_capabilities COMMAND crashbash_render_capabilities_test)
   add_executable(
     crashbash_model_face_coverage_test
     tests/test_model_face_coverage.cpp
@@ -110,6 +121,59 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_model_face_coverage COMMAND crashbash_model_face_coverage_test)
+  add_executable(
+    crashbash_model_face_pixel_diagnostic_test
+    tests/test_model_face_pixel_diagnostic.cpp
+    game/render/model_face_pixel_diagnostic.cpp
+  )
+  target_include_directories(crashbash_model_face_pixel_diagnostic_test PRIVATE game/render)
+  target_link_libraries(crashbash_model_face_pixel_diagnostic_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_face_pixel_diagnostic_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_face_pixel_diagnostic COMMAND crashbash_model_face_pixel_diagnostic_test)
+  add_executable(
+    crashbash_model_material_diagnostic_test
+    tests/test_model_material_diagnostic.cpp
+    game/render/model_material_diagnostic.cpp
+  )
+  target_include_directories(crashbash_model_material_diagnostic_test PRIVATE game/render)
+  target_link_libraries(crashbash_model_material_diagnostic_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_material_diagnostic_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_material_diagnostic COMMAND crashbash_model_material_diagnostic_test)
+  add_executable(
+    crashbash_model_packet_identity_diagnostic_test
+    tests/test_model_packet_identity_diagnostic.cpp
+    game/render/model_packet_identity_diagnostic.cpp
+  )
+  target_include_directories(crashbash_model_packet_identity_diagnostic_test PRIVATE game/core game/render)
+  target_link_libraries(crashbash_model_packet_identity_diagnostic_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_packet_identity_diagnostic_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(
+    NAME crashbash_model_packet_identity_diagnostic
+    COMMAND crashbash_model_packet_identity_diagnostic_test
+  )
+  add_executable(
+    crashbash_model_recipe_capture_test
+    tests/test_model_recipe_capture.cpp
+    game/render/model_frame_source.cpp
+    game/render/model_material_diagnostic.cpp
+    game/render/model_recipe_capture.cpp
+  )
+  target_include_directories(crashbash_model_recipe_capture_test PRIVATE game/render)
+  target_link_libraries(crashbash_model_recipe_capture_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_model_recipe_capture_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_model_recipe_capture COMMAND crashbash_model_recipe_capture_test)
   add_executable(
     crashbash_model_frame_source_test
     tests/test_model_frame_source.cpp

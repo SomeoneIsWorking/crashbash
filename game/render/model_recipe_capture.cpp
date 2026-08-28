@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "model_frame_source.h"
+#include "model_material_diagnostic.h"
 
 #include <array>
 #include <cstdint>
@@ -187,15 +188,32 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
         return census;
       }
       const std::uint32_t faceVertex = vertices + faceIndex * 8u;
+      const ModelColorCueInputs cue{
+          .factor = draw.depthCueFactor,
+          .farColor = draw.depthCueFarColor,
+      };
+      const std::uint32_t effectiveSubmitFlags = draw.objectFlags | draw.callFlags;
+      const ModelMaterialSemantics retailMaterial = decodeModelMaterialSemantics(material, effectiveSubmitFlags);
+      const std::array<std::uint32_t, 3> sourceColors{
+          core.mem_r32(static_cast<std::uint32_t>(colors)),
+          core.mem_r32(static_cast<std::uint32_t>(colors) + 4u),
+          core.mem_r32(static_cast<std::uint32_t>(colors) + 8u),
+      };
       ModelFace face{
           .vertices = {readVertex(core, faceVertex),
                        readVertex(core, faceVertex + 8u),
                        readVertex(core, faceVertex + 16u)},
-          .colors = {core.mem_r32(static_cast<std::uint32_t>(colors)),
-                     core.mem_r32(static_cast<std::uint32_t>(colors) + 4u),
-                     core.mem_r32(static_cast<std::uint32_t>(colors) + 8u)},
+          .colors = sourceColors,
           .semiTransparent = (material & 0x8000u) != 0,
           .blendMode = static_cast<std::uint8_t>((material >> 13u) & 3u),
+          .retailColors = {applyModelDpcs(sourceColors[0], cue),
+                           applyModelDpcs(sourceColors[1], cue),
+                           applyModelDpcs(sourceColors[2], cue)},
+          .sourceFace = census.faces - 1u,
+          .sourceMaterial = material,
+          .topologyFlags = flags,
+          .retailSemiTransparent = retailMaterial.semiTransparent,
+          .retailBlendMode = retailMaterial.blendMode,
       };
       if ((flags & 1u) == 0) {
         ++census.texturedFaces;
@@ -205,6 +223,9 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
       }
       faces.push_back(face);
     }
+    // Retail 0x800193A8 re-primes the GTE FIFO with two vertices at the start of every topology
+    // group, then consumes one additional vertex per face. The following group therefore starts
+    // after the group's two priming vertices and its face count.
     vertices += (static_cast<std::uint32_t>(count) + 2u) * 8u;
   }
   return census;

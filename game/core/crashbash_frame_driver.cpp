@@ -4,6 +4,9 @@
 #include "crashbash_guest.h"
 #include "game.h"
 #include "measured_guest_call.h"
+#include "model_face_pixel_diagnostic.h"
+#include "model_material_diagnostic.h"
+#include "model_packet_identity_diagnostic.h"
 #include "model_transform_capture.h"
 #include "model_transform_input_diagnostic.h"
 #include "snapshot.h"
@@ -81,6 +84,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   game_.pad.serviceFrame();
   deliveredFields_ = 0;
   sceneSnapshots_.beginFrame(frame);
+  render::beginModelMaterialDiagnosticFrame();
+  render::beginModelFacePixelDiagnosticFrame();
+  render::beginModelPacketIdentityDiagnosticFrame();
 
   std::uint32_t state = core.mem_r32(guest::kCurrentProcessState);
   bool enteredState = false;
@@ -126,6 +132,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   }
 
   reportProgress(core, frame);
+  render::reportModelMaterialDiagnosticFrame(frame);
+  render::reportModelFacePixelDiagnosticFrame(frame);
+  render::reportModelPacketIdentityDiagnosticFrame(frame);
   snapshot_tick(&core);
   if (deliveredFields_ == 0) {
     game_.presentation.commitUnpresented(&core);

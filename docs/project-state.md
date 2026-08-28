@@ -14,33 +14,30 @@
 
 S004 is the current focus. The source-owned producer now copies the title-composed affine/projection
 state, decodes direct `0x2000` and two-level `0x5000` fixed-frame records, and reconstructs
-`0x800193A8` depth rejection, winding, and OT bucket keys without reading GTE, OT, or GP0 output. A
-Clang build against recorded psxport `fb08d30f` passes 16/16 CTests. Serialized native PID 3368774
-completed 301/301 frames with no guest-VSync violation, watchdog, fatal, or recompilation miss. Its
-frame-300 capture materially changes the picture from isolated central fragments to the complete
-EUROCOM letter geometry, proving that source bucket ownership reaches visible output. It is still
-wrong: the model layer appears enlarged/cropped and blacks out much of the starfield versus the
-retained PSX reference. Static re-check after that run corrected one branch detail (only the
-untextured path rejects `SZ3 == 0`), so the corrected branch has focused test/build evidence but no
-new visual witness. A second bounded native run forced global Authored mode and retained the same
-scale/crop (266224 versus 266233 non-black pixels), falsifying cross-object OT policy as its cause.
-Current-build PSX-path PID 3410230 then produced 642043/691200 non-black pixels at frame 300 and is
-pixel-identical (`AE=0`) to the retained PSX reference. This falsifies stale timing/provenance and
-isolates the visible scale/crop to the native producer's projection-input or coordinate
-interpretation.
+`0x800193A8` rejection, winding, and OT bucket keys without using GTE, OT, or GP0 output as product
+input. The corrected camera H owner removes the former 1.6x scale/crop; exact PID 3589261 completed
+301 reconciled frames with 673/673 source/GTE input matches and visibly restored the full EUROCOM
+word and subtitle at retail scale.
 
-The title-owned source/GTE diagnostic has now produced the failing answer in-product. Exact PID
-3579702 completed 301 reconciled frames; 673/673 standard rotations and translations agreed, while
-all 673 projection comparisons disagreed at H (`0x0200` captured versus retail `0x0140`). Ghidra
-resolves the ownership error: `0x8009440C` sources H from `camera + 0x18`, while `0x80019F1C` uses the
-separate `projectionGlobals + 4` value only to calculate OFX. The capture now keeps those inputs
-separate and the exact-pin Clang shipping target plus focused transform/comparator/policy tests pass.
-Exact post-fix PID 3589261 then completed 301 reconciled frames with 673/673 standard input matches and
-zero mismatch categories. Its frame-300 capture rises from 266233 to 340553 non-black pixels and
-visibly removes the 1.6x scale/crop: the full EUROCOM word and subtitle fit at retail scale. Large black
-native faces still occlude substantial starfield and glyph edges versus the PSX reference, so 4:3 parity
-is not verified. Their source model/material color, texture, and semitransparency decode is the current
-boundary. Widescreen and interpolation remain downstream of visually correct 4:3 output.
+The remaining damaged letter pixel is now source-identified. Frame-300 packet identity maps dark
+node `0x800C2FF4` to object `0x800A0C74`, source face 33, material `0x01D6`, key 3312, and red node
+`0x800C8D84` to object `0x801E18B0`, source face 50, material `0x003D`, key 3160. Both are accepted,
+opaque, untextured Gouraud faces. Retail OT traversal makes the lower-key red face the final winner;
+native Vulkan `GREATER_OR_EQUAL` instead selects dark D32 `0.088171428` over red `0.083298709`.
+Depth mode leaves both `authored_depth=0` because its contradiction search is object-local and the
+pair crosses objects. The existing frame-wide Authored resolver maps their keys to red
+`0.082564623` over dark `0.081545500`, reproducing retail. Crash Bash now seeds Authored as its
+renderer factory default before settings load; generic titles remain Depth and an explicit persisted
+player choice wins. Focused Clang tests prove those precedence rules and the exact cross-object pair.
+Exact post-change product PID 3898998 then completed 301/301 reconciled frames and exited zero at
+build `87a4e75-dirty+psxport-36e8daa9`. With no persisted settings file, the Crash Bash Authored
+factory default made shipping and source OT agree on red node `0x801E18B0` at frame-299 display
+`(56,115)`. The presented correspondent changed from dark `(33,0,66)` to `(247,41,74)`, versus PSX
+`(255,41,82)`, and visual inspection confirms the formerly cut-off `EU` edge and full EUROCOM word
+are restored without a new occluder. This verifies the named cross-object letter-occlusion fix, not
+native 4:3 parity: the separate large black angular starfield/background holes remain visibly present.
+S004 therefore remains partial, and widescreen and interpolation remain downstream of resolving that
+coverage gap.
 
 ## Capability details
 
@@ -159,6 +156,19 @@ completed 301 frames cleanly at build `a263bce-dirty+psxport-d3d67848`; its 6420
 capture is pixel-identical (`AE=0`) to the retained PSX image. The retained reference is therefore
 not stale, and the scale/crop belongs to the native projection-input/coordinate boundary. The
 post-run zero-depth branch correction has a controlled unit test but no second native visual claim.
+
+The later source-identity and ordering work is now product-verified for the damaged letter boundary.
+Exact PID 3898998 used Crash Bash's Authored factory default against landed psxport `36e8daa9`,
+reconciled 301/301 frames, and exited zero. At frame-299 display `(56,115)`, shipping and source OT
+both select red source node `0x801E18B0` (sequence 884, key 3160); output `(105,345)` is
+`(247,41,74)` versus PSX `(255,41,82)`. The 960x720 capture contains 340553/691200 non-black pixels
+and visibly restores the full EUROCOM letter edge with no replacement occluder. The large black
+angular holes across the purple starfield remain, so this closes only the cross-object ordering
+defect and leaves overall native 4:3 image parity partial.
+
+Gap: large black angular holes still replace or mask broad regions of the purple starfield/background;
+their exact source submitter/face family and first incorrect decode or rejection semantic are not yet
+identified. Native 4:3 parity, widescreen, and interpolation remain unverified.
 
 ### S005 — Widescreen camera
 

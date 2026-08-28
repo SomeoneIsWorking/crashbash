@@ -2,6 +2,8 @@
 
 #include "core.h"
 #include "crashbash_frame_driver.h"
+#include "model_material_diagnostic.h"
+#include "model_packet_identity_diagnostic.h"
 #include "model_recipe_capture.h"
 #include "model_transform_capture.h"
 #include "model_transform_input_diagnostic.h"
@@ -24,6 +26,8 @@ constexpr std::uint32_t kStandardModelSubmit = 0x80019F1Cu;
 constexpr std::uint32_t kAlternateModelSubmit = 0x8001DD50u;
 constexpr std::uint32_t kBaseDepthBias = 0x800569C8u;
 constexpr std::uint32_t kDepthLimit = 0x800569DEu;
+constexpr std::uint32_t kGlobalFarColor = 0x80056868u;
+constexpr std::uint32_t kGlobalDepthCueFactor = 0x800569ACu;
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
 ModelDraw decodeDraw(Core &core,
@@ -38,6 +42,22 @@ ModelDraw decodeDraw(Core &core,
   if (submitter == ModelSubmitter::Alternate || (objectFlags & 0x02000000u) != 0) {
     depthBias = static_cast<std::uint16_t>(depthBias + core.mem_r16(object + 0x68u));
   }
+  const std::array<std::int32_t, 3> objectFarColor{
+      static_cast<std::int32_t>(core.mem_r32(object + 0x78u)),
+      static_cast<std::int32_t>(core.mem_r32(object + 0x7Cu)),
+      static_cast<std::int32_t>(core.mem_r32(object + 0x80u)),
+  };
+  const std::array<std::int32_t, 3> globalFarColor{
+      static_cast<std::int32_t>(core.mem_r32(kGlobalFarColor)),
+      static_cast<std::int32_t>(core.mem_r32(kGlobalFarColor + 4u)),
+      static_cast<std::int32_t>(core.mem_r32(kGlobalFarColor + 8u)),
+  };
+  const ModelColorCueInputs cue =
+      resolveModelColorCueInputs(((objectFlags | callFlags) & 0x40000000u) != 0,
+                                 static_cast<std::int16_t>(core.mem_r16(object + 0x76u)),
+                                 objectFarColor,
+                                 static_cast<std::int32_t>(core.mem_r32(kGlobalDepthCueFactor)),
+                                 globalFarColor);
   return ModelDraw{
       .submitter = submitter,
       .object = object,
@@ -50,6 +70,8 @@ ModelDraw decodeDraw(Core &core,
       .frameCode = core.mem_r16(object + 0x74u),
       .depthBias = static_cast<std::int16_t>(depthBias),
       .depthLimit = static_cast<std::int16_t>(core.mem_r16(kDepthLimit)),
+      .depthCueFarColor = cue.farColor,
+      .depthCueFactor = cue.factor,
   };
 }
 
@@ -58,6 +80,7 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
   // zero/sentinel frame codes before producing geometry. Recording only that accepted set makes the
   // snapshot a faithful denominator, not a list of objects the game itself declined to draw.
   if (!isRenderableModelDraw(draw)) {
+    finishModelPacketIdentityDraw(draw);
     return;
   }
   SceneSnapshotHistory &history = frameDriver(core).sceneSnapshots();
@@ -65,18 +88,22 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
     if (draw.transform.valid) {
       captureFixedModelRecipe(core, draw);
     }
+    finishModelPacketIdentityDraw(draw);
     ModelDraw &stored = history.record(std::move(draw));
     const NativeModelSubmitResult submitted = submitFixedModel(core, stored);
     stored.nativeFacesSubmitted = submitted.submitted;
     stored.nativeZeroDepthRejected = submitted.zeroDepthRejected;
     stored.nativeFarDepthRejected = submitted.farDepthRejected;
     stored.nativeWindingRejected = submitted.windingRejected;
+  } else {
+    finishModelPacketIdentityDraw(draw);
   }
 }
 
 void standardModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Standard, core->r[4], core->r[5], core->r[5] + 0x14u, core->r[6]);
   resetModelTransformCapture(*core, draw.object);
+  beginModelPacketIdentityDraw();
   gen_func_80019F1C(core);
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
@@ -87,6 +114,7 @@ void standardModelSubmit(Core *core) {
 void alternateModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Alternate, core->r[4], 0u, 0u, 0u);
   resetModelTransformCapture(*core, draw.object);
+  beginModelPacketIdentityDraw();
   gen_func_8001DD50(core);
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
@@ -109,6 +137,7 @@ void registerModelSubmitCaptureOverrides() {
                      alternateModelSubmit,
                      gen_func_8001DD50,
                      shard_set_override);
+  registerModelPacketIdentityDiagnosticOverride();
 #else
   lucent::debug("crashbash-render", "model submit capture overrides deferred: no generated substrate");
 #endif

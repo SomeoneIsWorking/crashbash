@@ -38,6 +38,12 @@ struct ModelFace {
   bool textured = false;
   bool semiTransparent = false;
   std::uint8_t blendMode = 0;
+  std::array<std::uint32_t, 3> retailColors{};
+  std::uint32_t sourceFace = 0;
+  std::uint16_t sourceMaterial = 0;
+  std::uint8_t topologyFlags = 0;
+  bool retailSemiTransparent = false;
+  std::uint8_t retailBlendMode = 0;
 };
 
 // Read-only inputs at Crash Bash's two object-level model submitters. These are captured before
@@ -57,6 +63,8 @@ struct ModelDraw {
   std::uint16_t frameCode = 0;
   std::int16_t depthBias = 0;
   std::int16_t depthLimit = 0;
+  std::array<std::int32_t, 3> depthCueFarColor{};
+  std::int16_t depthCueFactor = 0;
   ModelTransform transform;
   std::vector<ModelFace> faces;
   std::uint32_t texturedFaces = 0;

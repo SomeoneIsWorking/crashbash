@@ -6,7 +6,7 @@ symptom: The verified generated substrate contains projection/control sites, but
 state_items: S004,S005,S006
 tags: graphics,re,camera,native-renderer,widescreen,interpolation
 created: 2026-08-26
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 ## Finding
@@ -188,3 +188,81 @@ not 4:3 parity. Large black native polygons still mask much of the purple starfi
 letter edges remain occluded versus the PSX reference. The next grounded boundary is to attribute those
 black faces to their source model/material records and verify color, texture, and semitransparency
 decode; do not compensate with ordering, clipping, or projection arithmetic.
+
+### Note (2026-08-28, damaged-pixel attribution falsifiers)
+
+The exact PSX-path center-writer probe at display coordinate `(56,115)` names opaque untextured
+Gouraud packet node `0x800C8D84` as the red letter triangle: guest vertices `(51,116)`, `(51,111)`,
+and `(77,116)` with RGB words `0x004218F7`, `0x005A29F7`, and `0x002931FF`. Its bounded payload is
+`E1000000/00000000/304218F7/00740033/005A29F7/006F0033/002931FF/0074004D`. This proves the PSX
+reference pixel is supplied by authored model geometry rather than texture/CLUT sampling or blending.
+
+Two candidate interpretations were falsified before any product fix was retained. First, changing
+the fixed-frame vertex cursor from `(count + 2) * 8` to `count * 8` made the native frame almost
+entirely giant purple/black triangles and hid the EUROCOM logo. Generated `0x800193A8` shows why: its
+outer topology-group loop re-primes two vertices, then consumes one additional vertex per face, so
+each group owns `count + 2` records. The change was removed and a focused two-group regression now
+proves the independent restart. Second, the native `(35,115)` census and PSX `(56,115)` packet cannot
+be compared: both product paths program a 512-wide display (`GP1(08)=2`), and `PSXPORT_PRIMAT` uses
+display coordinates. Output `x=105` therefore corresponds to `x=56` on both paths; the native
+`x=35` sample refers to a different output pixel.
+
+The corrected rollback-restored native witness used exact PID `3821484` and exited zero after 301
+reconciled frames. Its frame-300 capture returned to the pre-falsifier SHA-256
+`45f364ac22ee8224d036a80dd4a6d7463a277d4347c4e21a47b5de528da280b1` and 340,553/691,200
+non-black pixels. Visual inspection again shows the whole EUROCOM logo plus the unresolved giant
+black/purple occluders. Output `(105,345)` remains `(33,0,66)`. At display `(56,115)`, the native
+shipping queue chooses object `0x800A0C74`, sequence 8, key 3312, while source OT chooses object
+`0x801E18B0`, sequence 884, key 3160. The title face census is debug-level and its category was not
+enabled in that witness, so it did not emit source face/material rows; this run does not establish
+the exact face identity. The next diagnostic must preserve this same coordinate and explicitly arm
+that existing category; no ordering, filter, cursor, or product-render change follows from the
+incomplete identity.
+
+### Note (2026-08-28, exact packet identity and cross-object order owner)
+
+The retained-super packet identity diagnostic closes the missing source identity without changing
+product behavior. At frame 299 it reports `2 targets / 13 packet blocks / 26 comparisons / 0
+matches`, proving the zero-match path. At frame 300 it reports `2 / 10 / 20 / 2`. Packet
+`0x800C2FF4` is allocation block `0x800C2ACC` plus source face 33 (`33 * 0x28`), object
+`0x800A0C74`, frame `0x200B`, material `0x01D6`, opaque untextured dark Gouraud. Packet
+`0x800C8D84` is allocation block `0x800C85B4` plus source face 50, object `0x801E18B0`, frame
+`0x2001`, material `0x003D`, opaque untextured red Gouraud. Both use standard submitter
+`0x80019F1C` and the same model asset/data. Generated `0x80019094 -> 0x80019D84 -> 0x800193A8`
+proves the allocation block and 0x28-byte per-face cursor.
+
+The damaged pixel is therefore neither missing geometry nor a color, texture, CLUT, transparency,
+or blend decode defect. Retail places the red face in OT bucket 3160 and the dark face in bucket
+3312, so far-to-near OT traversal paints red last; the buckets differ, so same-bucket AddPrim LIFO
+does not decide this pair. Shipping Vulkan `GREATER_OR_EQUAL` instead maps the interpolated native
+depths to dark `0.088171428` and red `0.083298709`, selecting dark. Both carried
+`authored_depth=0` because the Depth-mode contradiction search groups by object and never compares
+this cross-object pair. Mapping their exact authored keys yields dark `0.081545500` and red
+`0.082564623`, reproducing the retail winner through the existing frame-wide Authored resolver.
+
+The earlier global-Authored run occurred before the H-source correction and only falsified ordering
+as the cause of the then-1.6x scale/crop. It did not test this now-isolated post-projection occlusion.
+The implementation therefore seeds Crash Bash's renderer factory with Authored ordering through
+`RenderCapabilities`; `Mods::init` applies that default before settings load, preserving an explicit
+persisted Depth choice. Generic titles retain Depth. Focused tests cover those three precedence
+answers plus the exact cross-object frame-300 pair. A post-change product visual is still required
+before 4:3 parity or the occlusion itself can be marked verified.
+
+### Note (2026-08-28, post-change Authored product visual)
+
+Exact native PID `3898998` ran the real USA product for 301/301 reconciled frames and exited zero at
+build `87a4e75-dirty+psxport-36e8daa9`. No `psxport_settings.ini` was present, so the Crash Bash
+Authored factory default was not masked by a persisted player override. At frame 299 and display
+`(56,115)`, the shipping winner and source-OT winner now agree on red node `0x801E18B0`, sequence
+884, key 3160; the dark node `0x800A0C74`, sequence 8, key 3312 is submitted earlier. The presented
+output correspondent `(105,345)` is RGB `(247,41,74)`, versus the retained PSX reference
+`(255,41,82)` and the pre-fix native `(33,0,66)`.
+
+Full-frame inspection verifies that the formerly cut-off `EU`/left letter edge is restored, the
+complete EUROCOM word is readable, and no replacement occluder appears. The 960x720 capture remains
+340553/691200 non-black, and large black angular regions still mask or replace broad portions of the
+purple starfield compared with the PSX reference. The cross-object letter-occlusion defect is thus
+verified fixed, while issue 0011 remains investigating because native 4:3 picture parity has a
+separate background coverage gap. The next change must identify that gap's source-owned submitter,
+face family, or rejection/decode semantic; this result does not justify a depth bias, face skip, or
+global ordering change.
