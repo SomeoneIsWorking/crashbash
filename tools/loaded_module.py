@@ -12,6 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "titles" / "crashbash" / "boot_module.json"
 MENU_MANIFEST = ROOT / "titles" / "crashbash" / "menu_module.json"
 DAT28272_MANIFEST = ROOT / "titles" / "crashbash" / "dat28272_module.json"
+DAT28241_MANIFEST = ROOT / "titles" / "crashbash" / "dat28241_module.json"
 
 # Every measured code module the port loads out of CRASHBSH.DAT, keyed by the overlay stem the
 # recompiler emits and the runtime router routes by. Provisioning and the recompiler both read this
@@ -27,6 +28,7 @@ MODULES: dict[str, pathlib.Path] = {
     "BOOT": MANIFEST,
     "MENU": MENU_MANIFEST,
     "DAT28272": DAT28272_MANIFEST,
+    "DAT28241": DAT28241_MANIFEST,
 }
 
 

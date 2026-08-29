@@ -173,3 +173,42 @@ Verified end to end at `02430b1b`+ on the real disc:
 
 Still the same guest state (0x8004E0B8) and app mode (0x80078C90); the menu transition remains the
 next flow boundary.
+
+## The nested slot is a THREE-module carousel; DAT28241 provisioned and verified
+
+A `PSXPORT_DEBUG=crashbash-cd` census over two boots x 9000 frames shows the 0x800B32B4 slot is a
+carousel, not a one-shot nest — it receives **LBA 28178 (16 sectors, = MENU), LBA 28241 (31 sectors),
+and LBA 28272 (38 sectors)**, repeatedly, in the order 28178 -> 28272 -> 28178 -> 28241 as the attract
+cycle changes scenes. DAT28241 (uncommitted work found in the tree this session, now landed) covers
+the third member: its image offset 0xD8E0 is the earlier miss address 0x800C0B94, and its name table
+is animation states (BREATHE/BANK/IDLE_A/TAUN...) like DAT28272's — same family, another attract
+demo scene. With all three stems provisioned:
+
+- census run: 2 boots x 9000 frames, exit 0, ZERO recomp-MISS (`scratch/logs/cd-census4.log`).
+- post-rebuild verify: 2400 frames, exit 0, zero MISS/FATAL (`scratch/logs/verify-28241.log`), on the
+  pin commit 625f8e69 with psxport 23/23 + crashbash 23/23 + python suite green.
+
+Before DAT28241 was in the build, the miss address VARIED per boot (0x800C3434, 0x800C0B94) with the
+same caller (ra=0x80078D10) — which demo scene the attract cycle loads first is per-boot, so a
+single-stem build fail-fasts nondeterministically. Any future miss in 0x800B32B4..0x800C2AB4 should
+be checked against the census FIRST: "module not provisioned" is the default hypothesis, and the
+nested-slot attribution stays ambiguous by range.
+
+## Two diagnostic defects observed this session (open)
+
+1. **The dbg server endpoint dies across the in-process boot retry.** After a fail-fast miss and
+   reboot, the second `PSXPORT_DEBUG_SERVER` bind fails with "Address already in use" and the port
+   the first boot advertised refuses connections (`scratch/logs/start-probe1.stdout`). Driving pad
+   input at the attract loop is therefore impossible in any run that ever fail-fasted.
+2. **`PSXPORT_DEBUG=cd` segfaulted (exit 139) at the fail-fast/reboot boundary**
+   (`scratch/logs/cd-census1.log` ends at the miss RAM dump); the game-local `crashbash-cd` channel
+   runs the same shape clean. Not root-caused.
+
+## Flow boundary unchanged at 9000 frames
+
+Even with the carousel fully provisioned, both boots dwell in state 0x8004E0B8 / app mode
+0x80078C90 for all 9000 frames while the demo scenes visibly cycle (model draws oscillate
+0 -> 71 -> 2 -> 3 -> 80 -> 6 across the dwell logs; the slot modules reload). The attract demo
+loops on itself; the menu transition was NOT reached by time alone. Next step: drive pad input
+(START) at the attract loop via the dbg server — which first requires fixing defect 1 above —
+or RE whether retail's transition path reads a pad state the port never delivers.

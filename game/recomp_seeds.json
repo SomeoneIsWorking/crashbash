@@ -67,7 +67,15 @@
     // exactly, and sectors 0..36 of the 38 diff to zero. Note 0x800C3434 IS valid R3000A once
     // loaded (27BDFFE8 addiu sp,sp,-0x18); issue 0017's "opcode 0x3F invalid" read BOOT's FILE
     // bytes, not this image, so the miss was "module not provisioned", never a decode failure.
-    "DAT28272": "0x800B32B4"
+    "DAT28272": "0x800B32B4",
+    // A THIRD module in the nested slot: `31 sector(s) from LBA 28241 to 0x800B32B4`
+    // (crashbash-cd trace 2026-08-29), loaded immediately before recomp-MISS 0x800C0B94
+    // (caller ra=0x80078D10, the same dispatch site as DAT28272's 0x800C3434). The miss RAM
+    // dump over the slot matches this image except the runtime-patched pointer slots, and
+    // 0x800C0B94 (image offset 0xD8E0) decodes as valid R3000A (lui v1,0x8006 / lui v0,0x800B).
+    // Its name table is animation states too (BREATHE/BANK/IDLE_A/TAUN...), so it is the same
+    // family as DAT28272, provisionally another attract demo scene.
+    "DAT28241": "0x800B32B4"
   },
   "overlay_base_patterns": [],
   "overlay_seeds": {
