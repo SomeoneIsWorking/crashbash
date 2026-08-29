@@ -67,6 +67,16 @@ successful build.
 - notes: No DAT or module bytes are tracked. The old IRQ-timed CDC experiment remains oracle evidence, not the shipping ownership model. Shipping CD work is host-synchronous: bind measured libcd chokepoints to real native disc operations, retain generated bodies for comparison, and never return a guest VSync clock or relax the watchdog. Issue 0009 remains open for the process-driving clean completion gate and resulting post-MENU no-present cause.
 
 
+## flow
+
+### flow.pad-input — Deliver host pad state through the guest's own SIO driver
+- status: re-verified
+- deps: boot.loaded-modules
+- evidence: The attract flow renders real demo scenes (dbg-server captures at four phases) but never leaves the BOOT loop on START: the guest makes zero BIOS pad calls and zero SIO MMIO accesses in 9000 frames (bios/io channels), a pressed-vs-idle 2MB RAM diff shows zero button-state sites, and the reason is measured end to end — the title patches its own pad engine into the kernel C0/B0 tables and registers SysEnqIntRP(class=2, elem=0x8006D984; verifier FUN_8003b224 / handler FUN_8003b1BC) which drives SIO0 through the runtime pointer DAT_8006d99c=0x1F801040 (CTRL bit 1, BAUD=0x88, slot table 0x8007765C, 0xF0 stride). The framework models no SIO0 hardware and asserts no SIO interrupt, so the registered element (already chained, "chain now 1") never claims. Full contract and the rejected shortcut in docs/findings/crashbash-pad-sio.md.
+- where: external/psxport/runtime/recomp/mem.cpp (SIO0 model goes here), docs/findings/crashbash-pad-sio.md, scratch/ghidra/cbre + scratch/decomp/ (Ghidra source)
+- gap: Model SIO0 registers 0x1F801040-0x1F80104F in Core::io_read/io_write and deliver the SIO interrupt per completed controller transfer so the guest's own ISR performs the handshake. Gate: dbg-server START must put the mask in the driver's slot table AND move the app mode off 0x80078C90 (issue 0019).
+- notes: Do not feed masks into 0x8007787C or padSlot0Buf — that is a fabricated input path for this title.
+
 ## graphics
 
 ### graphics.camera-submitters — Identify native camera state and graphics submitters
