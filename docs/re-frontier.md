@@ -72,10 +72,18 @@ successful build.
 ### flow.pad-input — Deliver host pad state through the guest's own SIO driver
 - status: re-verified
 - deps: boot.loaded-modules
-- evidence: The attract flow renders real demo scenes (dbg-server captures at four phases) but never leaves the BOOT loop on START: the guest makes zero BIOS pad calls and zero SIO MMIO accesses in 9000 frames (bios/io channels), a pressed-vs-idle 2MB RAM diff shows zero button-state sites, and the reason is measured end to end — the title patches its own pad engine into the kernel C0/B0 tables and registers SysEnqIntRP(class=2, elem=0x8006D984; verifier FUN_8003b224 / handler FUN_8003b1BC) which drives SIO0 through the runtime pointer DAT_8006d99c=0x1F801040 (CTRL bit 1, BAUD=0x88, slot table 0x8007765C, 0xF0 stride). The framework models no SIO0 hardware and asserts no SIO interrupt, so the registered element (already chained, "chain now 1") never claims. Full contract and the rejected shortcut in docs/findings/crashbash-pad-sio.md.
-- where: external/psxport/runtime/recomp/mem.cpp (SIO0 model goes here), docs/findings/crashbash-pad-sio.md, scratch/ghidra/cbre + scratch/decomp/ (Ghidra source)
-- gap: Model SIO0 registers 0x1F801040-0x1F80104F in Core::io_read/io_write and deliver the SIO interrupt per completed controller transfer so the guest's own ISR performs the handshake. Gate: dbg-server START must put the mask in the driver's slot table AND move the app mode off 0x80078C90 (issue 0019).
-- notes: Do not feed masks into 0x8007787C or padSlot0Buf — that is a fabricated input path for this title.
+- evidence: Retail code registers SysEnqIntRP class 2 element 0x8006D984 with +8 verifier 0x8003B1BC testing VBlank I_STAT bit 0 and +4 handler 0x8003B224 driving SIO0, per-byte I_STAT bit 7, and timer 2. The shared implementation models those exact boundaries. Fresh finite headless frame-200 idle/START RAM A/B proves the shipping chain: packet 0x80077FBC is 41 5A FF FF -> 41 5A F7 FF, parsed P1 0x80063A92 is FFFF -> FFF7, and active-high game P1 0x8005133C is 0 -> 8; P2 0x80051394 remains 0. RAM SHA-256 values and the rejected direct-buffer shortcut are recorded in docs/findings/crashbash-pad-sio.md and resolved issue 0019.
+- where: external/psxport/runtime/recomp/io_peripherals.{h,cpp}, external/psxport/runtime/recomp/sio_pad.{h,cpp}, external/psxport/runtime/recomp/timing.{h,cpp}, docs/findings/crashbash-pad-sio.md
+- gap:
+- notes: Do not feed masks into 0x8007787C or padSlot0Buf; the verified guest SIO path is authoritative.
+
+### flow.start-transition — Trace accepted START into the active attract-flow transition
+- status: in-progress
+- deps: flow.pad-input
+- evidence: Issue 0019 fresh A/B proves START reaches game-facing active-high P1 state 0x8005133C as value 8 while P2 stays zero.
+- where: docs/issues/0020-start-reaches-game-input-but-not-attract-flow.md, retail readers downstream of 0x8005133C
+- gap: Find the first active attract-process read/branch downstream of 0x8005133C that differs from retail; unchanged BOOT vtable/process-object pointers are not a valid transition oracle.
+- notes: Issue 0020. Input delivery is closed and must not be bypassed or reimplemented.
 
 ## graphics
 

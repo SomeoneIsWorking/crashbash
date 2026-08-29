@@ -12,6 +12,17 @@
 
 ## Current focus
 
+S002 is the current focus. On 2026-08-30 the shared framework input defect landed as psxport
+`a390ceed`; Crash Bash records that exact pin and its Clang suite passes 23/23. A fresh finite
+idle/START RAM A/B against that pin proves the guest driver packet changes
+`41 5A FF FF -> 41 5A F7 FF`, the parsed P1 word changes `FFFF -> FFF7`, and the game-facing
+active-high state at `0x8005133C` changes `0 -> 8`, while P2 stays absent/zero. Issue 0019 is
+resolved. Accepted START still does not leave the BOOT/attract flow; issue 0020 and frontier step
+`flow.start-transition` now own the first downstream process branch rather than treating input
+delivery or unchanged BOOT pointers as the failure.
+
+## Recent evidence
+
 2026-08-29 (later): the nested 0x800B32B4 slot is a FAMILY of attract modules, not a two-entry
 slot. A third member — `31 sector(s) from LBA 28241` — was byte-verified against the miss RAM dump
 and provisioned as stem `DAT28241` (26/26 provisioning facts across four modules). With it, the
@@ -52,7 +63,7 @@ S004 remains partial (issue 0015's subtitle falsifier is open). Guest state 0x80
 
 
 
-S004 is the current focus. The source-owned producer now copies the title-composed affine/projection
+S004 remains partial. The source-owned producer now copies the title-composed affine/projection
 state, decodes direct `0x2000` and two-level `0x5000` fixed-frame records, and reconstructs
 `0x800193A8` rejection, winding, and OT bucket keys without using GTE, OT, or GP0 output as product
 input. The corrected camera H owner removes the former 1.6x scale/crop; exact PID 3589261 completed
@@ -150,7 +161,16 @@ diagnostic PSX path as an oracle it presents the title screen at 92.9%/98.9%/83.
 proves the simulation is producing a real picture. The SHIPPING native path still presents black
 because no native producer exists — that is S004, below.
 
-Gap: Issue 0009 remains open. Issues 0012 and 0014 are resolved. A non-black frame on the SHIPPING
+Pad delivery is now verified independently of flow transition. Crash Bash's registered class-2
+interrupt element uses VBlank `I_STAT` bit 0 to enter handler `0x8003B224`, drives SIO0 with
+per-byte `I_STAT` bit 7 acknowledgements, and times the exchange with root counter 2. Shared
+psxport now owns those hardware boundaries. The frame-200 idle/START A/B recorded in resolved
+issue 0019 and `docs/findings/crashbash-pad-sio.md` proves the exact driver, parser, and
+game-facing P1 values; no direct buffer injection or title-local input path exists.
+
+Gap: Issue 0020 must trace the first active attract-process read/branch downstream of the proven
+`0x8005133C == 8` state; unchanged BOOT vtable/process-object pointers are not a valid transition
+oracle. Issue 0009 also remains open. Issues 0012, 0014, and 0019 are resolved. A non-black frame on the SHIPPING
 native path still requires S004's native producers. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
 lifecycle boundaries and do not certify picture content.
