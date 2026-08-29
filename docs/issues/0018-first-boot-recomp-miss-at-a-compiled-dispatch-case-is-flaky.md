@@ -36,9 +36,35 @@ So either (a) the miss reached `rec_dispatch_miss` from a caller that bypasses t
 
 ## Next step
 
-Reproduce with a discriminator that does not depend on luck: a debug channel that logs EVERY
-`rec_dispatch` entry with addr/ra (not just filtered dispwatch) plus the router's per-branch
-decision for addr 0x80012840, then loop plain runs until the miss fires. When it does, the log
-must show which router branch (or bypass) produced the miss. Do not "fix" by re-seeding
-0x80012840 — it is already seeded and compiled; that would be a bandaid on a diagnostic that
-misreports its own cause.
+~~Reproduce with a discriminator that does not depend on luck~~ — the discriminator now EXISTS and is
+wired into the shipping binary (psxport `82442c0e`): `rec_dispatch` records its branch decision
+(MAIN/LIVE/FIXED/AMBIG/OVERRIDE/MISSDROP) into a fixed per-core ring with NO I/O — the same shape as a
+plain run, which is the whole design constraint — and `rec_dispatch_miss` rings a MISS marker and
+dumps the ring oldest-first before aborting. The last decision before the MISS marker names the
+branch that produced the miss; no entry for 0x80012840 at all names a bypass caller. Unit-tested
+(order, wrap, silence-while-recording) in `tests/test_dispatch_decision_ring.cpp`.
+
+Do not "fix" by re-seeding 0x80012840 — it is already seeded and compiled; that would be a bandaid on
+a diagnostic that misreports its own cause.
+
+## Status 2026-08-29 (evening)
+
+The instrument is in place and verified, but the flake has NOT fired since: 21 consecutive clean
+runs (18×9000f plain, 3×40000f concurrent), ~130k frames, zero misses of any kind. For calibration
+the firing runs (probe8/9) fired roughly every other long run. The flake has therefore not yet been
+observed THROUGH the ring, and two hypotheses are open:
+
+- the ring's one store per dispatch (like every previous instrumentation) shifts the timing that
+  selects the failing path; or
+- the firing regime was contention-shaped — probe8/9 ran while another session was building/testing
+  on the same machine, and the miss's `c->pc=0x80027944` sits in the CdFileRead override region, an
+  IRQ-timing race — and that regime has not recurred.
+
+Next session: keep looping plain runs (the ring costs one store; the dump fires only on the fatal
+path), including under synthetic machine load. When it fires, the dispdec dump decides between (a)
+router branch mis-selection, (b) bypass caller, and (c) a genuinely different addr reaching
+rec_dispatch_miss than the diagnostic printed. Also recorded this session: the 0x800B32B4 nested
+slot is a 3-module carousel — LBAs 28178 (MENU, 16 sectors), 28241 (31), 28272 (38) — confirmed by
+`PSXPORT_DEBUG=crashbash-cd` over 9000-frame runs; with all three provisioned the attract demo
+cycle runs clean, and the app mode still never leaves the BOOT loop (0x80078C90 / 0x8004E0B8) at
+40000 frames.
