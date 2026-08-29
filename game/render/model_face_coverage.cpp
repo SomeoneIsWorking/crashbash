@@ -6,19 +6,32 @@
 
 namespace crashbash::render {
 
-float fixedModelSortKeyOrd(int sortKey, std::int16_t depthLimit) {
-  // The D32 ord band that carries the game's own OT key: LINEAR in the key over the game's own
-  // key domain [0, depthLimit) — the same domain retail 0x800193A8's far rejection uses — with
-  // key 0 nearest (ord just under 1.0) and depthLimit-1 farthest. A 1/pz carrier was tried first
-  // and is wrong twice over: pzToOrd saturates every key nearer than the near plane into one band
-  // (non-injective — the Authored resolver fatal-aborts), and even normalized past the near plane
-  // its 1/pz shape compresses far keys until a bucket's LIFO ties no longer fit the D32 range
-  // ("bucket 789 needs 59 distinct D32 ties" at band width 4e-7). The key IS the authored order;
-  // the carrier only has to be injective in the key and leave every bucket room for its ties, and
-  // a uniform map maximizes the worst-case tie budget. The half-key offset centers each band so
-  // adjacent bands never touch. `depthLimit` must be > 0: retail rejects every sortKey >= limit,
-  // so a zero limit accepts no faces and this function is never reached.
-  return 1.0f - (static_cast<float>(sortKey) + 0.5f) / static_cast<float>(depthLimit);
+float fixedModelSortKeyOrd(int sortKey) {
+  // The D32 ord band that carries the game's own OT key. The OT is ONE frame-wide table and retail
+  // orders it strictly by key, so this carrier must be a function of the KEY ALONE: any per-draw
+  // term makes the same key land in different bands for different objects, and the frame-wide
+  // monotonicity `rq_apply_ot_lifo_depths` requires is then violated across an object boundary.
+  //
+  // This was measured, not reasoned: normalizing by the per-draw `depthLimit` fatal-aborted the
+  // attract flow at key 187 with ord 0.947654963 against a nearer band of 0.728962779 — the same
+  // key under limits 3582 and ~692. It stayed latent until the DAT28272 module put draws with two
+  // different limits in one frame. Per-object `depthBias` was excluded from the carrier for exactly
+  // this reason (it is already baked into the key); `depthLimit` is the same mistake one step on.
+  //
+  // The denominator is therefore the key domain's own frame-wide bound, taken from the game's
+  // types rather than tuned: retail rejects every face whose key >= depthLimit, and depthLimit is a
+  // signed halfword, so every ACCEPTED key is < 0x8000 whatever a given draw's limit happens to be.
+  // A uniform band of 1/0x8000 (~3.05e-5 of the ord range) leaves each bucket far more D32 tie room
+  // than the 4e-7 that starved bucket 789 under the earlier 1/pz-shaped carrier. The half-key
+  // offset centers each band so adjacent bands never touch.
+  //
+  // A 1/pz carrier is wrong twice over and must not come back: pzToOrd saturates every key nearer
+  // than the near plane into one band (non-injective -- the Authored resolver fatal-aborts), and
+  // even normalized past the near plane its shape compresses far keys until a bucket's LIFO ties no
+  // longer fit. The key IS the authored order; the carrier only has to be injective in the key,
+  // frame-wide monotone, and leave every bucket room for its ties. A uniform map maximizes the
+  // worst-case tie budget.
+  return 1.0f - (static_cast<float>(sortKey) + 0.5f) / static_cast<float>(kFixedModelSortKeyDomain);
 }
 
 std::uint16_t fixedModelAvsz3Otz(const std::array<ProjectedFaceVertex, 3> &vertices, std::int16_t depthScale) {

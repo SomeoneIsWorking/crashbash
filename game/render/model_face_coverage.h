@@ -40,8 +40,13 @@ ModelFaceCoverage classifyFixedModelFace(const std::array<ProjectedFaceVertex, 3
                                          std::int16_t depthLimit,
                                          std::int16_t depthScale);
 
-// The D32 ord band carrying `sortKey`, linear over the game's own key domain [0, depthLimit) —
-// see the .cpp for why the carrier is uniform in the key rather than affine in 1/pz.
-float fixedModelSortKeyOrd(int sortKey, std::int16_t depthLimit);
+// Frame-wide bound on any ACCEPTED OT key: retail rejects every face whose key >= depthLimit, and
+// depthLimit is a signed halfword, so no accepted key reaches 0x8000 under any draw's limit.
+inline constexpr int kFixedModelSortKeyDomain = 0x8000;
+
+// The D32 ord band carrying `sortKey`, uniform over the frame-wide key domain. It is deliberately a
+// function of the KEY ALONE -- see the .cpp for why any per-draw term (depthBias, depthLimit)
+// breaks frame-wide monotonicity across objects.
+float fixedModelSortKeyOrd(int sortKey);
 
 } // namespace crashbash::render

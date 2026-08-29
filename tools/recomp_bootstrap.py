@@ -17,16 +17,12 @@ import loaded_module
 
 ROOT = Path(__file__).resolve().parents[1]
 EXE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
-MODULES = {
-    "BOOT": ROOT / "scratch/bin/crashbash/overlays/BOOT.BIN",
-    "MENU": ROOT / "scratch/bin/crashbash/overlays/MENU.BIN",
-}
-OVERLAYS = MODULES["BOOT"].parent
+OVERLAYS = ROOT / "scratch/bin/crashbash/overlays"
 IDENTITY = ROOT / "titles/crashbash/executable.json"
-MODULE_IDENTITIES = {
-    "BOOT": ROOT / "titles/crashbash/boot_module.json",
-    "MENU": ROOT / "titles/crashbash/menu_module.json",
-}
+# loaded_module.MODULES is the one registry of measured modules; the provisioned image for each is
+# the stem's .BIN under the overlay directory provisioning publishes to.
+MODULE_IDENTITIES = loaded_module.MODULES
+MODULES = {stem: OVERLAYS / f"{stem}.BIN" for stem in MODULE_IDENTITIES}
 SEEDS = ROOT / "game/recomp_seeds.json"
 CONFIG = ROOT / "game/core/game_config.cpp"
 GENERATED = ROOT / "generated"
@@ -93,6 +89,8 @@ def require_module(name: str, path: Path | None = None) -> loaded_module.ModuleI
             f"expected {identity.payload_size} bytes sha256 {identity.payload_sha256}"
         )
     pointer = identity.entry_pointer_offset
+    if pointer is None:
+        return identity
     entry = int.from_bytes(data[pointer : pointer + 4], "little")
     if entry != identity.entry:
         raise Mismatch(
@@ -150,15 +148,18 @@ def verify_module_seed(
             f"{name} overlay base ships 0x{shipped_base:08X}, measured load address is "
             f"0x{identity.load_address:08X}"
         )
-    if shipped_entries != {identity.entry}:
+    expected_entries = set() if identity.entry is None else {identity.entry}
+    if shipped_entries != expected_entries:
         rendered = (
             ", ".join(f"0x{address:08X}" for address in sorted(shipped_entries))
             or "none"
         )
-        raise Mismatch(
-            f"{name} overlay seeds ship {rendered}; measured callback entry is "
-            f"0x{identity.entry:08X}"
+        expected = (
+            "no measured entry (resource module)"
+            if identity.entry is None
+            else f"measured callback entry is 0x{identity.entry:08X}"
         )
+        raise Mismatch(f"{name} overlay seeds ship {rendered}; {expected}")
 
 
 def verify_interrupt_reentry(data: bytes, seeds: Path = SEEDS) -> int:
@@ -289,7 +290,7 @@ def generated_measurement(
             raise Refused(
                 f"emitter omitted {declarations_path.name}: {error}"
             ) from error
-        if (
+        if module.entry is not None and (
             f"void ov_{name.lower()}_func_{module.entry:08X}(Core*);"
             not in declarations
         ):

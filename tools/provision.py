@@ -33,8 +33,7 @@ import loaded_module
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "titles" / "crashbash" / "executable.json"
 DEFAULT_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "SCUS_945.70"
-DEFAULT_MODULE_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "BOOT.BIN"
-DEFAULT_MENU_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "overlays" / "MENU.BIN"
+DEFAULT_OVERLAYS = ROOT / "scratch" / "bin" / "crashbash" / "overlays"
 DEFAULT_DISCDUMP = (
     ROOT
     / "scratch"
@@ -366,10 +365,8 @@ def provision(
     discdump: pathlib.Path,
     manifest_path: pathlib.Path = MANIFEST,
     output: pathlib.Path = DEFAULT_OUTPUT,
-    module_manifest_path: pathlib.Path = loaded_module.MANIFEST,
-    module_output: pathlib.Path = DEFAULT_MODULE_OUTPUT,
-    menu_manifest_path: pathlib.Path = loaded_module.MENU_MANIFEST,
-    menu_output: pathlib.Path = DEFAULT_MENU_OUTPUT,
+    modules: Mapping[str, pathlib.Path] | None = None,
+    overlays: pathlib.Path = DEFAULT_OVERLAYS,
     psxport: pathlib.Path | None = None,
     runner: Runner = subprocess.run,
 ) -> ProvisionedInputs:
@@ -379,10 +376,10 @@ def provision(
             f"discdump is missing at {discdump}; configure with Clang and build target discdump"
         )
     identity = load_identity(manifest_path)
+    manifests = loaded_module.MODULES if modules is None else modules
     try:
-        module_identities = (
-            loaded_module.load_identity(module_manifest_path),
-            loaded_module.load_identity(menu_manifest_path),
+        module_identities = tuple(
+            loaded_module.load_identity(path) for path in manifests.values()
         )
     except loaded_module.Refused as error:
         raise Refused(str(error)) from error
@@ -423,14 +420,19 @@ def provision(
             raise Mismatch(str(error)) from error
         except loaded_module.Refused as error:
             raise Refused(str(error)) from error
-        module_files = (directory / module_output.name, directory / menu_output.name)
-        for module_file, verified_module in zip(
-            module_files, verified_modules, strict=True
+        # Stage every verified payload before publishing any of it: a mismatch in the LAST module
+        # must leave none of the earlier ones on disk, or the next build would silently mix freshly
+        # verified overlay images with stale ones.
+        staged = [
+            (directory / f"{stem}.BIN", overlays / f"{stem}.BIN") for stem in manifests
+        ]
+        for (module_file, _destination), verified_module in zip(
+            staged, verified_modules, strict=True
         ):
             module_file.write_bytes(verified_module.payload)
         _publish(executable, output)
-        _publish(module_files[0], module_output)
-        _publish(module_files[1], menu_output)
+        for module_file, destination in staged:
+            _publish(module_file, destination)
     return ProvisionedInputs(
         identity,
         executable_facts,
@@ -447,16 +449,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--discdump", type=pathlib.Path, default=DEFAULT_DISCDUMP)
     parser.add_argument("--manifest", type=pathlib.Path, default=MANIFEST)
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT)
-    parser.add_argument(
-        "--module-manifest", type=pathlib.Path, default=loaded_module.MANIFEST
-    )
-    parser.add_argument(
-        "--module-output", type=pathlib.Path, default=DEFAULT_MODULE_OUTPUT
-    )
-    parser.add_argument(
-        "--menu-manifest", type=pathlib.Path, default=loaded_module.MENU_MANIFEST
-    )
-    parser.add_argument("--menu-output", type=pathlib.Path, default=DEFAULT_MENU_OUTPUT)
+    parser.add_argument("--overlays", type=pathlib.Path, default=DEFAULT_OVERLAYS)
     args = parser.parse_args(argv)
     try:
         disc, source = resolve_disc(args.disc)
@@ -465,10 +458,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             discdump=args.discdump.resolve(),
             manifest_path=args.manifest.resolve(),
             output=args.output.resolve(),
-            module_manifest_path=args.module_manifest.resolve(),
-            module_output=args.module_output.resolve(),
-            menu_manifest_path=args.menu_manifest.resolve(),
-            menu_output=args.menu_output.resolve(),
+            overlays=args.overlays.resolve(),
         )
         print(f"[provision] disc: {disc} ({source})")
         print(f"[provision] SYSTEM.CNF boot: 1/1 ({provisioned.executable.boot_path})")
@@ -481,14 +471,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"{provisioned.module_facts}/{provisioned.module_facts} facts"
         )
         for module in provisioned.modules:
+            entry = (
+                f"entry 0x{module.entry:08X}"
+                if module.entry is not None
+                else "no measured entry"
+            )
             print(
                 f"[provision]   0x{module.load_address:08X}.."
-                f"0x{module.load_address + module.payload_size:08X}, "
-                f"entry 0x{module.entry:08X} from LBA {module.payload_disc_lba}"
+                f"0x{module.load_address + module.payload_size:08X}, {entry} "
+                f"from LBA {module.payload_disc_lba}"
             )
         print(f"[provision] verified output: {args.output.resolve()}")
-        print(f"[provision] verified module: {args.module_output.resolve()}")
-        print(f"[provision] verified module: {args.menu_output.resolve()}")
+        for stem in loaded_module.MODULES:
+            print(f"[provision] verified module: {args.overlays.resolve() / f'{stem}.BIN'}")
         print(
             "[provision] scope: input identity only; no recompilation or boot is claimed"
         )

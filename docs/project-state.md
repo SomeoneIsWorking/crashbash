@@ -12,16 +12,35 @@
 
 ## Current focus
 
-2026-08-29 (`12641bb` + psxport `02430b1b`): the frame cap was raised past 301 for the first
-time and the attract flow now advances. Three gates fired and were fixed in one change: the
-authored key->ord carrier (pzToOrd(key*2)) was non-injective near the near plane and then
-starved far buckets of D32 tie room — it is now linear over the game's own key domain
-[0, depthLimit) (`fixedModelSortKeyOrd`, issue 0017); two runtime-patched computed-dispatch
-boundaries (0x80016F34, 0x8001DFF8, call site 0x80012420) joined the seeds with recorded call
-sites. A 1200-frame probe completes exit 0 with zero recomp-MISS and zero keyord fatals, and
-frame 1000 differs from frame 300 by 95% of pixels — the attract sequence is past the EUROCOM
-logo, still inside guest state 0x8004E0B8 / app mode 0x80078C90. S004 remains partial (issue
-0015's subtitle falsifier is open); menu transition is the next flow boundary.
+2026-08-29: the attract flow now runs 2400/2400 frames to exit 0 with zero keyord fatals, zero
+recomp-MISS and zero guest VSync timeout — past the previous f1023 ceiling. Three things landed
+together (issue 0017).
+
+The `0x800C3434` boundary was never a discovery gap: `crashbash-cd` names the load outright,
+`38 sector(s) from LBA 28272 to 0x800B32B4` — a SECOND module in the same nested slot, read over
+MENU once the flow leaves the menu. It is provisioned as overlay stem `DAT28272` (6/6 facts;
+provisioning is 20/20 across the three modules) and emits beside MENU with a distinct signature,
+which is what lets the router tell two same-base modules apart. It is named by disc LBA, not role:
+its dispatched code registers a behavior vtable at `0x8005AA70` and its name table is animation
+states, which rules out "second menu phase" without establishing what it is. `loaded_module.MODULES`
+is now the one registry provisioning and the recompiler both read.
+
+Two ordering defects were rooted out, both latent until this module put unlike draws in one frame.
+The authored key->ord carrier normalized a FRAME-WIDE OT key by a PER-DRAW `depthLimit`, so the same
+key landed in different bands per object; `fixedModelSortKeyOrd` now takes the key alone and the
+parameter is gone, making the defect a compile error. Then an OT bucket of 472 tied faces exceeded
+what one band can represent in D32 — because depth resolution was the wrong currency. Retail paints
+a bucket LIFO, so which face wins inside a bucket is a DRAW-ORDER question: the bucket now shares one
+depth and is drawn in reverse through a new `RqItem::draw_seq` kept distinct from submission `seq`.
+Bucket size is unbounded and the tie-budget refusal is gone.
+
+Evidence: the tie path fires on real data at up to 1942 faces in one frame; the frame-300 present is
+BYTE-IDENTICAL to the retained `native-final-300.ppm`, so the verified EUROCOM result is untouched;
+frame 1000 differs from frame 300 by 98.97% of pixels. psxport 121/121, Crash Bash 23/23.
+
+S004 remains partial (issue 0015's subtitle falsifier is open). Guest state 0x8004E0B8 and app mode
+0x80078C90 are unchanged, so the menu transition is still the next flow boundary.
+
 
 
 S004 is the current focus. The source-owned producer now copies the title-composed affine/projection

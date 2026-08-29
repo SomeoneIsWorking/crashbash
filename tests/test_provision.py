@@ -212,8 +212,10 @@ class ProvisionTest(unittest.TestCase):
             0x80020000,
             0x80020020,
         )
-        self.module_output = self.directory / "output" / "overlays" / "BOOT.BIN"
-        self.menu_output = self.directory / "output" / "overlays" / "MENU.BIN"
+        self.overlays = self.directory / "output" / "overlays"
+        self.modules = {"BOOT": self.module_manifest, "MENU": self.menu_manifest}
+        self.module_output = self.overlays / "BOOT.BIN"
+        self.menu_output = self.overlays / "MENU.BIN"
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -224,10 +226,8 @@ class ProvisionTest(unittest.TestCase):
             discdump=self.discdump,
             manifest_path=self.manifest,
             output=self.output,
-            module_manifest_path=self.module_manifest,
-            module_output=self.module_output,
-            menu_manifest_path=self.menu_manifest,
-            menu_output=self.menu_output,
+            modules=self.modules,
+            overlays=self.overlays,
             psxport=ROOT / "external" / "psxport",
             runner=fake,
         )
@@ -294,6 +294,33 @@ class ProvisionTest(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertFalse(self.module_output.exists())
         self.assertFalse(self.menu_output.exists())
+
+    def test_module_without_a_measured_entry_verifies_and_publishes(self):
+        """A module the game dispatches through runtime-patched pointers has no entry pointer in
+        its image, so it ships entry/entry_pointer_offset as null and carries one fact fewer."""
+        changed = json.loads(self.menu_manifest.read_text(encoding="utf-8"))
+        changed["entry_pointer_offset"] = None
+        changed["entry"] = None
+        self.menu_manifest.write_text(json.dumps(changed), encoding="utf-8")
+        fake = FakeDiscdump(self.executable, self.module_source)
+        provisioned = self.run_provision(fake)
+        # 7 facts for BOOT plus 6 for the entry-less MENU fixture, not 14.
+        self.assertEqual(provisioned.module_facts, 13)
+        self.assertEqual(self.menu_output.read_bytes(), self.menu_module)
+
+    def test_module_entry_without_its_pointer_refuses_before_extraction(self):
+        """Both entry facts are measured together or neither is; a lone one is unverifiable."""
+        original = self.menu_manifest.read_text(encoding="utf-8")
+        for dropped in ("entry_pointer_offset", "entry"):
+            with self.subTest(dropped=dropped):
+                changed = json.loads(original)
+                changed[dropped] = None
+                self.menu_manifest.write_text(json.dumps(changed), encoding="utf-8")
+                fake = FakeDiscdump(self.executable, self.module_source)
+                with self.assertRaises(provision.Refused):
+                    self.run_provision(fake)
+                self.assertEqual(fake.requests, [])
+                self.assertFalse(self.output.exists())
 
     def test_unknown_module_field_refuses_before_extraction(self):
         changed = json.loads(self.menu_manifest.read_text(encoding="utf-8"))

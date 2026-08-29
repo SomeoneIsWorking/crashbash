@@ -11,6 +11,24 @@ from dataclasses import dataclass
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "titles" / "crashbash" / "boot_module.json"
 MENU_MANIFEST = ROOT / "titles" / "crashbash" / "menu_module.json"
+DAT28272_MANIFEST = ROOT / "titles" / "crashbash" / "dat28272_module.json"
+
+# Every measured code module the port loads out of CRASHBSH.DAT, keyed by the overlay stem the
+# recompiler emits and the runtime router routes by. Provisioning and the recompiler both read this
+# one registry, so a newly measured module is added here and nowhere else.
+#
+# MENU and DAT28272 are ALTERNATIVES in one nested slot at 0x800B32B4, never co-resident; the router
+# tells them apart by the content signature of guest RAM at the base. DAT28272 is named by its
+# measured disc LBA rather than a role: its dispatched code at 0x800C3434 registers a behavior
+# vtable at 0x8005AA70 and the image's name table is character animation states
+# (BREATHE/JUMP/DAZED/WIN/TAZING), which is not the front-end menu text MENU carries -- but that is
+# not enough to name the role, and a stem is baked into generated identifiers.
+MODULES: dict[str, pathlib.Path] = {
+    "BOOT": MANIFEST,
+    "MENU": MENU_MANIFEST,
+    "DAT28272": DAT28272_MANIFEST,
+}
+
 
 
 class Refused(RuntimeError):
@@ -36,8 +54,12 @@ class ModuleIdentity:
     payload_size: int
     payload_sha256: str
     load_address: int
-    entry_pointer_offset: int
-    entry: int
+    # Entry contract. A code module the game dispatches through a measured function table ships a
+    # pointer offset + entry address; a resource-style module image (loaded as a unit, entries
+    # reached through discovery rather than a header pointer) has none, and both fields are None.
+    # Every entry-bearing check tolerates None.
+    entry_pointer_offset: int | None
+    entry: int | None
 
 
 @dataclass(frozen=True)
@@ -102,10 +124,12 @@ def load_identity(path: pathlib.Path = MANIFEST) -> ModuleIdentity:
         payload_size=_hexadecimal(raw["payload_size"], "payload_size"),
         payload_sha256=raw["payload_sha256"].lower(),
         load_address=_hexadecimal(raw["load_address"], "load_address"),
-        entry_pointer_offset=_hexadecimal(
-            raw["entry_pointer_offset"], "entry_pointer_offset"
+        entry_pointer_offset=(
+            None
+            if raw.get("entry_pointer_offset") is None
+            else _hexadecimal(raw["entry_pointer_offset"], "entry_pointer_offset")
         ),
-        entry=_hexadecimal(raw["entry"], "entry"),
+        entry=None if raw.get("entry") is None else _hexadecimal(raw["entry"], "entry"),
     )
     expected_offset = (
         identity.payload_disc_lba - identity.source_file_lba
@@ -119,12 +143,18 @@ def load_identity(path: pathlib.Path = MANIFEST) -> ModuleIdentity:
             "module manifest payload_size disagrees with sector_count * sector_size"
         )
     if (
-        not identity.load_address
+        identity.entry is not None
+        and not identity.load_address
         <= identity.entry
         < identity.load_address + identity.payload_size
     ):
         raise Refused("module entry lies outside the measured load range")
-    if identity.entry_pointer_offset + 4 > identity.payload_size:
+    if (identity.entry is None) != (identity.entry_pointer_offset is None):
+        raise Refused(
+            "module manifest ships an entry without an entry pointer or the reverse — both are "
+            "measured, or neither"
+        )
+    if identity.entry_pointer_offset is not None and identity.entry_pointer_offset + 4 > identity.payload_size:
         raise Refused("module entry pointer lies outside the measured payload")
     return identity
 
@@ -159,6 +189,8 @@ def verify_source(
             f"loaded-module sha256 {payload_digest} disagrees with {measured.payload_sha256}"
         )
     pointer = measured.entry_pointer_offset
+    if pointer is None:
+        return VerifiedModule(measured, payload, 6)
     entry = int.from_bytes(payload[pointer : pointer + 4], "little")
     if entry != measured.entry:
         raise Mismatch(

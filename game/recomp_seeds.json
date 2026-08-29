@@ -37,7 +37,11 @@
     // run past frame ~840. [recomp-MISS 0] no recompiled fn for 0x8001DFF8, caller ra=0x80012428,
     // a0=0x801DAB70, c->pc=0x80027944. Real entry (addiu sp,sp,-0x20, preceded by jr ra; its
     // pointer is runtime-patched like the fourth boundary's).
-    "0x8001DFF8"
+    "0x8001DFF8",
+    // Sixth live boundary: the 0x80012420 computed-dispatch family again (ra=0x80012428), now with
+    // a0=0x80196A38, after MENU2 provisioning let the flow run on. Real entry (addiu sp,sp,-0x30,
+    // preceded by jr ra; delay 27BD0038).
+    "0x80012840"
   ],
   // ResetCallback's custom interrupt exit resumes the nonzero setjmp path at 0x80031AE8.  The
   // runtime trace reached ResetCallback 0x80031A80 and registered source 2 -> 0x8003F5F0; the
@@ -52,7 +56,18 @@
     "BOOT": "0x80078C90",
     // The BOOT module requests 16 DAT sectors after entering its menu state. Live DMA writes LBA
     // 28178 first to 0x800B32B4 and LBA 28193 last to 0x800BAAB4, replacing this nested code range.
-    "MENU": "0x800B32B4"
+    "MENU": "0x800B32B4",
+    // A SECOND module in the same nested slot, read over MENU once the attract flow leaves the
+    // menu: `38 sector(s) from LBA 28272 to 0x800B32B4` (crashbash-cd trace 2026-08-29). MENU and
+    // this image are alternatives, never co-resident; the router tells them apart by signature.
+    // Named by disc LBA, not role: 0x800C3434 registers a behavior vtable at 0x8005AA70 and the
+    // image's name table is animation states (BREATHE/JUMP/DAZED/WIN/TAZING) rather than MENU's
+    // front-end text, which rules OUT "second menu phase" but does not establish what it is.
+    // Byte-verified: the miss RAM dump over [0x800B32B4,0x800C5BFC) equals DAT [0x36C2000,0x36D4948)
+    // exactly, and sectors 0..36 of the 38 diff to zero. Note 0x800C3434 IS valid R3000A once
+    // loaded (27BDFFE8 addiu sp,sp,-0x18); issue 0017's "opcode 0x3F invalid" read BOOT's FILE
+    // bytes, not this image, so the miss was "module not provisioned", never a decode failure.
+    "DAT28272": "0x800B32B4"
   },
   "overlay_base_patterns": [],
   "overlay_seeds": {
