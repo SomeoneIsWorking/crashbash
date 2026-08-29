@@ -40,4 +40,8 @@ ModelFaceCoverage classifyFixedModelFace(const std::array<ProjectedFaceVertex, 3
                                          std::int16_t depthLimit,
                                          std::int16_t depthScale);
 
+// The D32 ord band carrying `sortKey`, linear over the game's own key domain [0, depthLimit) —
+// see the .cpp for why the carrier is uniform in the key rather than affine in 1/pz.
+float fixedModelSortKeyOrd(int sortKey, std::int16_t depthLimit);
+
 } // namespace crashbash::render

@@ -134,7 +134,10 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     const int blendMode = face.textured ? (face.texturePage >> 5u) & 3u : face.blendMode;
     const int dither = face.textured ? (face.texturePage >> 9u) & 1u : gpu.s_tp_dither;
     const int sortKey = static_cast<int>(coverage.sortKey);
-    const float keyOrd = core.rsub.projParams.pzToOrd(std::max(1.0f, static_cast<float>(coverage.sortKey) * 2.0f));
+    // The key's ord band: linear over the game's own key domain (fixedModelSortKeyOrd). pzToOrd
+    // saturates near keys into one band and starves far buckets of D32 tie room; the key itself is
+    // the authored order, so the carrier only needs to be injective with room for ties.
+    const float keyOrd = fixedModelSortKeyOrd(sortKey, draw.depthLimit);
     const unsigned long long pushedBefore = queue.pushed_total;
     queue.emitOrQueue(&core,
                       1,

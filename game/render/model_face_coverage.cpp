@@ -6,6 +6,21 @@
 
 namespace crashbash::render {
 
+float fixedModelSortKeyOrd(int sortKey, std::int16_t depthLimit) {
+  // The D32 ord band that carries the game's own OT key: LINEAR in the key over the game's own
+  // key domain [0, depthLimit) — the same domain retail 0x800193A8's far rejection uses — with
+  // key 0 nearest (ord just under 1.0) and depthLimit-1 farthest. A 1/pz carrier was tried first
+  // and is wrong twice over: pzToOrd saturates every key nearer than the near plane into one band
+  // (non-injective — the Authored resolver fatal-aborts), and even normalized past the near plane
+  // its 1/pz shape compresses far keys until a bucket's LIFO ties no longer fit the D32 range
+  // ("bucket 789 needs 59 distinct D32 ties" at band width 4e-7). The key IS the authored order;
+  // the carrier only has to be injective in the key and leave every bucket room for its ties, and
+  // a uniform map maximizes the worst-case tie budget. The half-key offset centers each band so
+  // adjacent bands never touch. `depthLimit` must be > 0: retail rejects every sortKey >= limit,
+  // so a zero limit accepts no faces and this function is never reached.
+  return 1.0f - (static_cast<float>(sortKey) + 0.5f) / static_cast<float>(depthLimit);
+}
+
 std::uint16_t fixedModelAvsz3Otz(const std::array<ProjectedFaceVertex, 3> &vertices, std::int16_t depthScale) {
   const std::uint64_t depthSum = static_cast<std::uint64_t>(vertices[0].depth) + vertices[1].depth + vertices[2].depth;
   const std::int64_t average = static_cast<std::int64_t>(depthScale) * static_cast<std::int64_t>(depthSum);

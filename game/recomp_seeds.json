@@ -23,7 +23,21 @@
     // callback passed to the A-function, and the live [recomp-MISS 0] fired from
     // Hle::deliverEvent -> 0x8004718C during the first boot-frame card probe. 0x8004718C is a real
     // stackless entry (`addiu v0,zero,1`) preceded by the previous function's `jr ra` plus padding.
-    "0x8004718C"
+    "0x8004718C",
+    // Fourth live boundary: the computed dispatch at 0x80012420 (`jalr $v0`, target loaded from
+    // object field s0+0x14) reached its next method. [recomp-MISS 0] no recompiled fn for
+    // 0x80016F34, caller ra=0x80012428, a0=0x801D4B58, c->pc=0x80027944, after the EUROCOM logo
+    // state advances (~frame 300+). Real entry (addiu sp,sp,-0x18 prologue, preceded by the prior
+    // function's jr ra). Its pointer slot at 0x8005064C holds 0 in the FILE and 0x80016F34 in
+    // runtime RAM — the game patches it during init, so neither pointer_table_funcs nor any
+    // static scan can see it.
+    "0x80016F34",
+    // Fifth live boundary: the same computed dispatch at 0x80012420 (`jalr $v0`, target from
+    // object field s0+0x14) reached its next method after the key→ord carrier fix let the flow
+    // run past frame ~840. [recomp-MISS 0] no recompiled fn for 0x8001DFF8, caller ra=0x80012428,
+    // a0=0x801DAB70, c->pc=0x80027944. Real entry (addiu sp,sp,-0x20, preceded by jr ra; its
+    // pointer is runtime-patched like the fourth boundary's).
+    "0x8001DFF8"
   ],
   // ResetCallback's custom interrupt exit resumes the nonzero setjmp path at 0x80031AE8.  The
   // runtime trace reached ResetCallback 0x80031A80 and registered source 2 -> 0x8003F5F0; the
