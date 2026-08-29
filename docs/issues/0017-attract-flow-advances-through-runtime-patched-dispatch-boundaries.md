@@ -63,3 +63,20 @@ already uses (`load file start/done loading` synchronous front-loads) is where
 a streaming/deferred replacement would go, AFTER faithful flow progression.
 Do not remove loads by skipping the guest's load calls — the module loads are
 load-bearing (BOOT/MENU/DAT are real code).
+
+## 2400-frame probe result (same session)
+
+The next boundary is NOT a seed: recomp-MISS 0x800C3434 (caller ra=0x80078D10,
+jalr t9,v1 from BOOT code at 0x80078D08, c->pc=0x80078CA4). The diagnostic
+attributes the slot to BOOT, but the words at 0x800C3434 do not decode as
+R3000A code (opcode 0x3F = invalid) — the region is DAT-module payload loaded
+OVER part of BOOT's range, the same nesting the seed file documents at
+0x800B32B4 ("replacing this nested code range"), just further in. The slot
+attribution by range is therefore AMBIGUOUS for nested modules, and the miss
+class is "module not provisioned", not "function-discovery gap".
+
+To land it: capture the CD/DMA trace (PSXPORT_DEBUG=cd) over a run that
+reaches this load, identify the module's fixed load base covering 0x800C3434,
+provision its image, and add it under `overlay_bases` — the same procedure the
+first nested DAT module followed. Do not seed an address whose resident image
+is absent; the seed would emit garbage.
