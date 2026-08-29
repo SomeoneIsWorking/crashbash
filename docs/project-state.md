@@ -12,6 +12,18 @@
 
 ## Current focus
 
+2026-08-29 (`12641bb` + psxport `02430b1b`): the frame cap was raised past 301 for the first
+time and the attract flow now advances. Three gates fired and were fixed in one change: the
+authored key->ord carrier (pzToOrd(key*2)) was non-injective near the near plane and then
+starved far buckets of D32 tie room — it is now linear over the game's own key domain
+[0, depthLimit) (`fixedModelSortKeyOrd`, issue 0017); two runtime-patched computed-dispatch
+boundaries (0x80016F34, 0x8001DFF8, call site 0x80012420) joined the seeds with recorded call
+sites. A 1200-frame probe completes exit 0 with zero recomp-MISS and zero keyord fatals, and
+frame 1000 differs from frame 300 by 95% of pixels — the attract sequence is past the EUROCOM
+logo, still inside guest state 0x8004E0B8 / app mode 0x80078C90. S004 remains partial (issue
+0015's subtitle falsifier is open); menu transition is the next flow boundary.
+
+
 S004 is the current focus. The source-owned producer now copies the title-composed affine/projection
 state, decodes direct `0x2000` and two-level `0x5000` fixed-frame records, and reconstructs
 `0x800193A8` rejection, winding, and OT bucket keys without using GTE, OT, or GP0 output as product
