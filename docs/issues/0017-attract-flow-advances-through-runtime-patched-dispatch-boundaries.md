@@ -212,3 +212,28 @@ Even with the carousel fully provisioned, both boots dwell in state 0x8004E0B8 /
 loops on itself; the menu transition was NOT reached by time alone. Next step: drive pad input
 (START) at the attract loop via the dbg server — which first requires fixing defect 1 above —
 or RE whether retail's transition path reads a pad state the port never delivers.
+
+### The nested slot is a FAMILY of modules; DAT28241 is the third, and the attract demo scenes now render
+
+The 9000-frame probe exposed the miss class again at `0x800C0B94` (same caller `ra=0x80078D10`,
+same dispatch site as `0x800C3434`), and this time the `crashbash-cd` trace caught the load that
+fed it: `31 sector(s) from LBA 28241 to 0x800B32B4` — a THIRD module in the nested slot, distinct
+from both MENU (LBA 28178) and DAT28272 (LBA 28272). The nested slot is a FAMILY of alternatives
+rotated by the attract cycle, not a two-entry slot; expect more members as the flow advances.
+
+Provisioned as overlay stem `DAT28241` (`titles/crashbash/dat28241_module.json`, 6/6 facts;
+provisioning is 26/26 across the four modules). Byte-verified: the miss RAM dump over the slot
+differs from this image in only 567/63488 bytes (the runtime-patched pointer slots) and from
+DAT28272 in 54571 — the two are distinct images. The miss address (image offset 0xD8E0) decodes
+as valid R3000A. Its name table is animation states too (BREATHE/BANK/IDLE_A/TAUN...), the same
+family as DAT28272; provisionally another attract demo scene.
+
+Verified at psxport `625f8e69` on the real disc: with all three nested-slot modules provisioned,
+the flow runs the full attract demo cycle with ZERO recomp-MISS. The demo scenes render real
+native content — measured screenshots at f~8k/13k/19k show a lightning temple interior, a
+character close-up, and a complete Crash Bash bumper arena. 9000- and 40000-frame runs exit 0.
+
+The app mode still never leaves 0x80078C90 / state 0x8004E0B8, even at 40000 frames, and a dbg
+server START press (2 s) did not change it either — the menu transition remains the next flow
+boundary (issue 0018 records a separate flaky first-boot miss that must not be confused with
+this family).

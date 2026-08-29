@@ -12,6 +12,15 @@
 
 ## Current focus
 
+2026-08-29 (later): the nested 0x800B32B4 slot is a FAMILY of attract modules, not a two-entry
+slot. A third member — `31 sector(s) from LBA 28241` — was byte-verified against the miss RAM dump
+and provisioned as stem `DAT28241` (26/26 provisioning facts across four modules). With it, the
+flow runs 9000- and 40000-frame probes to exit 0 with zero recomp-MISS, and the attract demo
+scenes render real native content (measured screenshots: lightning temple, character close-up,
+complete bumper arena). The menu transition is still the next flow boundary; a START press does
+not yet change the app mode. Issue 0018 records a separate flaky first-boot miss at 0x80012840
+whose dispatch case EXISTS — a diagnostic that misreports its own cause, open.
+
 2026-08-29: the attract flow now runs 2400/2400 frames to exit 0 with zero keyord fatals, zero
 recomp-MISS and zero guest VSync timeout — past the previous f1023 ceiling. Three things landed
 together (issue 0017).
@@ -19,7 +28,7 @@ together (issue 0017).
 The `0x800C3434` boundary was never a discovery gap: `crashbash-cd` names the load outright,
 `38 sector(s) from LBA 28272 to 0x800B32B4` — a SECOND module in the same nested slot, read over
 MENU once the flow leaves the menu. It is provisioned as overlay stem `DAT28272` (6/6 facts;
-provisioning is 20/20 across the three modules) and emits beside MENU with a distinct signature,
+provisioning is 26/26 across the four modules) and emits beside MENU with a distinct signature,
 which is what lets the router tell two same-base modules apart. It is named by disc LBA, not role:
 its dispatched code registers a behavior vtable at `0x8005AA70` and its name table is animation
 states, which rules out "second menu phase" without establishing what it is. `loaded_module.MODULES`
