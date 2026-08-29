@@ -6,7 +6,7 @@ symptom: Raising the frame cap past 301 fatal-aborted the render (OT key->ord no
 state_items: S002, S004
 tags: attract,flow,dispatch,seeds,keyord,ot,authored-order,d32
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
 ## What the 1200-frame probe exposed
@@ -37,14 +37,21 @@ same session (build `12641bb` + psxport `02430b1b`):
 `0x80012420` (`jalr $v0`, target loaded from object field s0+0x14) is a
 computed dispatch whose method table the game patches at runtime: the pointer
 slots hold 0 in the FILE (e.g. 0x8005064C) and real entries in RAM, so
-`pointer_table_funcs` can never see them. Each live boundary is grown into
-`main` seeds only from an observed recomp-MISS with the recorded call site:
+`pointer_table_funcs` cannot see them. They are nevertheless ordinary stripped-binary function
+boundaries immediately following a previous `jr ra`. The shared emitter now applies its existing
+mergeable return-boundary discovery to MAIN as well as overlays, so these entries are derived from
+the retail layout instead of being accumulated as title seeds:
 
-- `0x80012678` (pre-existing seed)
+- `0x80012678`
 - `0x80016F34` — reached at ~frame 300+, a0=0x801D4B58
 - `0x8001DFF8` — reached after the key->ord fix, a0=0x801DAB70
+- `0x80012840` — later member reached with a0=0x80196A38
 
-Expect more members of this family as the flow advances further.
+All four explicit seeds were deleted. A fifth redundant MAIN seed, callback `0x8004718C`, is already
+derived by the constructed-pointer scan. Re-emission with only residual seed `0x8003B1BC` preserves
+all five dispatch cases and the exact 2,450-function generated output. Future family members matching
+the same retail boundary no longer require miss/add/rebuild work; a miss without generic file evidence
+remains a measured residual rather than weakening native fail-fast dispatch.
 
 ## Verified result
 

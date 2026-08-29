@@ -177,14 +177,15 @@ lifecycle boundaries and do not certify picture content.
 
 ### S003 — Executable recompilation substrate
 
-Evidence: previous psxport pin `17981527` derived 1,724 generated functions across 941 resident, 696
-BOOT, and 87 MENU functions. Substrate baseline `99a42aa3` derives and integrity-checks a distinct
-2,005-function substrate across 1,083 resident, 823 BOOT, and 99 MENU functions; the exact-pin Clang
-build at current recorded pin `784e5212` retains both overlay bodies and its 11 CTests pass. The
-framework change from the substrate baseline is confined to present/watchdog lifecycle ownership;
-the generated directory is
-ignored and rebuilt from verified external inputs. This proves the recompilation substrate, not the
-serialized product runtime.
+Evidence: the 2026-08-30 shared emitter applies one merge/prune pipeline to return-delimited functions
+in both resident MAIN and loaded modules. Verified retail emission derives 2,450 functions: 1,355
+resident, 710 BOOT, 89 MENU, 190 DAT28272, and 106 DAT28241. Removing five redundant MAIN seeds leaves
+all five addresses dispatchable and preserves the exact output hash; only `0x8003B1BC` remains a
+manual MAIN seed because current binary analyses do not derive it. Compared with the old emitter on
+the same inputs, the added 391 functions cost 146,697 bytes of C (+0.56%) under the unchanged size
+guard. The rebuilt Clang product passes the strict `2/2 loads -> MENU 0x800B5244` boundary with zero
+miss, fatal, VSync-timeout, or watchdog output. Generated code remains ignored and reproducibly rebuilt
+from verified external inputs. This proves the recompilation substrate, not later gameplay coverage.
 
 ### S004 — Native graphics producers
 

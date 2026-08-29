@@ -7,41 +7,9 @@
   "main": [
     // First live boot boundary: Hle::irqPoll consulted the SysEnq verifier stored at 0x8006D98C
     // while guest CD sync 0x8003EDBC called VSync 0x800320EC. Ghidra confirms 0x8003B1BC is that
-    // verifier; static discovery could not see the guest-RAM function pointer.
-    "0x8003B1BC",
-    // Second live boundary, reached only after the BOOT scene advances (~frame 256+ of a 600-frame
-    // run): [recomp-MISS 0] no recompiled fn for 0x80012678, caller ra=0x80012428, a0=0x801CFB88.
-    // The retail instruction at 0x80012420 is `jalr $v0` with the target loaded from an object
-    // field, so static discovery cannot see it; 0x80012678 is a real entry (addiu sp,sp,-0x38 then
-    // sw s7/ra/s6..s0). Live chain: 0x80092BA0 -> 0x8001E610 -> ov_boot 0x80093BE8 -> 0x80093588
-    // -> 0x8001231C -> here.
-    "0x80012678",
-    // Third live boundary: libmcrd registers its interrupt-mode card-event completion callback via
-    // OpenEvent(EV_MD_INTR); the host HLE event table owns the address, so it is never stored in
-    // guest RAM as a word and no pointer scan can see it. Guest-side construction measured at
-    // 0x80047280: `addiu a3, a3, 0x718C` (base 0x80040000 from the preceding lui) builds the
-    // callback passed to the A-function, and the live [recomp-MISS 0] fired from
-    // Hle::deliverEvent -> 0x8004718C during the first boot-frame card probe. 0x8004718C is a real
-    // stackless entry (`addiu v0,zero,1`) preceded by the previous function's `jr ra` plus padding.
-    "0x8004718C",
-    // Fourth live boundary: the computed dispatch at 0x80012420 (`jalr $v0`, target loaded from
-    // object field s0+0x14) reached its next method. [recomp-MISS 0] no recompiled fn for
-    // 0x80016F34, caller ra=0x80012428, a0=0x801D4B58, c->pc=0x80027944, after the EUROCOM logo
-    // state advances (~frame 300+). Real entry (addiu sp,sp,-0x18 prologue, preceded by the prior
-    // function's jr ra). Its pointer slot at 0x8005064C holds 0 in the FILE and 0x80016F34 in
-    // runtime RAM — the game patches it during init, so neither pointer_table_funcs nor any
-    // static scan can see it.
-    "0x80016F34",
-    // Fifth live boundary: the same computed dispatch at 0x80012420 (`jalr $v0`, target from
-    // object field s0+0x14) reached its next method after the key→ord carrier fix let the flow
-    // run past frame ~840. [recomp-MISS 0] no recompiled fn for 0x8001DFF8, caller ra=0x80012428,
-    // a0=0x801DAB70, c->pc=0x80027944. Real entry (addiu sp,sp,-0x20, preceded by jr ra; its
-    // pointer is runtime-patched like the fourth boundary's).
-    "0x8001DFF8",
-    // Sixth live boundary: the 0x80012420 computed-dispatch family again (ra=0x80012428), now with
-    // a0=0x80196A38, after MENU2 provisioning let the flow run on. Real entry (addiu sp,sp,-0x30,
-    // preceded by jr ra; delay 27BD0038).
-    "0x80012840"
+    // verifier. It is the only remaining manual MAIN seed: the boundary, constructed-pointer,
+    // pointer-table, and direct-call analyses do not discover it from the retail file.
+    "0x8003B1BC"
   ],
   // ResetCallback's custom interrupt exit resumes the nonzero setjmp path at 0x80031AE8.  The
   // runtime trace reached ResetCallback 0x80031A80 and registered source 2 -> 0x8003F5F0; the
