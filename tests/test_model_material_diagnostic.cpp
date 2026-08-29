@@ -89,7 +89,7 @@ int main() {
   observeModelMaterialFace(draw, blackFace, large, 55u);
   ModelFace coloredFace = blackFace;
   coloredFace.colors = {0x00101010u, 0x00202020u, 0x00303030u};
-  coloredFace.retailColors = coloredFace.colors;
+  coloredFace.retailColors = {0x00010203u, 0x00040506u, 0x00070809u};
   coloredFace.sourceFace = 18u;
   const std::array<std::array<std::int32_t, 2>, 3> small{{{{0, 0}}, {{5, 0}}, {{0, 5}}}};
   observeModelMaterialFace(draw, coloredFace, small, 66u);

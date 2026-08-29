@@ -184,7 +184,29 @@ material, and packet/native SXY match retail exactly. Exact PID 4054917 proves t
 writes display `(234,181)`. Full-frame comparison shows the broad angular holes closed with the logo
 intact.
 
-Gap: smaller facet/gradient and logo-color differences remain against the PSX reference. Native 4:3
+The logo-color half of the residual gap is now closed by replaying the retail-submitted colors.
+Retail bakes DPCS depth-cueing into the vertex colors it submits; the native producer was ignoring
+the captured retail colors and rendering the raw pre-cue palette entries, washing the EUROCOM
+rainbow gradient toward its raw hues. `submitFixedModel` now renders `face.retailColors`, the
+captured `applyModelDpcs` output, with no double application (the native queue applies no depth cue
+of its own). Exact 301-frame product runs at pin `02430b1b` exit 0 with zero recomp misses; the
+frame-300 present is 676474/691200 (97.87%) non-black, the EUROCOM rainbow and subtitle visibly
+match the PSX reference, and the full-frame difference is 409009/691200 pixels with the strong
+differences (>90 sum) confined to sub-pixel offsets on thin white subtitle glyphs and background
+facets, not the logo. Native 4:3 parity remains partial: the residual is that facet/gradient and
+sub-pixel class, now measurable with the retained `scratch/screenshots/psx-ref-300.ppm` reference.
+
+The same verification session resolved a substrate regression that had silently broken boot at
+framework HEAD: the libmcrd interrupt-mode card-event callback `0x8004718C` was invisible to static
+discovery (guest-side construction `addiu a3, a3, 0x718C` at `0x80047280`, host-owned event table,
+never a RAM word), so every run since the function left the derived set failed fast on the first
+boot-frame card probe; recorded as issue 0016 — the separate DPCS cue-model falsifier is issue 0015. Crash Bash seeds it as a measured live boundary, and psxport
+`02430b1b` generically accepts a padded jr-ra boundary as a function entry. The BOOT overlay's
+legitimate emission density is measured at 51.7x of its image (20.0 MB of C from 387,072 bytes,
+verified at the pre-guard pin), so `tools/recomp_bootstrap.py` sets the size-guard knob to 56 with
+that measurement recorded rather than raising the framework default.
+
+Gap: smaller facet/gradient and sub-pixel glyph differences remain against the PSX reference. Native 4:3
 parity, widescreen, and interpolation remain unverified.
 
 ### S005 — Widescreen camera

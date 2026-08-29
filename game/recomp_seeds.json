@@ -15,7 +15,15 @@
     // field, so static discovery cannot see it; 0x80012678 is a real entry (addiu sp,sp,-0x38 then
     // sw s7/ra/s6..s0). Live chain: 0x80092BA0 -> 0x8001E610 -> ov_boot 0x80093BE8 -> 0x80093588
     // -> 0x8001231C -> here.
-    "0x80012678"
+    "0x80012678",
+    // Third live boundary: libmcrd registers its interrupt-mode card-event completion callback via
+    // OpenEvent(EV_MD_INTR); the host HLE event table owns the address, so it is never stored in
+    // guest RAM as a word and no pointer scan can see it. Guest-side construction measured at
+    // 0x80047280: `addiu a3, a3, 0x718C` (base 0x80040000 from the preceding lui) builds the
+    // callback passed to the A-function, and the live [recomp-MISS 0] fired from
+    // Hle::deliverEvent -> 0x8004718C during the first boot-frame card probe. 0x8004718C is a real
+    // stackless entry (`addiu v0,zero,1`) preceded by the previous function's `jr ra` plus padding.
+    "0x8004718C"
   ],
   // ResetCallback's custom interrupt exit resumes the nonzero setjmp path at 0x80031AE8.  The
   // runtime trace reached ResetCallback 0x80031A80 and registered source 2 -> 0x8003F5F0; the

@@ -111,15 +111,18 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     int xs[3]{}, ys[3]{}, us[3]{}, vs[3]{};
     float screenX[3]{}, screenY[3]{}, depth[3]{};
     unsigned char red[3]{}, green[3]{}, blue[3]{};
+    // Retail bakes DPCS depth-cueing into the vertex colors it submits; face.colors is the raw
+    // pre-cue source palette entry. The producer replays the retail-submitted colors.
+    const std::array<std::uint32_t, 3> &renderColors = face.retailColors;
     for (std::uint32_t i = 0; i < 3; ++i) {
       xs[i] = projected[i].sx + gpu.s_off_x;
       ys[i] = projected[i].sy + gpu.s_off_y;
       screenX[i] = projected[i].px + static_cast<float>(gpu.s_off_x);
       screenY[i] = projected[i].py + static_cast<float>(gpu.s_off_y);
       depth[i] = core.rsub.projParams.pzToOrd(projected[i].raw_view[2]);
-      red[i] = static_cast<unsigned char>(face.colors[i]);
-      green[i] = static_cast<unsigned char>(face.colors[i] >> 8u);
-      blue[i] = static_cast<unsigned char>(face.colors[i] >> 16u);
+      red[i] = static_cast<unsigned char>(renderColors[i]);
+      green[i] = static_cast<unsigned char>(renderColors[i] >> 8u);
+      blue[i] = static_cast<unsigned char>(renderColors[i] >> 16u);
       us[i] = face.textureCoordinates[i] & 0xFFu;
       vs[i] = face.textureCoordinates[i] >> 8u;
     }

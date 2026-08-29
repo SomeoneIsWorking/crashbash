@@ -210,6 +210,12 @@ def invoke_emitter(
     emitter = recompiler_sources()[0]
     output.parent.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ)
+    # MEASURED legit case above the framework's default size cap: Crash Bash's BOOT overlay emits at
+    # 51.7x (19,999,266 bytes of C from its 387,072-byte image, biggest fragment ov_boot_gen_800AEA08
+    # at 1.1 MB). The identical output ran the verified retail boot to the title screen; the cap
+    # exists to catch DATA decoded as code (spyro OV_18F800, 104 MB), which this is not. Set BEFORE
+    # the guard so a genuine leak growing past this measured ratio still refuses.
+    environment.setdefault("PSXPORT_EMIT_MAX_RATIO", "56")
     environment.update(PYTHONDONTWRITEBYTECODE="1", PSXPORT_SHARDS=shards)
     environment.pop("PSXPORT_USE_GHIDRA", None)
     return subprocess.run(
