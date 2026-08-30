@@ -11,8 +11,16 @@ framework commit this game is built and VERIFIED against, and `--check` fails wh
 is not the recorded pin. Framework edits happen in the shared clone (`$PSX/psxport`), never here.
 
 All picture work is RE-driven. Widescreen and interpolation require PC-native graphics producers
-reading game state; do not reconstruct pictures from GTE/OT/GP0 output. Establish a faithful,
-measurable base before enhancements.
+reading game state; do not reconstruct pictures from GTE/OT/GP0 output.
+
+USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
+looks correct."
+
+The bar is a working game that looks correct, not pixel-exact agreement with the PSX reference. Frame
+comparison, the retail oracle, and the differential harness are DIAGNOSTICS for finding the cause of a
+visible defect; they are never the completion condition, and nothing is held open by a residual pixel
+count. Faithfulness of execution is unchanged: simulation, input, timing, audio, and scene semantics
+still come from the real executable and real assets.
 
 The host structure follows Dusklight's current composition/ownership split: `game/core/main.cpp`
 only composes process startup, `CrashBashRuntime` owns framework-facing title behavior through

@@ -5,14 +5,30 @@
 | S001 | The selected USA disc, executable, and measured CRASHBSH.DAT code modules are reproducibly identified and derived | verified | — | G001 |
 | S002 | The retail boot reaches a guest-visible first frame with faithful drive timing | partial | S001 | G001 |
 | S003 | Resident code and every measured CRASHBSH.DAT module form a reproducible executable recompilation substrate | verified | S001 | G001 |
-| S004 | Crash Bash graphics are produced natively from decoded game state | partial | S002, S003 | G001, G002, G003 |
+| S004 | Crash Bash graphics are produced natively from decoded game state and look correct | partial | S002, S003 | G001, G002, G003 |
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | missing | S004 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | missing | S004 | G003 |
 | S007 | Deterministic checks compare the port with independent retail behavior at proven boundaries | partial | S001 | G001, G002, G003 |
+| S008 | The retail game modes are reachable and playable end to end on the shipping native path | missing | S002, S004 | G001 |
+
+## The evidence bar
+
+USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
+looks correct."
+
+No state item is held `partial` by a residual pixel count, and no item becomes `verified` by a diff
+number. An item is verified when the running product does the thing — the mode is reachable and
+playable, the scene looks right, the enhancement holds up while playing. The oracle, the differential
+harness, and the frame comparators stay as DIAGNOSTICS for finding the cause of a visible defect. The
+frame-300 comparison recorded below is retained as history and as a working instrument, not as a gate.
 
 ## Current focus
 
-S004 is the current focus. Controlled flow is closed through the first playable boundary: the tracked
+S008 is the current focus: reach and play the retail game modes on the shipping native path and fix
+what visibly breaks. S004 continues underneath it, judged on how the game looks while playing rather
+than on a per-frame difference count.
+
+S004's prior focus statement follows, for the flow and producer facts it records. Controlled flow is closed through the first playable boundary: the tracked
 3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
 the objective and controls pages, starts a Crashball match, then holds Left for 60 frames and Right
 for 120. The PSX diagnostic path shows the player ship move from the lower-left to the lower-right;

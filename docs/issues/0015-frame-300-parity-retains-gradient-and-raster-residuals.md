@@ -1,8 +1,8 @@
 ---
 id: 15
 title: Frame-300 parity retains small residuals after exact DPCS, UV, Gouraud, and untextured coverage
-status: open
-symptom: After correcting Vulkan UV, Gouraud quantization, untextured and textured coverage, and texture modulation, one source pixel of frame 300 still differs from the PSX reference by more than 8
+status: resolved
+symptom: Frame-300 raster residuals traced five shared Vulkan/PSX boundaries; the last one-pixel difference is below the project's evidence bar
 state_items: S004
 tags: render,texture,uv,raster,gradient,parity
 created: 2026-08-29
@@ -119,12 +119,16 @@ pixel, and was measured before the modulation fix.
 
 Frames 299/300/301 fall from 99/45/24 to 0/6/6. Frame 299 is exact.
 
-## Remaining falsifier and next step
+## Closed by directive
 
-This issue stays open because one source pixel still differs on frame 300: `(118,209)`, where native
-`(11,0,15)` faces retail `(11,0,16)` — a single 5-bit step in blue, spread over six display pixels by the
-960x720 upscale. Bind that pixel to its final writer and raster inputs before changing another shared
-rule. Do not tune colors, add per-object exceptions, or alter DPCS.
+USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
+looks correct."
+
+One source pixel of frame 300 still differs — `(118,209)`, native `(11,0,15)` versus retail `(11,0,16)`,
+a single 5-bit step in blue spread over six display pixels by the 960x720 upscale. That is below the
+project's evidence bar and is not work. This issue is resolved: the five shared raster boundaries it
+found are fixed and each carries a shipping discriminator, and the frame comparison it established
+remains available as a diagnostic for locating a VISIBLE defect. Do not reopen it for a difference count.
 
 ## Where
 
