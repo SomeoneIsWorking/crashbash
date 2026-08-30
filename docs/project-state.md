@@ -22,14 +22,23 @@ independent timing and differential evidence, not on product reachability.
 
 The native path renders the Crashball arena, ships, and balls, but omits the objective/controls text,
 HUD counters, portraits, and character sprites visible at the same frames on the PSX diagnostic path.
-Issue 0023 owns that measured native-graphics gap; the next S004 boundary is attribution of one omitted
-2D family to its game-state submitter and a native producer derived from that owner.
+Issue 0023 owns that measured native-graphics gap. The exact objective frame now attributes all 108
+direct-pool rows; `0x8002992C` owns 92 textured Gouraud quads and exposes source texture, position, OT,
+and color arguments before packet construction. The next S004 boundary is its retained-super capture
+and native producer.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (packet attribution): Ghidra proves Crash Bash's two parity packet pools are runtime heap
+allocations whose base/end/current globals are adjacent to the two static 4,096-entry OTs. psxport's
+live descriptor path replaces the structurally blind fixed-window assumption. On the exact objective
+frame, attribution changes from zero spans/every packet owner zero to 1,828 spans and 108 direct-pool
+rows with owners: `0x8002992C` 92, `0x80029D28` 6, `0x80018B08` 5, `0x8001A0D8` 5. The dominant owner
+is a pre-packet textured-Gouraud-quad boundary, not an OT/GP0 reconstruction point.
 
 2026-08-30 (later): deterministic real-pad input drives the title screen through DAT28136 and portal
 0 into DAT28241. The portal-selection byte at `0x8005A677` changes from `0xFF` to `0x00`; the following

@@ -32,6 +32,13 @@ static constexpr uint32_t kCrt0GameMain = 0x8002718Cu;
 static constexpr uint32_t kCrt0Entry = 0x8002E7B0u;
 static constexpr int32_t kCrt0StackBias = 0;
 
+// The renderer allocates two packet pools from the guest heap. Setup functions 0x800274FC and
+// 0x800276C4 write each allocation's inclusive base and exclusive end to these globals; the current
+// packet pointer lives in the following word. These are descriptor addresses, not one observed heap
+// allocation, so attribution remains correct when allocation order moves the live pools.
+static constexpr uint32_t kPacketPoolBasePtrs[2] = {0x8005F790u, 0x8006379Cu};
+static constexpr uint32_t kPacketPoolEndPtrs[2] = {0x8005F794u, 0x800637A0u};
+
 static_assert(kPsExeEntry == kCrt0Entry);
 static_assert(kCrt0BssZeroHi == kCrt0HeapBase);
 static_assert(kCrt0Gp + 4u == kCrt0BssZeroLo);
@@ -67,6 +74,8 @@ static const GameConfig kCrashBashConfig = {
         },
     .windowTitle = "Crash Bash",
     .stackBias = {1, kCrt0StackBias},
+    .packetPoolBasePtrs = {kPacketPoolBasePtrs[0], kPacketPoolBasePtrs[1]},
+    .packetPoolEndPtrs = {kPacketPoolEndPtrs[0], kPacketPoolEndPtrs[1]},
 };
 
 const GameConfig &crashbash::legacy::measuredConfig = kCrashBashConfig;

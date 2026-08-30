@@ -25,8 +25,17 @@ The only shipping producer reached in this run is the fixed-model producer roote
 deliberately does not replay because post-projection packets cannot support native depth, widescreen,
 or interpolation. This is a missing game-state producer family, not an input or flow failure.
 
+The first family is now attributed. Crash Bash allocates two packet pools from the guest heap, so the
+old fixed-window tracer was structurally blind. Retail setup functions `0x800274FC`/`0x800276C4`
+publish live bounds through six globals; the framework now resolves those descriptors without
+hardcoding one observed heap address. On the exact objective frame, all 108 direct-pool rows acquire
+emitters. `0x8002992C` dominates with 92 opcode-`0x3C` textured Gouraud quads; its pre-packet arguments
+carry the texture descriptor, screen position, OT bin, and four colors. See
+`docs/findings/crashbash-packet-pools.md`.
+
 ## Next step
 
-Attribute one omitted family at its game submitter, starting with the objective/HUD sprite path, then
-decompile that owner and produce it from the source game state. Do not reconstruct it from OT, GP0,
-VRAM output, or the diagnostic PSX framebuffer.
+Add a retained-super capture at `0x8002992C`, preserve its source arguments in the per-tick scene
+snapshot, and publish that textured-quad family natively. Use the PSX objective frame only as an
+independent visual/differential oracle; do not reconstruct product input from OT, GP0, VRAM output, or
+the diagnostic framebuffer.

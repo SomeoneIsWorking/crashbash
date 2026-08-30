@@ -95,6 +95,14 @@ successful build.
 
 ## graphics
 
+### graphics.crashball-2d-submitters — Own the missing Crashball briefing/HUD sprite family
+- status: in-progress
+- deps: flow.crashball-control, graphics.camera-submitters
+- evidence: Ghidra decompiles 0x800274FC/0x800276C4 as the two heap-pool allocators and identifies their base/end globals. The exact objective frame now records 1,828 writer spans and attributes all 108 direct-pool OT rows. Function 0x8002992C owns 92 opcode-0x3C textured Gouraud quads; its inputs are the texture descriptor, packed screen position, OT bin, and four vertex colors before the 0x34-byte packet is built.
+- where: game/core/game_config.cpp, docs/findings/crashbash-packet-pools.md, docs/issues/0023-crashball-gameplay-is-controllable-but-the-nativ.md
+- gap: Capture 0x8002992C's source arguments through a retained super and publish that family from a per-tick native scene record. Verify the objective/HUD pixels against the PSX diagnostic oracle without reading packet/OT/GP0/VRAM output as product input.
+- notes: The active heap bases observed at frame 2500 are not constants. The config names the descriptor globals, and the framework keeps the two live ranges separate.
+
 ### graphics.camera-submitters — Identify native camera state and graphics submitters
 - status: in-progress
 - deps: boot.drive-timing, boot.loaded-modules, graphics.render-anchors
