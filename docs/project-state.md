@@ -32,11 +32,28 @@ behind the key-128 side marker, restoring its retail-bright yellow result. Issue
 `0x80018B08` is viewport/camera/render-list setup rather than a drawable. S004 remains partial for
 broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
-Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
+Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
+modeled, and packet colors and its SXY agree exactly. The residual was partly psxport's Vulkan affine-UV
+truncation. Pin `d6c51535` applies PSX round-to-nearest and reduces the exact frame-300 diff>8 from
+98,280 to 90,906 pixels, including a 7,242-pixel reduction in the subtitle band. S004 remains partial
+for the measured upper/lower gradient-band and smaller raster residuals.
+
+Crash Bash records psxport `d6c51535`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (PSX affine-UV rounding): exact packet identity maps subtitle packet `0x800C84D4` to
+object `0x801E1DB8`, frame `0x2008`, face 9, material `0xA1B2`. Packet/native SXY match exactly;
+raw colors are `0x00C6C6C6`, while modeled and packet colors are exactly `0x006C6C6C`. A software-GPU
+write chain at absolute VRAM `(61,401)` proves the expected packet and blend are the final writer.
+Vulkan sampled the adjacent gray palette texel because it truncated fractional affine UV; the PSX
+software path rounds to nearest. Framework `d6c51535` corrects the shared shader and makes its shipping
+GPU selftest reachable: UV phase passes 28/28 at 1x/3x across opaque/semitransparent integer and
+fractional slopes, while blend equations remain 16/16. The exact frame-300 diff>8 falls 98,280 ->
+90,906; subtitle-band differences fall 21,512 -> 14,270. Issue 0015 remains open only for the measured
+gradient-band and raster residuals, not a cue-model discrepancy.
 
 2026-08-30 (Crashball authored cross-layer order): matched frame-2500 evidence identifies the left
 objective marker as object `0x8009AC04`, face 178, CLUT row 335, with zero depth cue and packet colors
@@ -140,7 +157,7 @@ Evidence: the tie path fires on real data at up to 1942 faces in one frame; the 
 BYTE-IDENTICAL to the retained `native-final-300.ppm`, so the verified EUROCOM result is untouched;
 frame 1000 differs from frame 300 by 98.97% of pixels. psxport 121/121, Crash Bash 23/23.
 
-S004 remains partial (issue 0015's subtitle falsifier is open). Guest state 0x8004E0B8 and app mode
+S004 remains partial (issue 0015's frame-300 gradient/raster residual is open). Guest state 0x8004E0B8 and app mode
 0x80078C90 are unchanged, so the menu transition is still the next flow boundary.
 
 
@@ -342,7 +359,7 @@ The same verification session resolved a substrate regression that had silently 
 framework HEAD: the libmcrd interrupt-mode card-event callback `0x8004718C` was invisible to static
 discovery (guest-side construction `addiu a3, a3, 0x718C` at `0x80047280`, host-owned event table,
 never a RAM word), so every run since the function left the derived set failed fast on the first
-boot-frame card probe; recorded as issue 0016 — the separate DPCS cue-model falsifier is issue 0015. Crash Bash seeds it as a measured live boundary, and psxport
+boot-frame card probe; recorded as issue 0016. Crash Bash seeds it as a measured live boundary, and psxport
 `02430b1b` generically accepts a padded jr-ra boundary as a function entry. The BOOT overlay's
 legitimate emission density is measured at 51.7x of its image (20.0 MB of C from 387,072 bytes,
 verified at the pre-guard pin), so `tools/recomp_bootstrap.py` sets the size-guard knob to 56 with

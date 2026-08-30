@@ -1,0 +1,61 @@
+---
+id: 15
+title: Frame-300 parity retains gradient-band and raster residuals after exact DPCS and UV phase
+status: open
+symptom: After correcting Vulkan affine-UV rounding, 90,906 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8; most are upper and lower background gradient bands
+state_items: S004
+tags: render,texture,uv,raster,gradient,parity
+created: 2026-08-29
+updated: 2026-08-30
+---
+
+## Measured boundary
+
+The native producer correctly renders `face.retailColors`, the retail `applyModelDpcs` result. That
+earlier change reduced the frame-300 diff from 106,795 to 105,978 pixels, but it exposed a subtitle
+coverage mismatch. Later packet-quantized SXY work reduced the current pre-UV-fix image to 98,280.
+
+The remaining subtitle mismatch was not a DPCS defect. Framework commit `d6c51535` makes Vulkan use
+the same affine-UV round-to-nearest rule as the PSX software rasterizer. On the same exact frame-300
+capture, with the PSX diagnostic path retained as the reference:
+
+| region | before UV fix | after UV fix |
+|---|---:|---:|
+| upper background (`y < 420`) | 46,284 | 46,332 |
+| subtitle (`420 <= y < 490`) | 21,512 | 14,270 |
+| lower background (`y >= 490`) | 30,484 | 30,304 |
+| **whole frame** | **98,280** | **90,906** |
+
+The subtitle band improves by 7,242 pixels and the full frame by 7,374. At source display pixel
+`(61,145)`, native VRAM changes from `(136,112,160)` to `(232,208,248)`, matching retail.
+
+## Proven cause and falsified hypothesis
+
+Retail packet `0x800C84D4` is opcode `0x36`, a semitransparent textured Gouraud triangle from object
+`0x801E1DB8`, frame `0x2008`, face 9, material `0xA1B2`. Its three packet SXY values exactly match
+the native face. Raw colors are `0x00C6C6C6`; captured modeled colors and all three packet colors are
+exactly `0x006C6C6C`. The adjacent face-8 packet has the same exact color and geometry agreement.
+This falsifies the former claim that the subtitle used incomplete or different DPCS inputs.
+
+The software-GPU write chain at absolute VRAM pixel `(61,401)` names only the expected opaque
+background writer and packet `0x800C84D4`; its blend mode, incoming RGB, before value, and after value
+are correct. Native Vulkan instead selected palette texel `0xC210` from the adjacent gray sample where
+the PSX affine rasterizer rounded to the white texel. `psx_uv.glsl` had reconstructed integer-pixel
+phase but truncated fractional UV. The shipping GPU selftest now reaches every port and passes a
+28/28 matrix covering 1x/3x, opaque/semitransparent, and positive/negative integer and fractional
+slopes; the independent blend matrix remains 16/16.
+
+## Remaining falsifier and next step
+
+This issue stays open because 90,906 pixels still differ. The largest classes are the upper-background
+46,332 pixels and lower-background 30,304 pixels, with the subtitle retaining 14,270. Bind a
+representative pixel from each gradient class to its exact packet, source texel or Gouraud inputs,
+dither state, and retail/native interpolation result. Do not tune colors, add per-object exceptions,
+or alter DPCS: exact packet evidence has already ruled those out for the subtitle object.
+
+## Where
+
+`external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
+`external/psxport/runtime/recomp/gpu_vk_texture_phase_selftest.cpp`,
+`external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
+`game/render/native_model_producer.cpp`, `game/render/model_packet_identity_diagnostic.cpp`.
