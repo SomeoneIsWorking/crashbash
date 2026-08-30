@@ -16,11 +16,21 @@ reading game state; do not reconstruct pictures from GTE/OT/GP0 output.
 USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
 looks correct."
 
-The bar is a working game that looks correct, not pixel-exact agreement with the PSX reference. Frame
+The bar is a working game that looks correct, not pixel-exact agreement with the PSX reference. This is
+a WORKSPACE-WIDE rule now — `external/psxport/CLAUDE.md` bar 3 is the authority and
+`external/psxport/docs/workspace/PROTOCOL.md` carries it with the incident it came from. Frame
 comparison, the retail oracle, and the differential harness are DIAGNOSTICS for finding the cause of a
 visible defect; they are never the completion condition, and nothing is held open by a residual pixel
 count. Faithfulness of execution is unchanged: simulation, input, timing, audio, and scene semantics
 still come from the real executable and real assets.
+
+Drive the game and look at it before believing a picture claim:
+
+    python3 external/psxport/tools/port/looks_right.py \
+        --binary scratch/bin/crashbash_port --frames 3740 --shot-at 3700 \
+        --replay replays/flow/crashball-control.pad
+
+Measured 2026-08-30: reaches PASS, widescreen PASS, fps60 FAIL (3,739 duplicate presents, issue 0025).
 
 The host structure follows Dusklight's current composition/ownership split: `game/core/main.cpp`
 only composes process startup, `CrashBashRuntime` owns framework-facing title behavior through
