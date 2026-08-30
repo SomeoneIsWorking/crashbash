@@ -20,18 +20,25 @@ the exact shipping-native replay completes all 3,740 frames with no recomp miss,
 guest-VSync violation. Issue 0009 is resolved. The boot-flow capability remains partial only on
 independent timing and differential evidence, not on product reachability.
 
-The native path renders the Crashball arena, ships, and balls, but omits the objective/controls text,
-HUD counters, portraits, and character sprites visible at the same frames on the PSX diagnostic path.
-Issue 0023 owns that measured native-graphics gap. The exact objective frame now attributes all 108
-direct-pool rows; `0x8002992C` owns 92 textured Gouraud quads and exposes source texture, position, OT,
-and color arguments before packet construction. The next S004 boundary is its retained-super capture
-and native producer.
+The native path renders the Crashball arena, ships, and balls. Its first 2D producer now owns
+`0x8002992C` from authored descriptor, position, OT-bin, and color inputs and restores the objective
+instructions and top score digits without consuming guest GPU output. Issue 0023 remains open for the
+other briefing/HUD/character layers. The exact objective frame attributes all 108 direct-pool rows;
+the next S004 boundary is the six-row family at `0x80029D28`, followed by the five-row state families
+at `0x80018B08` and `0x8001A0D8`.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (first native 2D producer): the retained-super `0x8002992C` capture decodes only authored
+descriptor, position, bin, color, display-scale, and fade inputs into the current immutable scene
+snapshot. The producer selects the title render-list identity but reads no OT contents, packet, GP0,
+VRAM, or framebuffer output. The exact 2,500-frame Crashball replay reconciles 2,500/2,500 frames with
+zero dropped layers and records 51,318 native quads across 1,283 frames; visual inspection confirms
+the objective instructions and top score digits are restored.
 
 2026-08-30 (packet attribution): Ghidra proves Crash Bash's two parity packet pools are runtime heap
 allocations whose base/end/current globals are adjacent to the two static 4,096-entry OTs. psxport's

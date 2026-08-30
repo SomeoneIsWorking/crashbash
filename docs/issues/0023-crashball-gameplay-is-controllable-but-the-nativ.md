@@ -33,9 +33,16 @@ emitters. `0x8002992C` dominates with 92 opcode-`0x3C` textured Gouraud quads; i
 carry the texture descriptor, screen position, OT bin, and four colors. See
 `docs/findings/crashbash-packet-pools.md`.
 
-## Next step
+The retained-super override at `0x8002992C` now captures those authored inputs before the retail body
+allocates or writes its packet. A pure decoder records immutable textured Gouraud quads in the
+current scene snapshot, and the native producer emits only records addressed to the render list being
+presented. It reads no guest packet or OT contents, GP0 stream, VRAM output, or framebuffer. The exact
+2,500-frame Crashball replay reconciles every frame with no dropped layer and reports 51,318 native
+quads over 1,283 frames; the native capture restores the objective instructions and top score digits.
 
-Add a retained-super capture at `0x8002992C`, preserve its source arguments in the per-tick scene
-snapshot, and publish that textured-quad family natively. Use the PSX objective frame only as an
-independent visual/differential oracle; do not reconstruct product input from OT, GP0, VRAM output, or
-the diagnostic framebuffer.
+## Remaining work
+
+Attribute and own the still-missing 2D elements through the remaining direct-pool families:
+`0x80029D28` (six rows), `0x80018B08` (five), and `0x8001A0D8` (five). Use the PSX objective frame only
+as an independent visual/differential oracle; do not reconstruct product input from OT, GP0, VRAM
+output, or the diagnostic framebuffer.

@@ -28,6 +28,14 @@ ModelDraw &SceneSnapshotHistory::record(ModelDraw draw) {
   return current_.models.back();
 }
 
+SpriteQuadDraw &SceneSnapshotHistory::record(SpriteQuadDraw draw) {
+  if (!current_.valid) {
+    std::abort();
+  }
+  current_.spriteQuads.push_back(draw);
+  return current_.spriteQuads.back();
+}
+
 const SceneSnapshot &SceneSnapshotHistory::previous() const {
   return previous_;
 }

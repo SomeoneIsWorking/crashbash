@@ -8,6 +8,7 @@ int main() {
   using crashbash::render::ModelFace;
   using crashbash::render::ModelSubmitter;
   using crashbash::render::SceneSnapshotHistory;
+  using crashbash::render::SpriteQuadDraw;
 
   SceneSnapshotHistory history;
   history.beginFrame(7u);
@@ -40,14 +41,28 @@ int main() {
     return EXIT_FAILURE;
   }
   history.record(draw);
+  history.record(SpriteQuadDraw{
+      .descriptor = 0x800B0000u,
+      .renderList = 0x8005F79Cu,
+      .packedPosition = 0x00200010u,
+      .orderingBin = 0,
+      .texturePage = 0x0123u,
+      .clut = 0x0456u,
+  });
   if (!history.current().valid || history.current().logicFrame != 7u || history.current().models.size() != 1u ||
-      history.previous().valid) {
+      history.current().spriteQuads.size() != 1u || history.previous().valid) {
     return EXIT_FAILURE;
   }
 
   history.beginFrame(8u);
   if (!history.previous().valid || history.previous().logicFrame != 7u || history.previous().models.size() != 1u ||
-      !history.current().valid || history.current().logicFrame != 8u || !history.current().models.empty()) {
+      history.previous().spriteQuads.size() != 1u || !history.current().valid || history.current().logicFrame != 8u ||
+      !history.current().models.empty() || !history.current().spriteQuads.empty()) {
+    return EXIT_FAILURE;
+  }
+  const SpriteQuadDraw &previousSprite = history.previous().spriteQuads.front();
+  if (previousSprite.descriptor != 0x800B0000u || previousSprite.renderList != 0x8005F79Cu ||
+      previousSprite.texturePage != 0x0123u || previousSprite.clut != 0x0456u) {
     return EXIT_FAILURE;
   }
   const ModelDraw &previousDraw = history.previous().models.front();

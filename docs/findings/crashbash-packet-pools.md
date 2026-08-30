@@ -37,6 +37,8 @@ different producer family rather than being hidden by one broad heap window.
 
 Ghidra decompilation of `0x8002992C` identifies the pre-packet semantic boundary. Its arguments carry
 the texture descriptor, packed screen position, OT bin, and four vertex colors; the function derives
-UV/CLUT/tpage state and writes a `0x34`-byte packet. This is the first native 2D producer target. Capture
-those source arguments at the retained-super boundary and publish the native quad from that decoded
-state. Do not consume the packet, OT, GP0 stream, VRAM output, or PSX framebuffer as product input.
+UV/CLUT/tpage state and writes a `0x34`-byte packet. The retained-super capture now decodes those
+source inputs into the immutable current-tick scene and the native producer restores the objective
+text and score digits. It uses the title render-list identity for presentation routing but consumes no
+packet or OT contents, GP0 stream, VRAM output, or PSX framebuffer. The next attributed family is
+`0x80029D28` with six direct-pool rows.

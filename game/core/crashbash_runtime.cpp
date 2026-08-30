@@ -16,6 +16,7 @@
 #include "model_depth_scale_capture.h"
 #include "model_submit_capture.h"
 #include "model_transform_capture.h"
+#include "sprite_quad_capture.h"
 
 #include <memory>
 
@@ -42,6 +43,7 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   render::registerModelDepthScaleCaptureOverride();
   render::registerModelTransformCaptureOverride();
   render::registerModelSubmitCaptureOverrides();
+  render::registerSpriteQuadCaptureOverride();
   diagnostics::registerMenuBoundary();
 }
 

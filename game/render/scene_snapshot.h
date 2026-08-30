@@ -80,19 +80,42 @@ struct ModelDraw {
 
 bool isRenderableModelDraw(const ModelDraw &draw);
 
+// Source-level input to Crash Bash's textured Gouraud sprite leaf at 0x8002992C. The record is
+// decoded before the retained retail body allocates or writes a GPU packet; it contains no OT or GP0
+// addresses and remains valid after the guest packet pool is recycled.
+struct SpriteQuadDraw {
+  std::uint32_t descriptor = 0;
+  std::uint32_t renderList = 0;
+  std::uint32_t packedPosition = 0;
+  std::int32_t orderingBin = 0;
+  std::array<std::uint32_t, 4> sourceColors{};
+  std::array<std::int32_t, 4> x{};
+  std::array<std::int32_t, 4> y{};
+  std::array<std::uint8_t, 4> u{};
+  std::array<std::uint8_t, 4> v{};
+  std::array<std::uint8_t, 4> red{};
+  std::array<std::uint8_t, 4> green{};
+  std::array<std::uint8_t, 4> blue{};
+  std::uint16_t texturePage = 0;
+  std::uint16_t clut = 0;
+  bool semiTransparent = false;
+};
+
 struct SceneSnapshot {
   std::uint32_t logicFrame = 0;
   bool valid = false;
   std::vector<ModelDraw> models;
+  std::vector<SpriteQuadDraw> spriteQuads;
 };
 
 // Two immutable-at-present snapshots are the title-owned temporal input. beginFrame rotates the
-// completed current snapshot to previous exactly once, then opens a new current snapshot. Model
-// submitter overrides append only to the current frame and never mutate guest RAM.
+// completed current snapshot to previous exactly once, then opens a new current snapshot. Source
+// capture overrides append only to the current frame and never mutate guest RAM.
 class SceneSnapshotHistory {
 public:
   void beginFrame(std::uint32_t logicFrame);
   ModelDraw &record(ModelDraw draw);
+  SpriteQuadDraw &record(SpriteQuadDraw draw);
 
   const SceneSnapshot &previous() const;
   const SceneSnapshot &current() const;

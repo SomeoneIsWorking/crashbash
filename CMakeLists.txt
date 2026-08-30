@@ -56,7 +56,10 @@ set(CRASHBASH_SEAM_SOURCES
   game/render/model_transform_capture.cpp
   game/render/model_transform_input_diagnostic.cpp
   game/render/native_model_producer.cpp
+  game/render/native_sprite_quad_producer.cpp
   game/render/scene_snapshot.cpp
+  game/render/sprite_quad_capture.cpp
+  game/render/sprite_quad_decode.cpp
 )
 add_library(crashbash_seam OBJECT ${CRASHBASH_SEAM_SOURCES})
 set_target_properties(crashbash_seam PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
@@ -103,6 +106,17 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_scene_snapshot COMMAND crashbash_scene_snapshot_test)
+  add_executable(
+    crashbash_sprite_quad_decode_test
+    tests/test_sprite_quad_decode.cpp
+    game/render/sprite_quad_decode.cpp
+  )
+  target_include_directories(crashbash_sprite_quad_decode_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_sprite_quad_decode_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_sprite_quad_decode COMMAND crashbash_sprite_quad_decode_test)
   add_executable(crashbash_render_capabilities_test tests/test_render_capabilities.cpp)
   target_include_directories(crashbash_render_capabilities_test PRIVATE game/core "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_render_capabilities_test PRIVATE psxport)
