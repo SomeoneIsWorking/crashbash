@@ -12,18 +12,18 @@
 
 ## Current focus
 
-S002 is the current focus. Input delivery and the active menu action are closed: the exact-identity
-idle/START/Cross differential proves three START edges produce zero accepts while Cross schedules
-pending table `0x800B8E50` once. The longer Cross leg now proves the successor rather than stopping
-at that queue: it reads 42 sectors from LBA 28136, executes DAT28136 registration `0x800B4E1C`,
-replaces app update callback `0x80093038` with `0x800B4694`, and executes that callback. Whole-image
-generation discovers the former miss without a manual seed. A 2400-frame real product run completes
-with no recomp miss, fatal, or guest-VSync violation. Controlled real input now continues through
-DAT28136: holding Up reaches portal 0 (`0x8005A677`: `0xFF` to `0x00`), and a fresh Cross edge loads
-31 sectors from LBA 28241 into `0x800B32B4`. The Crashball arena renders through frame 3500 with no
-recomp miss, fatal, or guest-VSync violation. Issue 0022 is resolved; the next S002 boundary is a
-playable match or demonstrated player control beyond this static arena while retaining the single
-native frame owner.
+S004 is the current focus. Controlled flow is closed through the first playable boundary: the tracked
+3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
+the objective and controls pages, starts a Crashball match, then holds Left for 60 frames and Right
+for 120. The PSX diagnostic path shows the player ship move from the lower-left to the lower-right;
+the exact shipping-native replay completes all 3,740 frames with no recomp miss, fatal, watchdog, or
+guest-VSync violation. Issue 0009 is resolved. The boot-flow capability remains partial only on
+independent timing and differential evidence, not on product reachability.
+
+The native path renders the Crashball arena, ships, and balls, but omits the objective/controls text,
+HUD counters, portraits, and character sprites visible at the same frames on the PSX diagnostic path.
+Issue 0023 owns that measured native-graphics gap; the next S004 boundary is attribution of one omitted
+2D family to its game-state submitter and a native producer derived from that owner.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
@@ -31,11 +31,14 @@ evidence gap from issue 0018. The current generated identity is
 
 ## Recent evidence
 
-2026-08-30 (later): a deterministic 2500-frame real-pad recording drives the title screen through
-DAT28136 and portal 0 into the DAT28241 Crashball arena. The portal-selection byte at `0x8005A677`
-changes from `0xFF` to `0x00`; the following Cross edge reads 31 sectors from LBA 28241 into
-`0x800B32B4`. The arena remains rendered through frame 3500 with no recomp miss, fatal, or guest-VSync
-violation, but it is static: this does not yet prove match start or player control.
+2026-08-30 (later): deterministic real-pad input drives the title screen through DAT28136 and portal
+0 into DAT28241. The portal-selection byte at `0x8005A677` changes from `0xFF` to `0x00`; the following
+Cross edge reads 31 sectors from LBA 28241 into `0x800B32B4`. PSX-path captures identify the apparent
+static arena as an objective page followed by a controls page, each accepting Cross. The tracked
+3,740-frame replay advances both, starts a live match, and visibly moves the player ship left then
+right. The same exact replay completes on the shipping native path with no recomp miss, fatal,
+watchdog, or guest-VSync violation. Its native frame renders the arena, moving balls, and ships but
+omits the diagnostic path's 2D briefing/HUD/character layers (issue 0023).
 
 2026-08-30: the Cross-controlled path added the fourth alternative in the nested slot. DAT28136 is
 the exact `CRASHBSH.DAT+0x0367E000` 42-sector image (SHA-256 `c5052413...e43ad`) loaded at
@@ -191,12 +194,11 @@ psxport now owns those hardware boundaries. The frame-200 idle/START A/B recorde
 issue 0019 and `docs/findings/crashbash-pad-sio.md` proves the exact driver, parser, and
 game-facing P1 values; no direct buffer injection or title-local input path exists.
 
-Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, 0021, and 0022 are resolved. The verified
-active menu accepts Cross, queues table `0x800B8E50`, installs DAT28136 callback `0x800B4694`, and
-executes it; START is correctly ignored. Controlled input continues through portal 0 and loads the
-DAT28241 Crashball arena, but the arena remains static through frame 3500; match start and player
-control are not yet demonstrated. A non-black frame on the SHIPPING native path still requires
-S004's native producers.
+Gap: Issues 0009, 0012, 0014, 0019, 0020, 0021, and 0022 are resolved. The verified active menu accepts
+Cross, queues table `0x800B8E50`, installs DAT28136 callback `0x800B4694`, and executes it; START is
+correctly ignored. Controlled input continues through portal 0, loads DAT28241, advances both briefing
+pages, starts a live Crashball match, and moves the player ship in both directions. Independent
+full-memory/timing comparison remains under S007; missing native picture layers remain under S004.
 
 ### S003 — Executable recompilation substrate
 
@@ -312,7 +314,7 @@ The independent Beetle oracle and title-local verifiers establish interrupt orde
 command phase progress, and the still-divergent guest completion result. Static render inventory now
 has controlled positive and negative fixtures.
 
-Gap: full-memory lockstep, a passing clean pinned CDC/completion run, one presented game frame,
-first-frame runtime submitter attribution, and native 4:3 image parity are not yet demonstrated. The
+Gap: full-memory lockstep, a passing clean pinned CDC/completion run, first-frame runtime submitter
+attribution, and native 4:3 image parity are not yet demonstrated. The
 old exact-pin watchdog refusal and the corrected exact-pin `784e5212` MENU gate are valid evidence for
 their declared boundaries; neither satisfies any of those later gates.

@@ -1,12 +1,12 @@
 ---
 id: 9
 title: Exact-pin Crash Bash reaches MENU but presents no game frame
-status: investigating
+status: resolved
 symptom: The clean current product completes both loaded modules and reaches the resident/BOOT/MENU chain, then presents zero game frames before the watchdog
-tags: cdc,timing,interrupt,framework,first-frame
 state_items: S002,S007
+tags: cdc,timing,interrupt,framework,first-frame
 created: 2026-08-22
-updated: 2026-08-27
+updated: 2026-08-30
 ---
 
 ## Historical root cause on the pre-phase-machine framework
@@ -214,6 +214,15 @@ owner verifies the measured SCUS-94570 track/file layout and exact SYSTEM.CNF be
 0. Its direct run accepted that identity and did not enter the failure renderer, then exposed a
 separate psxport firstfile/nextfile completion omission: the empty directory return reached stock
 libmcrd's HwCARD wait at `0x800476EC`, but no callback was delivered. The focused shared candidate
-now preserves the zero result and invokes the interrupt-mode completion exactly once. This issue
-remains investigating until a new direct run progresses beyond that owner and produces a real game
-frame; the historical async completion comparison is no longer the shipping file-read gate.
+preserved the zero result and invoked the interrupt-mode completion exactly once. At that boundary a
+new direct run still had to progress beyond the owner and produce a real game frame; the historical
+async completion comparison was no longer the shipping file-read gate.
+
+### Resolution (2026-08-30)
+The no-frame symptom was a chain of ownership defects: an intentional bootstrap clear prematurely
+armed the steady watchdog, then reachable disc/license, memory-card, loaded-module, and guest-VSync
+boundaries lacked native owners. Typed transition-versus-main presentation plus the measured
+title/framework owners removed that chain. Exact build `a3a5fbd+psxport-a0c18b9e` replays 3,740 real
+pad frames into a live DAT28241 Crashball match; held Left then Right moves the player ship across the
+arena, and the shipping native run exits cleanly with zero recompilation miss, fatal, or guest-VSync
+violation.

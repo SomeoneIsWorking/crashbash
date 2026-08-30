@@ -85,6 +85,14 @@ successful build.
 - gap:
 - notes: Do not add a START mapping. Input delivery is closed and must not be bypassed or reimplemented. The queue observation alone is insufficient: this boundary is accepted only when the successor registration and callback execution are also observed.
 
+### flow.crashball-control — Reach and control a live Crashball match
+- status: re-verified
+- deps: flow.menu-accept-transition
+- evidence: Tracked replays/flow/crashball-control.pad contains 3,740 active-low pad masks from boot. PSX-path captures prove portal 0 leads through objective and controls pages into a live DAT28241 match; frames 3560..3619 hold Left and 3620..3739 hold Right, visibly moving the player ship across the arena. Exact build a3a5fbd+psxport-a0c18b9e consumes all 3,740 masks on the shipping native path and exits with no recomp miss, fatal, watchdog, or guest-VSync violation.
+- where: replays/flow/crashball-control.pad, docs/issues/0009-zero-latency-gettn-response-is-drained-before-cr.md, docs/issues/0023-crashball-gameplay-is-controllable-but-the-nativ.md
+- gap:
+- notes: The PSX path is a diagnostic visibility oracle only. The shipping native frame owns presentation and renders arena/ships/balls; issue 0023 tracks the absent 2D briefing/HUD/character producer family.
+
 ## graphics
 
 ### graphics.camera-submitters — Identify native camera state and graphics submitters

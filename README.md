@@ -3,15 +3,14 @@
 PC-native PlayStation port of Crash Bash, built on
 [psxport](https://github.com/SomeoneIsWorking/psxport).
 
-Current status: the North American executable plus its BOOT and nested MENU modules are reproducibly
-provisioned and emitted into a 2,006-function substrate. A title-owned finite FrameDriver runs 600
-frames of the real disc without a guest-VSync violation, timeout, watchdog, recompilation miss, or
-fatal, and the diagnostic PSX path visibly reaches the Eurocom and Crash Bash title screens. The
-first 4:3 native producer now copies title-owned transforms and fixed-frame source model records;
-frame 255 captures 1,542 faces (382 textured), submits 1,010, and produces the animated background,
-a title-letter fragment, and sampled textured particles. The corresponding PSX picture still has
-substantially more logo geometry; full 4:3 parity, widescreen, and presentation interpolation are not
-yet claimed.
+Current status: the North American executable plus BOOT and four measured nested modules are
+reproducibly provisioned and emitted into a 2,593-function substrate. The tracked
+`replays/flow/crashball-control.pad` drives the title screen through the Crashball portal, both
+briefing pages, and into a live match, then moves the player ship left and right. The exact 3,740-frame
+shipping-native replay completes without a guest-VSync violation, timeout, watchdog, recompilation
+miss, or fatal. The native producer renders the arena, ships, and balls from title-owned state, but
+the briefing text, HUD, portraits, and character sprites remain absent; full 4:3 parity, widescreen,
+and presentation interpolation are not yet claimed.
 
 ## Run the current product
 
