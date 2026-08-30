@@ -2,7 +2,7 @@
 id: 15
 title: Frame-300 parity retains small residuals after exact DPCS, UV, Gouraud, and untextured coverage
 status: open
-symptom: After correcting Vulkan UV, Gouraud quantization, and untextured coverage, 5,546 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
+symptom: After correcting Vulkan UV, Gouraud quantization, untextured coverage, and texture modulation, 45 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
 state_items: S004
 tags: render,texture,uv,raster,gradient,parity
 created: 2026-08-29
@@ -81,12 +81,27 @@ phase but truncated fractional UV. The shipping GPU selftest now reaches every p
 28/28 matrix covering 1x/3x, opaque/semitransparent, and positive/negative integer and fractional
 slopes; the independent blend matrix remains 16/16.
 
+The next witness, source display pixel `(238,61)`, then bound to retail packet `0x800C7454`: a dark
+textured face over an underlying G3 face, both with exact native/packet geometry and colors. Retail
+samples texel `0x8421`, truncates its modulation to zero, and leaves background `0x0C01` unchanged; the
+native result was `0x1022`. Framework `db30e329` makes both Vulkan textured paths compute the PSX's
+`(texel5 * color8) / 128` with an integer truncating divide instead of rounding the float product back to
+5-bit, and adds `gpu_vk_modulation_selftest.cpp` as its own three-case discriminator.
+
+| region | after untextured coverage fix | after modulation fix |
+|---|---:|---:|
+| upper background (`y < 420`) | 466 | 39 |
+| subtitle (`420 <= y < 490`) | 2,829 | 0 |
+| lower background (`y >= 490`) | 2,251 | 6 |
+| **whole frame** | **5,546** | **45** |
+
 ## Remaining falsifier and next step
 
-This issue stays open because 5,546 pixels still differ: upper 466, subtitle 2,829, and lower 2,251.
-Select a representative from the new residual—not one already closed by UV or G3 quantization—and bind
-its final writer and raster inputs before changing another shared rule. Do not tune colors, add per-object
-exceptions, or alter DPCS.
+This issue stays open because 45 pixels still differ: upper 39, subtitle 0, lower 6. They form two small
+clusters rather than a spread residual. The largest is display `(386..387, 252..254)`, where native
+`(16,33,58)` faces retail `(8,0,33)`; the second is `(390..391, 249..251)`, native `(16,25,49)` versus
+retail `(16,8,41)`. Bind one of those exact pixels to its final writer and raster inputs before changing
+another shared rule. Do not tune colors, add per-object exceptions, or alter DPCS.
 
 ## Where
 
@@ -95,5 +110,8 @@ exceptions, or alter DPCS.
 `external/psxport/runtime/recomp/shaders_gpu/tri.frag`,
 `external/psxport/runtime/recomp/shaders_gpu/tri.vert`,
 `external/psxport/runtime/recomp/gpu_vk_untextured_selftest.cpp`,
+`external/psxport/runtime/recomp/gpu_vk_modulation_selftest.cpp`,
+`external/psxport/runtime/recomp/shaders_gpu/tritex.frag`,
+`external/psxport/runtime/recomp/shaders_gpu/trisemi_hw.frag`,
 `external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
 `game/render/native_model_producer.cpp`, `game/render/model_packet_identity_diagnostic.cpp`.

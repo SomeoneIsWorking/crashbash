@@ -34,15 +34,32 @@ broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
 Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
 modeled, and packet colors and its SXY agree exactly. The residual combined psxport's Vulkan affine-UV
-truncation, direct-to-5-bit untextured Gouraud quantization, and untextured half-pixel coverage phase.
-Pins `d6c51535`, `9d370b06`, and `3b033259` correct those three shared boundaries, reducing the exact
-frame-300 diff>8 from 98,280 to 5,546 pixels. S004 remains partial for the smaller raster residuals.
+truncation, direct-to-5-bit untextured Gouraud quantization, untextured half-pixel coverage phase, and
+rounded texture modulation. Pins `d6c51535`, `9d370b06`, `3b033259`, and `db30e329` correct those four
+shared boundaries, reducing the exact frame-300 diff>8 from 98,280 to 45 of 691,200 pixels. S004 remains
+partial for the two small residual clusters.
 
-Crash Bash records psxport `3b033259`, whose generated-substrate identity closes the stale-binary
+Crash Bash records psxport `db30e329`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (PSX texture modulation truncation): source display pixel `(238,61)` binds to retail packet
+`0x800C7454`, a dark textured face over an underlying G3 face with exact native/packet geometry and
+colors. Retail samples texel `0x8421`, truncates its modulation to zero, and leaves background `0x0C01`
+unchanged; native produced `0x1022`. Both Vulkan textured fragment paths rounded the modulated 5-bit
+texel instead of computing the PSX's truncating `(texel5 * color8) / 128`, exactly as the software
+rasterizer does. Framework `db30e329` corrects both paths and owns the discriminator in its own
+`gpu_vk_modulation_selftest.cpp`: one dark texel staged as ABR1 additive, ABR0 average, and opaque, each
+destination seeded so a case that never rasterized cannot read as a pass. It passes 3/3 on the shipping
+path, and reverting only the shaders reports `1022 / 0801 / 0421` against expected `0C01 / 0400 / 0000`,
+whose additive cell is the exact witness pair. The exact 301-frame run at `b3eeaac+psxport-3b033259-dirty`
+reconciled 301/301 frames with no recompilation miss, fatal trap, or guest-VSync violation, and its
+frame-300 diff>8 against the retained PSX reference falls from 5,546 to 45 of 691,200 pixels (upper 39,
+subtitle 0, lower 6). The two remaining clusters are display `(386..387, 252..254)` — native `(16,33,58)`
+versus retail `(8,0,33)` — and `(390..391, 249..251)` — native `(16,25,49)` versus retail `(16,8,41)`.
+Issue 0015 remains open only for those clusters.
 
 2026-08-30 (PSX affine-UV rounding): exact packet identity maps subtitle packet `0x800C84D4` to
 object `0x801E1DB8`, frame `0x2008`, face 9, material `0xA1B2`. Packet/native SXY match exactly;
