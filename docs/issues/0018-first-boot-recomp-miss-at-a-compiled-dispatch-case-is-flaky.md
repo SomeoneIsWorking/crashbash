@@ -1,70 +1,42 @@
 ---
 id: 18
-title: A first-boot recomp-MISS fires at 0x80012840 whose dispatch case exists — flaky, only outside instrumented runs
-status: open
-symptom: Roughly every other long headless run fail-fasts its FIRST boot with `[recomp-MISS 0] no recompiled fn for 0x80012840 (caller ra=0x80012428, a0=0x80196A38, c->pc=0x80027944)`; the in-process reboot then runs the full frame budget clean. The address IS recompiled — `case 0x00012840u` exists in `generated/shard_disp.c` — and `routing by range` cannot miss it, so the printed miss is a lie about the mechanism.
-state_items: S002
-tags: recomp-miss,flaky,dispatch,attract,first-boot,diagnostic-lying
+title: Two appended builds made an ordinary missing target look like a flaky compiled-case miss
+status: resolved
+symptom: Reused flow-probe logs appeared to show 0x80012840 fail in a binary whose generated MAIN dispatch already contained that case, leading to a false router-race diagnosis.
+state_items: S002,S003,S007
+tags: recomp-miss,provenance,dispatch,attract,diagnostic-falsified
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
-## Measured
+## Root cause
 
-- Firing runs (no debug channels): probe8 (9000f, launched immediately after `run.sh
-  --prepare-only`) and probe9 (40000f) — both missed on the FIRST boot at ~f1023-2047, then the
-  automatic second boot ran the whole budget with zero misses.
-- Clean runs: repro 1-6 (2600f/9000f, plain), dw 1-8 (9000f, `PSXPORT_DISPWATCH=0x80012840:ra=0x80012428`,
-  8 successful dispatches of exactly that addr/ra every run), fl 1-6 (9000f, `PSXPORT_DEBUG=ovload,dispatch`)
-  — 14 consecutive runs with zero misses across ~120k frames.
-- The flake did not reproduce under either instrumentation, so presence of the channels changes
-  the timing that selects the failing path.
-- `a0=0x80196A38` matches the sixth 0x80012420 dispatch boundary already seeded (`game/recomp_seeds.json`);
-  `c->pc=0x80027944` sits in the CrashBash::CdFileRead override region (retail 0x80027790), while
-  `ra=0x80012428` is the `jalr` at 0x80012420 — the interrupted/hybrid pc and the call site disagree,
-  which suggests the dispatch is reached from an IRQ-delivered update while a CD read override owns
-  the core.
+The evidence combined two different binaries and then inspected a third source state:
 
-## Why the printed explanation cannot be the mechanism
+- Lucent opens `PSXPORT_LOG_FILE` in append mode. Both `flow-probe8.log` and `flow-probe9.log`
+  start with failing build `d2c4465-dirty+psxport-02430b1b-dirty`, miss `0x80012840`, then contain
+  another complete startup for clean build `9edf471-dirty+psxport-625f8e69`.
+- Commit `d2c4465` does **not** contain a `0x80012840` seed. Commit `9edf471` is precisely the change
+  that adds it. The failure was therefore the ordinary discovery miss that motivated the seed; the
+  later binary contained the case and ran cleanly.
+- `generated/` is ignored. Inspecting its regenerated `shard_disp.c` after the later emission cannot
+  establish which switch the older binary compiled.
 
-`rec_dispatch` (overlay_router.cpp) routes any addr with `residentText` = [0x10000,0x79000)
-(guaranteed by `static_assert` in game_config.cpp) straight to `main_dispatch`, whose switch has
-`case 0x00012840u`. A genuine "no recompiled fn" for 0x80012840 through that path is impossible.
-So either (a) the miss reached `rec_dispatch_miss` from a caller that bypasses the router, or
-(b) the miss addr is not really the failing addr. Neither is proven; the diagnostic's canned
-"likely overlay code or a mid-function coroutine resume" line is wrong for this case either way.
+The old issue text called the second process an automatic reboot, called the address already compiled,
+and inferred an IRQ race from `c->pc=0x80027944`. All three claims were false. Generated wrappers use
+`Core::pc` as the last function entered and intentionally do not restore it; routing never consults
+that field. The current wrapper owner is the attribution stack, not `Core::pc`.
 
-## Next step
+## Resolution
 
-~~Reproduce with a discriminator that does not depend on luck~~ — the discriminator now EXISTS and is
-wired into the shipping binary (psxport `82442c0e`): `rec_dispatch` records its branch decision
-(MAIN/LIVE/FIXED/AMBIG/OVERRIDE/MISSDROP) into a fixed per-core ring with NO I/O — the same shape as a
-plain run, which is the whole design constraint — and `rec_dispatch_miss` rings a MISS marker and
-dumps the ring oldest-first before aborting. The last decision before the MISS marker names the
-branch that produced the miss; no entry for 0x80012840 at all names a bypass caller. Unit-tested
-(order, wrap, silence-while-recording) in `tests/test_dispatch_decision_ring.cpp`.
+psxport now fingerprints the exact emitted translation units and routing metadata, compiles that
+identity into `g_rec_substrate_id`, and exposes it through `RecompRegistry`. Every installed substrate
+announces the full identity; absence is reported as `UNKNOWN`. Crash Bash's bootstrap binds the stamp,
+compiled table, generated header, output cache, and shipping registry adapter, with a forced mismatch
+negative. Its boot verifier also requires the exact current identity once, before the first module
+load, and rejects missing and stale identities through the shipping judge.
 
-Do not "fix" by re-seeding 0x80012840 — it is already seeded and compiled; that would be a bandaid on
-a diagnostic that misreports its own cause.
-
-## Status 2026-08-29 (evening)
-
-The instrument is in place and verified, but the flake has NOT fired since: 21 consecutive clean
-runs (18×9000f plain, 3×40000f concurrent), ~130k frames, zero misses of any kind. For calibration
-the firing runs (probe8/9) fired roughly every other long run. The flake has therefore not yet been
-observed THROUGH the ring, and two hypotheses are open:
-
-- the ring's one store per dispatch (like every previous instrumentation) shifts the timing that
-  selects the failing path; or
-- the firing regime was contention-shaped — probe8/9 ran while another session was building/testing
-  on the same machine, and the miss's `c->pc=0x80027944` sits in the CdFileRead override region, an
-  IRQ-timing race — and that regime has not recurred.
-
-Next session: keep looping plain runs (the ring costs one store; the dump fires only on the fatal
-path), including under synthetic machine load. When it fires, the dispdec dump decides between (a)
-router branch mis-selection, (b) bypass caller, and (c) a genuinely different addr reaching
-rec_dispatch_miss than the diagnostic printed. Also recorded this session: the 0x800B32B4 nested
-slot is a 3-module carousel — LBAs 28178 (MENU, 16 sectors), 28241 (31), 28272 (38) — confirmed by
-`PSXPORT_DEBUG=crashbash-cd` over 9000-frame runs; with all three provisioned the attract demo
-cycle runs clean, and the app mode still never leaves the BOOT loop (0x80078C90 / 0x8004E0B8) at
-40000 frames.
+The unconditional 128-entry dispatch-decision ring added solely for the false race was removed. The
+miss diagnostic now labels `Core::pc` as `last-fn-entered` and prints the current wrapper owner. Generic
+MAIN return-boundary discovery independently derives `0x80012840`, so no replacement title seed is
+needed.

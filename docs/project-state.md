@@ -12,14 +12,19 @@
 
 ## Current focus
 
-S002 is the current focus. On 2026-08-30 the shared framework input defect landed as psxport
-`a390ceed`; Crash Bash records that exact pin and its Clang suite passes 23/23. A fresh finite
-idle/START RAM A/B against that pin proves the guest driver packet changes
+S002 is the current focus. The shared framework input defect landed as psxport `a390ceed`; a fresh
+finite idle/START RAM A/B against that milestone proves the guest driver packet changes
 `41 5A FF FF -> 41 5A F7 FF`, the parsed P1 word changes `FFFF -> FFF7`, and the game-facing
 active-high state at `0x8005133C` changes `0 -> 8`, while P2 stays absent/zero. Issue 0019 is
-resolved. Accepted START still does not leave the BOOT/attract flow; issue 0020 and frontier step
-`flow.start-transition` now own the first downstream process branch rather than treating input
-delivery or unchanged BOOT pointers as the failure.
+resolved. Static retail analysis then resolved issue 0020's wrong action premise: the active
+type-`0x0101` menu deliberately bypasses its generic START scan and accepts Cross through
+`FUN_800B3CA8`. The exact-identity-bound idle/START/Cross product differential now proves three START
+edges produce zero accepts while Cross schedules pending table `0x800B8E50` exactly once. Issues 0020
+and 0021 are resolved; no START mapping is missing.
+
+Crash Bash now records psxport `ec3bd414`, whose generated-substrate identity closes the stale-binary
+evidence gap from issue 0018. The same Clang product proves the MENU boundary and Cross transition;
+the combined suite passes 24/24.
 
 ## Recent evidence
 
@@ -29,8 +34,10 @@ and provisioned as stem `DAT28241` (26/26 provisioning facts across four modules
 flow runs 9000- and 40000-frame probes to exit 0 with zero recomp-MISS, and the attract demo
 scenes render real native content (measured screenshots: lightning temple, character close-up,
 complete bumper arena). The menu transition is still the next flow boundary; a START press does
-not yet change the app mode. Issue 0018 records a separate flaky first-boot miss at 0x80012840
-whose dispatch case EXISTS — a diagnostic that misreports its own cause, open.
+not yet change the app mode. Issue 0018 is resolved: its supposed flaky compiled-case miss combined
+an older binary without `0x80012840` and a later regenerated substrate that contained it. The runtime
+now announces the exact compiled substrate identity, and the shipping boot verifier requires that
+exact current identity before accepting runtime evidence, so this evidence class cannot recur.
 
 2026-08-29: the attract flow now runs 2400/2400 frames to exit 0 with zero keyord fatals, zero
 recomp-MISS and zero guest VSync timeout — past the previous f1023 ceiling. Three things landed
@@ -168,9 +175,8 @@ psxport now owns those hardware boundaries. The frame-200 idle/START A/B recorde
 issue 0019 and `docs/findings/crashbash-pad-sio.md` proves the exact driver, parser, and
 game-facing P1 values; no direct buffer injection or title-local input path exists.
 
-Gap: Issue 0020 must trace the first active attract-process read/branch downstream of the proven
-`0x8005133C == 8` state; unchanged BOOT vtable/process-object pointers are not a valid transition
-oracle. Issue 0009 also remains open. Issues 0012, 0014, and 0019 are resolved. A non-black frame on the SHIPPING
+Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, and 0021 are resolved. The verified active
+menu accepts Cross and queues table `0x800B8E50`; START is correctly ignored. A non-black frame on the SHIPPING
 native path still requires S004's native producers. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
 lifecycle boundaries and do not certify picture content.

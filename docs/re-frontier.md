@@ -29,7 +29,7 @@ successful build.
 ### boot.recompile — Generate the static-recompilation substrate
 - status: re-verified
 - deps: boot.provision
-- evidence: The verified USA image plus measured indirect targets, the retail-derived HookEntryInt setjmp re-entry, and two measured CRASHBSH.DAT code modules emit 1,063 roots into 1,724 functions: resident 0x80010000..0x80079000, BOOT 0x80078C90..0x800D7490, and nested MENU 0x800B32B4..0x800BB2B4. tools/recomp_bootstrap.py passes 9/9 real-positive and forced-negative identity/configuration/cache-integrity checks, and a Clang build links both retained generated overlay bodies.
+- evidence: The verified USA image, residual measured targets, retail-derived HookEntryInt setjmp re-entry, and four measured CRASHBSH.DAT modules emit 1,296 roots into 2,450 functions: 1,355 resident, 710 BOOT, 89 MENU, 190 DAT28272, and 106 DAT28241. The emitter fingerprints the exact emitted translation units and routing metadata as `recomp-2026-08-30.2-65a50822c6069fc568bf81870a0ecd6557bc63f71c0d6377500d0af90aad73a4`; tools/recomp_bootstrap.py binds that stamp to the compiled table, cache, and shipping RecompRegistry adapter and passes 10/10 positive/forced-negative checks. The shipping boot judge requires the exact identity once before the first module load and passes 15/15 controlled answers. A Clang product build logs the same installed identity.
 - where: tools/recomp_bootstrap.py, tools/loaded_module.py, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, game/core/game_config.cpp, game/core/recomp_register.cpp, generated/ (gitignored)
 - gap:
 - notes: Generated output is rebuilt from the verified executable/modules and remains untouched, gitignored, and non-authoritative. The main_reentry seed is mechanically tied to ResetCallback 0x80031A80: its sole jal to setjmp 0x8003ACEC resumes at call+8, 0x80031AE8.
@@ -77,13 +77,13 @@ successful build.
 - gap:
 - notes: Do not feed masks into 0x8007787C or padSlot0Buf; the verified guest SIO path is authoritative.
 
-### flow.start-transition — Trace accepted START into the active attract-flow transition
-- status: in-progress
+### flow.menu-accept-transition — Prove the active menu's Cross transition
+- status: re-verified
 - deps: flow.pad-input
-- evidence: Issue 0019 fresh A/B proves START reaches game-facing active-high P1 state 0x8005133C as value 8 while P2 stays zero.
-- where: docs/issues/0020-start-reaches-game-input-but-not-attract-flow.md, retail readers downstream of 0x8005133C
-- gap: Find the first active attract-process read/branch downstream of 0x8005133C that differs from retail; unchanged BOOT vtable/process-object pointers are not a valid transition oracle.
-- notes: Issue 0020. Input delivery is closed and must not be bypassed or reimplemented.
+- evidence: Issue 0019 proves input delivery. Static retail analysis resolves issue 0020's wrong START premise: state index 0x28 has type 0x0101, so FUN_8007F314 takes 0x8007F3C4 before its generic START scan. Active process table 0x800B8E28 updates through FUN_800B3CA8, which reads rising-edge 0x80051380 and accepts Cross 0x4000 at 0x800B3D88-0x800B3D8C; selection zero schedules table 0x800B8E50 through pending slot 0x8009F8A8. The exact-identity-bound shipping differential passes: idle/START each execute 88 active MENU updates, three START edges produce zero accepts, and one Cross edge schedules 0x800B8E50 exactly once before the old callback stops after eight updates. Its judge passes 7/7 controlled answers.
+- where: game/diagnostics/menu_boundary.cpp, tools/verify_menu_accept.py, docs/issues/0020-active-menu-was-incorrectly-expected-to-accept-start.md, docs/issues/0021-cross-menu-acceptance-needs-an-idle-start-cross.md
+- gap:
+- notes: Do not add a START mapping. Input delivery is closed and must not be bypassed or reimplemented. Pending-manager writes are queued; the current manager does not swap in the same callback.
 
 ## graphics
 

@@ -233,6 +233,11 @@ if(BUILD_TESTING)
       "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py" --selftest
   )
   add_test(
+    NAME crashbash_menu_accept_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_menu_accept.py" --selftest
+  )
+  add_test(
     NAME crashbash_native_ownership_selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B

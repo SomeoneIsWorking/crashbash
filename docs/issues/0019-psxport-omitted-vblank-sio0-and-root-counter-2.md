@@ -40,14 +40,16 @@ At one fixed frame, an idle/START A/B must prove all three shipping boundaries:
 - parsed P1 word `0x80063A92`: `FFFF` -> `FFF7`;
 - game-facing active-high P1 state `0x8005133C`: `0` -> `8`.
 
-Port 2 must remain absent rather than duplicating P1. Whether the accepted START changes the
-current BOOT/attract flow is separate issue 0020.
+Port 2 must remain absent rather than duplicating P1. Issue 0020 later proved this active retail menu
+does not accept START; resolved issue 0021 proves the separate Cross-positive flow transition.
 
 ### Resolution (2026-08-30)
 Root cause was the shared framework omission described above, not guest wiring. The framework fix
-landed as psxport `a390ceed`; Crash Bash records that exact pin and its Clang suite passes 23/23.
+landed as psxport `a390ceed`; Crash Bash recorded that exact pin at the milestone and its Clang suite
+passed 23/23.
 Fresh finite headless idle/START runs against that pin at frame 200 produce distinct 2 MiB RAM images
 `26ba65c60ac8cffe5e17682351ef456ecf27fd3dcc6c5a94e3d5385de2373a88` and
 `266f3be554e29497be4e489f5bf7dc5858b5e2a55802bdabf1eeb7126617b893` and satisfy every
-packet/parsed/game-facing gate. Port 2 stays absent/zero. The accepted START does not yet leave
-BOOT/attract flow; issue 0020 owns that independent boundary.
+packet/parsed/game-facing gate. Port 2 stays absent/zero. Static retail analysis in resolved issue
+0020 proves START is not an accept action in the active menu; resolved issue 0021 proves the Cross
+differential.

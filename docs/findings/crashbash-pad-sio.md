@@ -3,8 +3,9 @@
 Measured 2026-08-29, from the retail exe + `scratch/raw/miss_ram.bin` Ghidra project
 (`scratch/ghidra/cbre`) + runtime traces (`scratch/logs/bios-census2.log`, `io-census2.log`).
 The original negative capture proved no host input reached guest RAM. A fresh 2026-08-30 A/B
-after the framework implementation proves the complete guest input path now works. Whether
-START changes the active attract flow is a separate downstream question (issue 0020).
+after the framework implementation proves the complete guest input path now works. Resolved issue
+0020 later proved the active retail menu deliberately ignores START; resolved issue 0021 proves its
+Cross accept transition.
 
 ## The symptom chain
 
@@ -82,8 +83,8 @@ framework-pin and C++ policy gates. Idle used active-low host mask `FFFF`; START
 The complete RAM SHA-256 values are
 `26ba65c60ac8cffe5e17682351ef456ecf27fd3dcc6c5a94e3d5385de2373a88` (idle) and
 `266f3be554e29497be4e489f5bf7dc5858b5e2a55802bdabf1eeb7126617b893` (START).
-This closes input delivery only. START acceptance does not yet transition the BOOT/attract
-flow, and issue 0020 owns that next RE boundary.
+This closes input delivery only. Resolved issue 0020 proves this active menu does not accept START;
+resolved issue 0021 proves the idle/START/Cross transition differential.
 
 Ghidra: project `scratch/ghidra/cbre` (imported 2MB `scratch/raw/miss_ram.bin` @ 0x80000000);
 decomp source for this note: `scratch/decomp/8003b224.c`, `scratch/decomp/8003fd00.c`,

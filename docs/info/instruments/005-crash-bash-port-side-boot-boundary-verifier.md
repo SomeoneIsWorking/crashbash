@@ -16,11 +16,14 @@ Its default CTest mode is a hermetic judge/runner selftest and never launches th
 child after the positive boundary. The judge requires exactly two ordered `load file start` / `done
 loading` pairs, then `empty prims`, then exactly one game-owned marker proving measured MENU entry
 `0x800B5244` from `ra=0x8001E7C0`. That marker wraps and immediately super-calls the retained
-generated body; it is not an async stack sample or unsupported generic trace knob. The judge rejects
+generated body; it is not an async stack sample or unsupported generic trace knob. It also requires
+the exact compiled-substrate identity once and before the first module load, so an old binary cannot
+be judged against newer ignored generated sources. The judge rejects
 STUCK/INTERRUPT watchdog terminals, fatal output, recompilation misses, segmentation faults, the
 former CD timeout, every `VSync: timeout`, and a missing DAT.
 
-The controlled suite passes 13/13, including missing/wrong/reordered module and MENU facts, a real
+The controlled suite passes 15/15, including missing/stale substrate identity,
+missing/wrong/reordered module and MENU facts, a real
 STUCK line, a guest-VSync-timeout negative, and an exact-child cleanup whose SIGTERM handler emits
 `[watchdog] INTERRUPT` only after the positive boundary. Cleanup output is deliberately excluded
 from pre-boundary product evidence. The old serialized exact-pin trace still contains the ordered

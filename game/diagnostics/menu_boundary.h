@@ -2,7 +2,7 @@
 
 namespace crashbash::diagnostics {
 
-// Install the behavior-preserving observer for the measured nested-MENU entry.
+// Install behavior-preserving observers for the measured nested-MENU entry and accept path.
 void registerMenuBoundary();
 
 } // namespace crashbash::diagnostics

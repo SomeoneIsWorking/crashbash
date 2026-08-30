@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PORT = ROOT / "scratch/bin/crashbash_port"
 DEFAULT_EXECUTABLE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
 DEFAULT_LOG = ROOT / "scratch/logs/verify-boot.log"
+GENERATED_IDENTITY = ROOT / "generated/.recomp_identity"
 
 LOAD_START = "load file start"
 LOAD_COMPLETE = "done loading"
@@ -59,13 +60,25 @@ class Verdict:
     menu_entry_hits: int
 
 
+def expected_substrate_identity() -> str:
+    try:
+        identity = GENERATED_IDENTITY.read_text(encoding="utf-8").strip()
+    except OSError as error:
+        raise Refused(
+            f"compiled-substrate identity is unavailable at {GENERATED_IDENTITY}: {error}"
+        ) from error
+    if not re.fullmatch(r"recomp-[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+-[0-9a-f]{64}", identity):
+        raise Refused(f"malformed compiled-substrate identity: {identity!r}")
+    return identity
+
+
 def _matching_lines(lines: list[str], pattern: str | re.Pattern[str]) -> list[int]:
     if isinstance(pattern, str):
         return [index for index, line in enumerate(lines) if line == pattern]
     return [index for index, line in enumerate(lines) if pattern.search(line)]
 
 
-def judge(text: str) -> Verdict:
+def judge(text: str, substrate_identity: str) -> Verdict:
     lines = [line.strip() for line in text.splitlines()]
     forbidden = [
         (pattern.pattern, index + 1)
@@ -83,7 +96,10 @@ def judge(text: str) -> Verdict:
     completions = _matching_lines(lines, LOAD_COMPLETE)
     menu_entries = _matching_lines(lines, MENU_ENTRY)
     empty_prims = _matching_lines(lines, EMPTY_PRIMS)
+    identity_line = f"[recomp] generated substrate identity: {substrate_identity}"
+    identities = _matching_lines(lines, identity_line)
     counts = (
+        ("matching compiled-substrate identity", len(identities), 1),
         (LOAD_START, len(starts), 2),
         (LOAD_COMPLETE, len(completions), 2),
         ("matching MENU entry", len(menu_entries), 1),
@@ -98,6 +114,7 @@ def judge(text: str) -> Verdict:
         raise Refused("boundary denominator mismatch: " + ", ".join(mismatched))
 
     ordered = (
+        identities[0],
         starts[0],
         completions[0],
         starts[1],
@@ -107,7 +124,8 @@ def judge(text: str) -> Verdict:
     )
     if ordered != tuple(sorted(ordered)) or len(set(ordered)) != len(ordered):
         raise Refused(
-            "causal order mismatch: expected load-start #1 -> load-complete #1 -> "
+            "causal order mismatch: expected compiled-substrate identity -> "
+            "load-start #1 -> load-complete #1 -> "
             "load-start #2 -> load-complete #2 -> empty prims -> MENU entry "
             "0x800B5244 from ra=0x8001E7C0"
         )
@@ -242,9 +260,10 @@ def run(port: Path, executable: Path, timeout: float) -> str:
     return text
 
 
-def _fixture() -> str:
+def _fixture(substrate_identity: str) -> str:
     return f"""[watchdog] armed: 3s frame-progress timeout (45s grace until the main presenter is ready)
 10 field(s) AGREE, 0 DISAGREE, 0 unresolved
+[recomp] generated substrate identity: {substrate_identity}
 {LOAD_START}
 {LOAD_COMPLETE}
 {LOAD_START}
@@ -255,11 +274,12 @@ def _fixture() -> str:
 
 
 def selftest() -> bool:
-    fixture = _fixture()
+    substrate_identity = "recomp-2026-08-30.2-" + "a" * 64
+    fixture = _fixture(substrate_identity)
     passed = 0
-    cases = 13
+    cases = 15
     try:
-        verdict = judge(fixture)
+        verdict = judge(fixture, substrate_identity)
         passed += 1
         print(
             f"PASS positive: {verdict.lines} lines, "
@@ -273,6 +293,16 @@ def selftest() -> bool:
         line for line in fixture.splitlines() if "[crashbash-boundary]" in line
     )
     negatives = (
+        (
+            fixture.replace(
+                f"[recomp] generated substrate identity: {substrate_identity}\n", ""
+            ),
+            "missing compiled-substrate identity",
+        ),
+        (
+            fixture.replace(substrate_identity, substrate_identity[:-1] + "b"),
+            "wrong compiled-substrate identity",
+        ),
         (fixture.replace(LOAD_START + "\n", "", 1), "missing first load start"),
         (fixture.replace(LOAD_COMPLETE + "\n", "", 1), "missing load completion"),
         (
@@ -299,7 +329,7 @@ def selftest() -> bool:
     )
     for changed, label in negatives:
         try:
-            judge(changed)
+            judge(changed, substrate_identity)
         except Refused:
             passed += 1
             print(f"PASS negative: {label} is rejected")
@@ -318,6 +348,7 @@ def selftest() -> bool:
             "    print('[watchdog] INTERRUPT: runner-owned cleanup', flush=True)\n"
             "    sys.exit(130)\n"
             "signal.signal(signal.SIGTERM, interrupted)\n"
+            f"print('[recomp] generated substrate identity: {substrate_identity}', flush=True)\n"
             f"print({LOAD_START!r}, flush=True)\n"
             f"print({LOAD_COMPLETE!r}, flush=True)\n"
             f"print({LOAD_START!r}, flush=True)\n"
@@ -335,7 +366,7 @@ def selftest() -> bool:
                 timeout=1.0,
                 echo=False,
             )
-            judge(output)
+            judge(output, substrate_identity)
             passed += 1
             print(
                 "PASS runner: positive boundary stops the exact child process "
@@ -375,7 +406,7 @@ def main() -> int:
             text = run(args.port, args.executable, args.timeout)
         else:
             raise Refused("select --selftest, --trace PATH, or explicit product --run")
-        verdict = judge(text)
+        verdict = judge(text, expected_substrate_identity())
         print(
             f"PASS: {verdict.lines} runtime lines; "
             f"{verdict.load_starts}/{verdict.load_completions} module loads completed, "

@@ -25,6 +25,7 @@ MODULE_IDENTITIES = loaded_module.MODULES
 MODULES = {stem: OVERLAYS / f"{stem}.BIN" for stem in MODULE_IDENTITIES}
 SEEDS = ROOT / "game/recomp_seeds.json"
 CONFIG = ROOT / "game/core/game_config.cpp"
+RECOMP_REGISTER = ROOT / "game/core/recomp_register.cpp"
 GENERATED = ROOT / "generated"
 MEASUREMENT_FILE = GENERATED / ".recomp.measurement.json"
 SCRATCH = ROOT / "scratch/raw"
@@ -259,6 +260,8 @@ def generated_measurement(
         header = (directory / "overlay_table.h").read_text(encoding="utf-8")
         manifest = (directory / "rec_sources.cmake").read_text(encoding="utf-8")
         version = (directory / ".recomp_version").read_text(encoding="utf-8").strip()
+        substrate_id = (directory / ".recomp_identity").read_text(encoding="utf-8").strip()
+        registration = RECOMP_REGISTER.read_text(encoding="utf-8")
     except OSError as error:
         raise Refused(
             f"emitter omitted a required generated interface: {error}"
@@ -328,6 +331,17 @@ def generated_measurement(
         raise Mismatch(f"generated resident range is not [0x{lo:08X},0x{hi:08X})")
     if not version:
         raise Refused("emitter wrote an empty recompiler version stamp")
+    expected_identity_shape = rf"recomp-{re.escape(version)}-[0-9a-f]{{64}}"
+    if not re.fullmatch(expected_identity_shape, substrate_id):
+        raise Mismatch(
+            f"generated substrate identity {substrate_id!r} does not bind version {version} to a SHA-256"
+        )
+    if f'const char g_rec_substrate_id[] = "{substrate_id}";' not in table:
+        raise Mismatch("generated substrate identity stamp disagrees with the compiled table")
+    if "extern const char g_rec_substrate_id[];" not in header:
+        raise Mismatch("generated overlay table header omits the substrate identity symbol")
+    if ".substrate_id = g_rec_substrate_id," not in registration:
+        raise Mismatch("shipping RecompRegistry does not expose the generated substrate identity")
     return roots, functions, version
 
 
@@ -494,6 +508,7 @@ def generated_output_hash(directory: Path) -> str:
     names.update(
         {
             ".recomp_version",
+            ".recomp_identity",
             "main.c",
             "overlay_table.h",
             "rec_decls.h",
@@ -617,6 +632,17 @@ def selftest(extractor: Path) -> bool:
         source = directory / generated_source_names(directory)[0]
         source.write_bytes(source.read_bytes() + b"\n")
         changed_output_refused = not generated_complete(directory, output_hash)
+        identity = (directory / ".recomp_identity").read_text(encoding="utf-8")
+        (directory / ".recomp_identity").write_text(
+            identity[:-2] + ("0" if identity[-2] != "0" else "1") + "\n",
+            encoding="utf-8",
+        )
+        try:
+            generated_measurement(directory, result.stdout, measured)
+        except Mismatch:
+            changed_identity_refused = True
+        else:
+            changed_identity_refused = False
     print(
         f"PASS positive: {roots} retail-binary roots -> {functions} recompiled functions "
         f"across resident and loaded modules; version {version}"
@@ -630,6 +656,11 @@ def selftest(extractor: Path) -> bool:
             "FAIL negative: changed generated source passed cache integrity",
             file=sys.stderr,
         )
+    if changed_identity_refused:
+        passed += 1
+        print("PASS negative: a changed substrate identity is rejected by the shipping seam")
+    else:
+        print("FAIL negative: changed substrate identity passed", file=sys.stderr)
     with tempfile.TemporaryDirectory(
         prefix="crashbash-negative-", dir=SCRATCH
     ) as temporary:
@@ -726,8 +757,8 @@ def selftest(extractor: Path) -> bool:
             print("PASS negative: a changed BOOT load address is rejected")
         else:
             print("FAIL negative: changed BOOT load address passed", file=sys.stderr)
-    print(f"SELFTEST {passed}/9")
-    return passed == 9
+    print(f"SELFTEST {passed}/10")
+    return passed == 10
 
 
 def default_extractor() -> Path:
