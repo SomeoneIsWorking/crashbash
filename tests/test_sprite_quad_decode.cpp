@@ -3,7 +3,9 @@
 #include <cstdlib>
 
 int main() {
+  using crashbash::render::decodeScreenColorQuad;
   using crashbash::render::decodeSpriteQuad;
+  using crashbash::render::ScreenColorQuadCall;
   using crashbash::render::SpriteQuadCall;
   using crashbash::render::SpriteQuadDescriptor;
 
@@ -24,7 +26,7 @@ int main() {
       .gouraud = true,
   };
   const auto draw = decodeSpriteQuad(descriptor, call, 0x280, 0x800);
-  if (!draw || draw->sourceFunction != call.sourceFunction || draw->descriptor != call.descriptor ||
+  if (!draw || draw->sourceFunction != call.sourceFunction || draw->sourceAddress != call.descriptor ||
       draw->renderList != call.renderList || draw->orderingBin != 3 ||
       draw->x != std::array<std::int32_t, 4>{-20, -5, -20, -5} ||
       draw->y != std::array<std::int32_t, 4>{-2, -2, 6, 6} ||
@@ -33,7 +35,8 @@ int main() {
       draw->red != std::array<std::uint8_t, 4>{0x40, 0x10, 0x20, 0x02} ||
       draw->green != std::array<std::uint8_t, 4>{0x00, 0x20, 0x40, 0x04} ||
       draw->blue != std::array<std::uint8_t, 4>{0x0C, 0x00, 0x7F, 0x08} || draw->texturePage != 0x03EFu ||
-      draw->clut != descriptor.clut || !draw->gouraud || !draw->semiTransparent) {
+      draw->clut != descriptor.clut || draw->blendMode != 3 || !draw->textured || !draw->gouraud || !draw->dither ||
+      !draw->semiTransparent) {
     return EXIT_FAILURE;
   }
   SpriteQuadCall flatCall = call;
@@ -41,13 +44,51 @@ int main() {
   flatCall.colors.fill(0x00402010u);
   flatCall.gouraud = false;
   const auto flatDraw = decodeSpriteQuad(descriptor, flatCall, 0x280, 0);
-  if (!flatDraw || flatDraw->sourceFunction != flatCall.sourceFunction || flatDraw->gouraud ||
+  if (!flatDraw || flatDraw->sourceFunction != flatCall.sourceFunction || !flatDraw->textured || flatDraw->gouraud ||
+      !flatDraw->dither || flatDraw->blendMode != 0 ||
       flatDraw->red != std::array<std::uint8_t, 4>{0x10, 0x10, 0x10, 0x10} ||
       flatDraw->green != std::array<std::uint8_t, 4>{0x20, 0x20, 0x20, 0x20} ||
       flatDraw->blue != std::array<std::uint8_t, 4>{0x40, 0x40, 0x40, 0x40}) {
     return EXIT_FAILURE;
   }
   if (decodeSpriteQuad(descriptor, call, 0, 0)) {
+    return EXIT_FAILURE;
+  }
+
+  const ScreenColorQuadCall colorCall{
+      .sourceFunction = 0x8001A0D8u,
+      .sourceAddress = 0x1F800294u,
+      .renderList = 0x8005F79Cu,
+      .flags = 0x10008021u,
+      .x = {-10, 30, -10, 30},
+      .y = {-20, -20, 40, 40},
+      .colors = {0x00102040u, 0x004080C0u, 0x0080C0FFu, 0x00040810u},
+      .xOffset = 5,
+      .yOffset = -2,
+      .displayScale = 0x280,
+      .depthBias = 6,
+      .depthLimit = 100,
+      .fade = 0x800,
+  };
+  const auto colorDraw = decodeScreenColorQuad(colorCall);
+  if (!colorDraw || colorDraw->sourceFunction != colorCall.sourceFunction ||
+      colorDraw->sourceAddress != colorCall.sourceAddress || colorDraw->orderingBin != 3 || colorDraw->textured ||
+      !colorDraw->gouraud || !colorDraw->dither || !colorDraw->semiTransparent || colorDraw->blendMode != 1 ||
+      colorDraw->x != std::array<std::int32_t, 4>{-5, 35, -5, 35} ||
+      colorDraw->y != std::array<std::int32_t, 4>{-11, -11, 19, 19} ||
+      colorDraw->red != std::array<std::uint8_t, 4>{0x20, 0x60, 0x7F, 0x08} ||
+      colorDraw->green != std::array<std::uint8_t, 4>{0x10, 0x40, 0x60, 0x04} ||
+      colorDraw->blue != std::array<std::uint8_t, 4>{0x08, 0x20, 0x40, 0x02}) {
+    return EXIT_FAILURE;
+  }
+  ScreenColorQuadCall rejectedColorCall = colorCall;
+  rejectedColorCall.flags &= ~0x10000000u;
+  if (decodeScreenColorQuad(rejectedColorCall)) {
+    return EXIT_FAILURE;
+  }
+  rejectedColorCall = colorCall;
+  rejectedColorCall.depthBias = 200;
+  if (decodeScreenColorQuad(rejectedColorCall)) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

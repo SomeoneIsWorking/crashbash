@@ -80,13 +80,13 @@ struct ModelDraw {
 
 bool isRenderableModelDraw(const ModelDraw &draw);
 
-// Source-level input to Crash Bash's textured sprite leaves at 0x8002992C and 0x80029D28. The record
+// Source-level input to Crash Bash's screen-aligned textured and Gouraud-color quad leaves. The record
 // is decoded before the retained retail body allocates or writes a GPU packet; it records the target
 // render-list identity but no OT contents, packet address, or GP0 output, and remains valid after the
 // guest packet pool is recycled.
 struct SpriteQuadDraw {
   std::uint32_t sourceFunction = 0;
-  std::uint32_t descriptor = 0;
+  std::uint32_t sourceAddress = 0;
   std::uint32_t renderList = 0;
   std::uint32_t packedPosition = 0;
   std::int32_t orderingBin = 0;
@@ -100,7 +100,10 @@ struct SpriteQuadDraw {
   std::array<std::uint8_t, 4> blue{};
   std::uint16_t texturePage = 0;
   std::uint16_t clut = 0;
+  std::uint8_t blendMode = 0;
+  bool textured = true;
   bool gouraud = false;
+  bool dither = false;
   bool semiTransparent = false;
 };
 

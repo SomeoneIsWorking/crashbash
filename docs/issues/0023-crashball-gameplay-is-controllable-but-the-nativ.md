@@ -44,10 +44,16 @@ explicit flat-shading record through that boundary. At stable pre-transition fra
 all four top portraits and the two lower markers while retaining the text; the run reconciles every
 frame and records 3,091 native flat quads over 1,329 frames.
 
+The five objective-frame `0x8001A0D8` calls all take its authored-screen branch. One source quad is
+the briefing dimmer and four are the yellow frame; all use four copied XY/RGB vertices and title-owned
+offset/scale/fade/blend/bin state. Their native overlay-layer owner restores the dimmer and frame while
+preserving the HUD portraits and text. The 2,480-frame run emits 5,830 native quads from this branch
+over 1,395 frames and again reconciles every frame with no dropped layer.
+
 ## Remaining work
 
-Decompile the remaining five-row families: `0x8001A0D8` combines draw mode with an untextured Gouraud
-quad and is the next picture candidate; `0x80018B08` emits draw-area state whose native owner depends
-on whether that state is already represented by the captured GPU state. Use the stable pre-Cross
-objective frame as an independent visual/differential oracle; do not reconstruct product input from
-OT, GP0, VRAM output, or the diagnostic framebuffer.
+Compare `0x80018B08`'s draw-area state with the GPU state already consumed by native submission. The
+remaining visible gaps in the stable retail comparison are the two side character sprites and the
+top/bottom arrows; they are outside the 108 direct-pool rows and require attribution within the 1,960
+cached/model rows. Continue using the stable pre-Cross objective frame as the oracle; do not
+reconstruct product input from OT, GP0, VRAM output, or the diagnostic framebuffer.

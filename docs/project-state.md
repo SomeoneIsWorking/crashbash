@@ -24,15 +24,24 @@ The native path renders the Crashball arena, ships, and balls. Its first 2D prod
 `0x8002992C` from authored descriptor, position, OT-bin, and color inputs and restores the objective
 instructions and top score digits without consuming guest GPU output. The shared flat-color boundary
 at `0x80029D28` additionally restores all four top portraits and the two lower markers. Issue 0023
-remains open for any other briefing/HUD/character layers. The next S004 boundary is the five-row
-`0x8001A0D8` draw-mode plus untextured-Gouraud-quad family; the other five-row family at `0x80018B08`
-is draw-area state and must be compared with the GPU state already captured by the native producer.
+remains open for other briefing/HUD/character layers. The authored-screen branch of `0x8001A0D8` now
+restores the dimmer and yellow frame in the overlay layer while preserving HUD sprites and text. The
+next S004 discriminator is `0x80018B08`'s draw-area state; the remaining visible side characters and
+top/bottom arrows are outside the direct heap-pool population and need cached/model-row attribution.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (authored-screen Gouraud overlay): all five objective-frame `0x8001A0D8` calls carry
+`0x10000000` and therefore bypass GTE projection. Their copied source geometry is one full briefing
+dimmer plus four border strips at depth bias 384/bin 192. Capturing four XY/RGB vertices with title
+offset, scale, fade, blend, and bin restores the dimmer and yellow frame. Classifying that family as
+overlay rather than HUD preserves the bin-1 portraits and text above it. The 2,480-frame run emits
+5,830 native quads over 1,395 frames and reconciles every frame with zero dropped layers; GTE-mode
+calls remain guest-only pending a separate source-transform recipe.
 
 2026-08-30 (flat textured sprites): Ghidra proves `0x80029D28` is the flat-color twin of the first
 native quad leaf, with the same descriptor, position, bin, fade, blend, UV/CLUT/tpage, return, and

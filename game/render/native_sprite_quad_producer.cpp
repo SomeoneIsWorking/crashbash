@@ -15,9 +15,13 @@ namespace {
 
 constexpr std::uint32_t kGouraudSpriteQuadSubmit = 0x8002992Cu;
 constexpr std::uint32_t kFlatSpriteQuadSubmit = 0x80029D28u;
+constexpr std::uint32_t kScreenColorQuadSubmit = 0x8001A0D8u;
 
 const char *producerName(std::uint32_t sourceFunction) {
-  return sourceFunction == kFlatSpriteQuadSubmit ? "sprite:ft4" : "sprite:gt4";
+  if (sourceFunction == kFlatSpriteQuadSubmit) {
+    return "sprite:ft4";
+  }
+  return sourceFunction == kScreenColorQuadSubmit ? "hud:g4" : "sprite:gt4";
 }
 
 void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
@@ -25,7 +29,8 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
     return;
   }
   const GpuState gpu = core.game->gpu;
-  if (draw.x[0] > draw.x[1] || draw.y[0] > draw.y[2] || gpu.s_da_x0 > gpu.s_da_x1 || gpu.s_da_y0 > gpu.s_da_y1) {
+  if ((draw.textured && (draw.x[0] > draw.x[1] || draw.y[0] > draw.y[2])) || gpu.s_da_x0 > gpu.s_da_x1 ||
+      gpu.s_da_y0 > gpu.s_da_y1) {
     return;
   }
 
@@ -47,16 +52,15 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   }
 
   RenderQueue &queue = core.game->rq;
-  const int textureMode = (draw.texturePage >> 7u) & 3u;
-  const int texturePageX = (draw.texturePage & 0x0Fu) * 64;
-  const int texturePageY = ((draw.texturePage >> 4u) & 1u) * 256;
-  const int clutX = (draw.clut & 0x3Fu) * 16;
-  const int clutY = (draw.clut >> 6u) & 0x1FFu;
-  const int blendMode = (draw.texturePage >> 5u) & 3u;
-  const int dither = (draw.texturePage >> 9u) & 1u;
+  const int layer = draw.sourceFunction == kScreenColorQuadSubmit ? RQ_OVERLAY : RQ_HUD;
+  const int textureMode = draw.textured ? (draw.texturePage >> 7u) & 3u : 3;
+  const int texturePageX = draw.textured ? (draw.texturePage & 0x0Fu) * 64 : 0;
+  const int texturePageY = draw.textured ? ((draw.texturePage >> 4u) & 1u) * 256 : 0;
+  const int clutX = draw.textured ? (draw.clut & 0x3Fu) * 16 : 0;
+  const int clutY = draw.textured ? (draw.clut >> 6u) & 0x1FFu : 0;
   queue.emitOrQueue(&core,
                     1,
-                    RQ_HUD,
+                    layer,
                     RQ_OM_2D_FG,
                     4,
                     draw.semiTransparent ? 1 : 0,
@@ -84,12 +88,12 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
                     gpu.s_da_y0,
                     gpu.s_da_x1,
                     gpu.s_da_y1,
-                    blendMode,
+                    draw.blendMode,
                     nullptr,
                     -1,
                     0.0f,
                     draw.gouraud ? 1 : 0,
-                    dither);
+                    draw.dither ? 1 : 0);
 }
 
 } // namespace
@@ -121,7 +125,8 @@ void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t 
 
   for (const std::size_t index : order) {
     const SpriteQuadDraw &draw = snapshot.spriteQuads[index];
-    if (draw.sourceFunction != kGouraudSpriteQuadSubmit && draw.sourceFunction != kFlatSpriteQuadSubmit) {
+    if (draw.sourceFunction != kGouraudSpriteQuadSubmit && draw.sourceFunction != kFlatSpriteQuadSubmit &&
+        draw.sourceFunction != kScreenColorQuadSubmit) {
       continue;
     }
     ProducerScope producer(&core.rsub.producerScope, draw.sourceFunction, producerName(draw.sourceFunction));

@@ -48,5 +48,10 @@ fade, blend, UV/CLUT/tpage, return, and render-list semantics, but takes one col
 vertices and explicit flat shading. The stable frame-2480 native capture restores all four top
 portraits and the two lower markers without disturbing the Gouraud text. The remaining direct rows
 are `0x8001A0D8`'s draw-mode plus untextured Gouraud quad path and `0x80018B08`'s draw-area state path.
-The former is the next picture boundary; the latter must be compared with the GPU state already
-captured by native submission rather than treated as a drawable.
+All five objective-frame `0x8001A0D8` calls take its authored-screen branch: one source quad spans the
+briefing dimmer and four form the yellow border, at depth bias 384/bin 192. Its retained super now
+copies the four XY/RGB vertices and title offset/scale/fade/blend/bin state into the native overlay
+layer. The GTE branch remains unsupported rather than consuming projected output. `0x80018B08` must
+still be compared with the GPU state already captured by native submission rather than treated as a
+drawable. The side characters and top/bottom arrows visible only in retail are outside all 108
+direct-pool rows and therefore belong to the cached/model attribution population.

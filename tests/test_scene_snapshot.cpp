@@ -43,7 +43,7 @@ int main() {
   history.record(draw);
   history.record(SpriteQuadDraw{
       .sourceFunction = 0x8002992Cu,
-      .descriptor = 0x800B0000u,
+      .sourceAddress = 0x800B0000u,
       .renderList = 0x8005F79Cu,
       .packedPosition = 0x00200010u,
       .orderingBin = 0,
@@ -62,7 +62,7 @@ int main() {
     return EXIT_FAILURE;
   }
   const SpriteQuadDraw &previousSprite = history.previous().spriteQuads.front();
-  if (previousSprite.sourceFunction != 0x8002992Cu || previousSprite.descriptor != 0x800B0000u ||
+  if (previousSprite.sourceFunction != 0x8002992Cu || previousSprite.sourceAddress != 0x800B0000u ||
       previousSprite.renderList != 0x8005F79Cu || previousSprite.texturePage != 0x0123u ||
       previousSprite.clut != 0x0456u) {
     return EXIT_FAILURE;
