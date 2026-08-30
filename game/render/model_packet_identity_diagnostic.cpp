@@ -251,6 +251,37 @@ void finishModelPacketIdentityDraw(const ModelDraw &draw) {
   std::vector<ModelPacketFillObservation> packetBlocks = std::move(pendingDrawPacketBlocks.back());
   pendingDrawPacketBlocks.pop_back();
   ++census.draws;
+  for (const ModelPacketFillObservation &observation : packetBlocks) {
+    for (const std::uint32_t target : census.targets) {
+      if (target < observation.packetBlock) {
+        continue;
+      }
+      const std::uint32_t offset = target - observation.packetBlock;
+      if (offset % kPacketRecordStride != 0) {
+        continue;
+      }
+      const std::uint32_t faceIndex = offset / kPacketRecordStride;
+      if (faceIndex >= draw.faces.size()) {
+        lucent::debug("crashbash-packet-identity",
+                      "target={:08X} candidate block={:08X} face={} decoded-faces={} submitter={:08X} obj={:08X} "
+                      "flags={:08X}/{:08X} asset={:08X} data={:08X} frame={:04X} live-vtx={:08X} "
+                      "live-topo={:08X}",
+                      target,
+                      observation.packetBlock,
+                      faceIndex,
+                      draw.faces.size(),
+                      static_cast<std::uint32_t>(draw.submitter),
+                      draw.object,
+                      draw.objectFlags,
+                      draw.callFlags,
+                      draw.modelAsset,
+                      draw.modelData,
+                      draw.frameCode,
+                      observation.vertexBase,
+                      observation.topologyBase);
+      }
+    }
+  }
   const ModelPacketIdentityScan scan = scanModelPacketIdentity(draw, packetBlocks, census.targets);
   census.packetBlocks += scan.packetBlocks;
   census.targetComparisons += scan.targetComparisons;

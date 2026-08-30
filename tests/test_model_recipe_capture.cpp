@@ -19,6 +19,12 @@ void writeVertex(Core &core, std::uint32_t address, std::int16_t x) {
   core.mem_w16(address + 6u, 0u);
 }
 
+void writePackedVertex(Core &core, std::uint32_t address, std::int16_t x) {
+  core.mem_w16(address, static_cast<std::uint16_t>(x));
+  core.mem_w16(address + 2u, static_cast<std::uint16_t>(x + 1));
+  core.mem_w16(address + 4u, static_cast<std::uint16_t>(x + 2));
+}
+
 } // namespace
 
 int main() {
@@ -93,6 +99,73 @@ int main() {
     check(draw.faces[0].sourceGroup == 0u && draw.faces[0].sourceGroupFace == 0u && draw.faces[1].sourceGroup == 1u &&
               draw.faces[1].sourceGroupFace == 0u,
           "source group identity retains the independent-group restart");
+  }
+
+  constexpr std::uint32_t indexedModelData = 0x80020000u;
+  constexpr std::uint32_t indexedObject = 0x80020100u;
+  constexpr std::uint32_t groupTableRelative = 0x200u;
+  constexpr std::uint32_t group = indexedModelData + groupTableRelative + 0x44u;
+  constexpr std::uint32_t indexedFrame = 0x80021000u;
+  constexpr std::uint32_t animationHandle = 0x80022000u;
+  constexpr std::uint32_t animation = 0x80023000u;
+  constexpr std::uint32_t vertexPool = 0x80024000u;
+  constexpr std::uint32_t vertexIndices = 0x80025000u;
+  constexpr std::uint32_t indexedTopology = 0x80026000u;
+  constexpr std::uint32_t indexedTextureIndices = 0x80026100u;
+  constexpr std::uint32_t indexedTextureDescriptors = 0x80026200u;
+  constexpr std::uint32_t indexedMaterials = 0x80026300u;
+  constexpr std::uint32_t indexedColors = 0x80026400u;
+  constexpr std::uint32_t indexedUv = 0x80026500u;
+
+  core.mem_w32(indexedModelData + 0x40u, 1u);
+  core.mem_w32(indexedModelData + 0x44u, groupTableRelative);
+  core.mem_w32(group + 8u, 1u);
+  writeRelative(core, group, 0x0Cu, 0x0Cu, indexedFrame);
+  core.mem_w32(group + 0x14u, animationHandle);
+  core.mem_w32(animationHandle, animation);
+  core.mem_w32(animation, vertexPool - animation);
+  writeRelative(core, animation + 4u, 0u, 0x14u, vertexIndices);
+  core.mem_w32(animation + 0x0Cu, 0u);
+  writeRelative(core, indexedFrame, 0x14u, 0x14u, indexedTopology);
+  writeRelative(core, indexedFrame, 0x18u, 0x18u, indexedTextureIndices);
+  writeRelative(core, indexedFrame, 0x1Cu, 0x1Cu, indexedTextureDescriptors);
+  writeRelative(core, indexedFrame, 0x20u, 0x20u, indexedMaterials);
+  writeRelative(core, indexedModelData, 0x20u, 0x20u, indexedColors);
+  writeRelative(core, indexedModelData, 0x24u, 0x24u, indexedUv);
+
+  for (std::uint32_t vertex = 0; vertex < 3u; ++vertex) {
+    writePackedVertex(core, vertexPool + vertex * 6u, static_cast<std::int16_t>(100 + vertex * 10u));
+    core.mem_w16(vertexIndices + vertex * 2u, static_cast<std::uint16_t>((vertex << 2u) | vertex));
+  }
+  core.mem_w8(indexedTopology, 1u);
+  core.mem_w8(indexedTopology + 1u, 1u);
+  core.mem_w8(indexedTopology + 2u, 0u);
+  core.mem_w8(indexedTopology + 3u, 0xFFu);
+  core.mem_w16(indexedTextureIndices, 0u);
+  core.mem_w16(indexedTextureDescriptors, 0u);
+  core.mem_w16(indexedMaterials, 0u);
+  core.mem_w32(indexedColors, 0x00101010u);
+  core.mem_w32(indexedColors + 4u, 0x00202020u);
+  core.mem_w32(indexedColors + 8u, 0x00303030u);
+
+  ModelDraw indexedDraw{
+      .object = indexedObject,
+      .modelData = indexedModelData,
+      .frameCode = 0x4000u,
+  };
+  const auto indexedCensus = captureFixedModelRecipe(core, indexedDraw);
+  check(indexedCensus.status == ModelRecipeStatus::Ready && indexedCensus.faces == 1u,
+        "indexed animation-family recipe is decoded");
+  check(indexedDraw.faces.size() == 1u, "indexed recipe retains its source face");
+  if (indexedDraw.faces.size() == 1u) {
+    check(indexedDraw.faces[0].vertices[0].x == 100 && indexedDraw.faces[0].vertices[1].x == 110 &&
+              indexedDraw.faces[0].vertices[2].x == 120,
+          "indexed recipe expands its three six-byte source vertices");
+    check(indexedDraw.faces[0].vertices[0].flags == 0u && indexedDraw.faces[0].vertices[1].flags == 1u &&
+              indexedDraw.faces[0].vertices[2].flags == 2u,
+          "indexed recipe preserves the low two index bits as retail vertex flags");
+    check(indexedDraw.faces[0].sourceVertexAddress == vertexIndices,
+          "indexed face identity names the authored index-stream cursor");
   }
 
   if (failures != 0) {

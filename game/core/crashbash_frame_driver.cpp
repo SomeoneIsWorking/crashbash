@@ -192,7 +192,7 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
   std::uint32_t farDepthRejected = 0;
   std::uint32_t windingRejected = 0;
   std::uint32_t transformedModels = 0;
-  std::uint32_t fixedModels = 0;
+  std::uint32_t decodedModels = 0;
   for (const render::ModelDraw &draw : sceneSnapshots_.current().models) {
     capturedFaces += static_cast<std::uint32_t>(draw.faces.size());
     texturedFaces += draw.texturedFaces;
@@ -201,14 +201,14 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
     farDepthRejected += draw.nativeFarDepthRejected;
     windingRejected += draw.nativeWindingRejected;
     transformedModels += draw.transform.valid ? 1u : 0u;
-    fixedModels += (draw.frameCode & 0x7000u) == 0x2000u ? 1u : 0u;
+    decodedModels += draw.faces.empty() ? 0u : 1u;
   }
   const render::ModelTransformCaptureCensus &transformCensus = render::modelTransformCaptureCensus();
   const render::ModelTransformInputCensus &inputCensus = render::modelTransformInputCensus();
   lucent::info("crashbash-frame",
                "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
-               "{} field(s) delivered, {} accepted pre-GTE model draw(s) ({} transformed / {} fixed), "
-               "{} fixed face(s) captured ({} textured) / {} submitted (rejected zero/far/winding "
+               "{} field(s) delivered, {} accepted pre-GTE model draw(s) ({} transformed / {} source-decoded), "
+               "{} model face(s) captured ({} textured) / {} submitted (rejected zero/far/winding "
                "{}/{}/{}), vblank counter 0x{:08X}, "
                "app mode 0x{:08X} unchanged for "
                "the whole dwell)",
@@ -220,7 +220,7 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
                deliveredFields_,
                sceneSnapshots_.current().models.size(),
                transformedModels,
-               fixedModels,
+               decodedModels,
                capturedFaces,
                texturedFaces,
                submittedFaces,

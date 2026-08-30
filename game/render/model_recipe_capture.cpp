@@ -15,9 +15,6 @@ namespace {
 
 constexpr std::uint32_t kRamBegin = 0x80000000u;
 constexpr std::uint32_t kRamEnd = 0x80200000u;
-constexpr std::uint32_t kFrameFamilyMask = 0x7000u;
-constexpr std::uint32_t kDirectFrameFamily = 0x2000u;
-constexpr std::uint32_t kResolvedFrameFamily = 0x5000u;
 constexpr std::uint32_t kFrameRecordStride = 0x34u;
 constexpr std::uint32_t kMaxGroups = 4096u;
 constexpr std::uint32_t kMaxFaces = 65536u;
@@ -46,6 +43,23 @@ ModelVertex readVertex(Core &core, std::uint32_t address) {
       .y = static_cast<std::int16_t>(core.mem_r16(address + 2u)),
       .z = static_cast<std::int16_t>(core.mem_r16(address + 4u)),
       .flags = core.mem_r16(address + 6u),
+  };
+}
+
+std::optional<ModelVertex> readIndexedVertex(Core &core, std::uint32_t indexAddress, std::uint32_t vertexPool) {
+  if (!ramRange(indexAddress, 2u)) {
+    return std::nullopt;
+  }
+  const std::uint16_t index = core.mem_r16(indexAddress);
+  const std::uint32_t vertexAddress = vertexPool + static_cast<std::uint32_t>(index >> 2u) * 6u;
+  if (!ramRange(vertexAddress, 6u)) {
+    return std::nullopt;
+  }
+  return ModelVertex{
+      .x = static_cast<std::int16_t>(core.mem_r16(vertexAddress)),
+      .y = static_cast<std::int16_t>(core.mem_r16(vertexAddress + 2u)),
+      .z = static_cast<std::int16_t>(core.mem_r16(vertexAddress + 4u)),
+      .flags = static_cast<std::uint16_t>(index & 3u),
   };
 }
 
@@ -113,18 +127,25 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
   ModelRecipeCensus census{};
   draw.faces.clear();
   draw.texturedFaces = 0;
-  const std::uint32_t frameFamily = draw.frameCode & kFrameFamilyMask;
-  if (frameFamily != kDirectFrameFamily && frameFamily != kResolvedFrameFamily) {
+  if (!modelFrameFamilySupported(draw.frameCode)) {
     return census;
   }
   census.status = ModelRecipeStatus::InvalidSource;
   const auto readWord = [&core](std::uint32_t address) -> std::optional<std::uint32_t> {
     return ramRange(address, 4u) ? std::optional<std::uint32_t>(core.mem_r32(address)) : std::nullopt;
   };
-  const std::optional<std::uint32_t> frame = resolveModelFrameSource(draw.frameCode, draw.modelData, readWord);
-  if (!frame || !ramRange(*frame, kFrameRecordStride)) {
+  const std::optional<ModelFrameSource> source =
+      resolveModelFrameSource({.frameCode = draw.frameCode,
+                               .modelData = draw.modelData,
+                               .effectiveFlags = draw.objectFlags | draw.callFlags,
+                               .objectAnimationFrame = static_cast<std::int16_t>(core.mem_r16(draw.object + 0x72u)),
+                               .objectInterpolationWeight = core.mem_r16(draw.object + 0x70u),
+                               .objectFrameIndex = core.mem_r16(draw.object + 0x8Eu)},
+                              readWord);
+  if (!source || !ramRange(source->frameRecord, kFrameRecordStride)) {
     return census;
   }
+  const std::uint32_t frame = source->frameRecord;
 
   std::uint32_t vertices = 0;
   std::uint32_t topology = 0;
@@ -133,14 +154,20 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
   std::uint32_t textureDescriptors = 0;
   std::uint32_t colorTable = 0;
   std::uint32_t uvTable = 0;
-  if (!relativeTarget(core, *frame, 0x10u, 0x24u, vertices) || !relativeTarget(core, *frame, 0x14u, 0x14u, topology) ||
-      !relativeTarget(core, *frame, 0x18u, 0x18u, textureIndices) ||
-      !relativeTarget(core, *frame, 0x1Cu, 0x1Cu, textureDescriptors) ||
-      !relativeTarget(core, *frame, 0x20u, 0x20u, materials) ||
+  if (!relativeTarget(core, frame, 0x14u, 0x14u, topology) ||
+      !relativeTarget(core, frame, 0x18u, 0x18u, textureIndices) ||
+      !relativeTarget(core, frame, 0x1Cu, 0x1Cu, textureDescriptors) ||
+      !relativeTarget(core, frame, 0x20u, 0x20u, materials) ||
       !relativeTarget(core, draw.modelData, 0x20u, 0x20u, colorTable) ||
       !relativeTarget(core, draw.modelData, 0x24u, 0x24u, uvTable)) {
     return census;
   }
+  if (source->indexedVertices()) {
+    vertices = source->vertexIndexStream;
+  } else if (!relativeTarget(core, frame, 0x10u, 0x24u, vertices)) {
+    return census;
+  }
+  const std::uint32_t vertexStride = source->indexedVertices() ? 2u : 8u;
 
   std::vector<ModelFace> faces;
   std::uint16_t textureDescriptor = 0;
@@ -159,7 +186,8 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
       return census;
     }
     ++census.groups;
-    if (count > kMaxFaces - census.faces || !ramRange(vertices, (static_cast<std::uint32_t>(count) + 2u) * 8u) ||
+    if (count > kMaxFaces - census.faces ||
+        !ramRange(vertices, (static_cast<std::uint32_t>(count) + 2u) * vertexStride) ||
         !ramRange(materials, static_cast<std::uint32_t>(count) * 2u)) {
       return census;
     }
@@ -187,7 +215,18 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
       if (colors > std::numeric_limits<std::uint32_t>::max() || !ramRange(static_cast<std::uint32_t>(colors), 12u)) {
         return census;
       }
-      const std::uint32_t faceVertex = vertices + faceIndex * 8u;
+      const std::uint32_t faceVertex = vertices + faceIndex * vertexStride;
+      const auto vertexAt = [&](std::uint32_t index) -> std::optional<ModelVertex> {
+        const std::uint32_t address = faceVertex + index * vertexStride;
+        return source->indexedVertices() ? readIndexedVertex(core, address, source->vertexPool)
+                                         : std::optional<ModelVertex>(readVertex(core, address));
+      };
+      const auto vertex0 = vertexAt(0u);
+      const auto vertex1 = vertexAt(1u);
+      const auto vertex2 = vertexAt(2u);
+      if (!vertex0 || !vertex1 || !vertex2) {
+        return census;
+      }
       const ModelColorCueInputs cue{
           .factor = draw.depthCueFactor,
           .farColor = draw.depthCueFarColor,
@@ -200,9 +239,7 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
           core.mem_r32(static_cast<std::uint32_t>(colors) + 8u),
       };
       ModelFace face{
-          .vertices = {readVertex(core, faceVertex),
-                       readVertex(core, faceVertex + 8u),
-                       readVertex(core, faceVertex + 16u)},
+          .vertices = {*vertex0, *vertex1, *vertex2},
           .colors = sourceColors,
           .semiTransparent = (material & 0x8000u) != 0,
           .blendMode = static_cast<std::uint8_t>((material >> 13u) & 3u),
@@ -229,7 +266,7 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
     // Retail 0x800193A8 re-primes the GTE FIFO with two vertices at the start of every topology
     // group, then consumes one additional vertex per face. The following group therefore starts
     // after the group's two priming vertices and its face count.
-    vertices += (static_cast<std::uint32_t>(count) + 2u) * 8u;
+    vertices += (static_cast<std::uint32_t>(count) + 2u) * vertexStride;
   }
   return census;
 }

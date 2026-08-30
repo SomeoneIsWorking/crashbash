@@ -24,16 +24,27 @@ The native path renders the Crashball arena, ships, and balls. Its first 2D prod
 `0x8002992C` from authored descriptor, position, OT-bin, and color inputs and restores the objective
 instructions and top score digits without consuming guest GPU output. The shared flat-color boundary
 at `0x80029D28` additionally restores all four top portraits and the two lower markers. Issue 0023
-remains open for other briefing/HUD/character layers. The authored-screen branch of `0x8001A0D8` now
+remains open for the residual objective-marker color mismatch. The authored-screen branch of `0x8001A0D8` now
 restores the dimmer and yellow frame in the overlay layer while preserving HUD sprites and text. The
-next S004 discriminator is `0x80018B08`'s draw-area state; the remaining visible side characters and
-top/bottom arrows are outside the direct heap-pool population and need cached/model-row attribution.
+indexed `0x1000`/`0x4000` model-frame recipe now restores the two side characters and top/bottom center
+arrows from source animation-bank indices. `0x80018B08` is viewport/camera/render-list setup rather
+than a drawable. The next S004 discriminator is the source model/material state behind the two side
+markers, which are bright yellow in retail but dim teal/gold natively.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (indexed model frames): retail pixel `(30,105)` selects packet `0x8014814C`, written by
+`0x800193A8` under model decoder `0x80019A60`. It is face 48 in block `0x801479CC` for object
+`0x801CDAB0`, model data `0x800DBF98`, frame family `0x4000`. That family selects a group descriptor,
+follows its `+0x0C` relative frame redirect, and expands 16-bit animation-bank indices into six-byte
+XYZ records with low-two-bit flags. The native face exactly matches retail SXY
+`(20,108)/(30,107)/(36,102)` and sort key 542. A stable 2,480-frame run emits 4,265,746 native faces
+under `0x80019F1C`, restores both side characters and center arrows, reconciles every frame, and drops
+zero layers. Interpolated indexed frames remain deliberately unsupported pending their source recipe.
 
 2026-08-30 (authored-screen Gouraud overlay): all five objective-frame `0x8001A0D8` calls carry
 `0x10000000` and therefore bypass GTE projection. Their copied source geometry is one full briefing

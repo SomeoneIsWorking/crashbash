@@ -1,8 +1,8 @@
 ---
 id: 23
-title: Crashball gameplay is controllable but the native path omits briefing, HUD, and character sprites
+title: Crashball briefing parity remains partial after native HUD and character ownership
 status: investigating
-symptom: The exact 3740-frame Crashball replay shows objective text, controls, HUD counters, character portraits, and ship occupants on the PSX diagnostic path; the shipping native path renders the arena, ships, and balls but omits those 2D layers
+symptom: The native objective page now owns text, HUD, overlay, side characters, and center arrows, but its two side objective markers remain dim teal/gold where retail renders bright yellow
 state_items: S004
 tags: graphics,sprite,hud,ui,native-renderer,crashball,flow
 created: 2026-08-30
@@ -50,10 +50,24 @@ offset/scale/fade/blend/bin state. Their native overlay-layer owner restores the
 preserving the HUD portraits and text. The 2,480-frame run emits 5,830 native quads from this branch
 over 1,395 frames and again reconciles every frame with no dropped layer.
 
+The cached/model residual is also attributed. Retail pixel provenance at `(30,105)` selects packet
+`0x8014814C`; its writer is `0x800193A8`, called by model decoder `0x80019A60`. The enclosing block
+starts at `0x801479CC`, and the packet is source face 48 of object `0x801CDAB0`, asset `0x8005445C`,
+model data `0x800DBF98`, frame family `0x4000`. Before the fix, retail topology declared 198 faces but
+the native recipe decoder produced zero because indexed animation frames had no source resolver.
+
+The `0x4000` path selects a group descriptor, follows its `+0x0C` relative redirect to the frame
+record, then expands the animation bank's 16-bit vertex indices into six-byte XYZ records while
+preserving each index's low two flag bits. The same source recipe also covers family `0x1000`; the
+separate interpolation branch remains explicitly refused. After the fix, face 48 projects to retail
+SXY `(20,108)/(30,107)/(36,102)` exactly and retains authored sort key 542. A stable 2,480-frame run
+emits 4,265,746 native faces under `0x80019F1C`, reconciles every frame, and drops zero layers.
+
 ## Remaining work
 
-Compare `0x80018B08`'s draw-area state with the GPU state already consumed by native submission. The
-remaining visible gaps in the stable retail comparison are the two side character sprites and the
-top/bottom arrows; they are outside the 108 direct-pool rows and require attribution within the 1,960
-cached/model rows. Continue using the stable pre-Cross objective frame as the oracle; do not
-reconstruct product input from OT, GP0, VRAM output, or the diagnostic framebuffer.
+`0x80018B08` is viewport/camera/render-list setup: it installs draw environment, screen offsets, GTE
+projection/matrix state, render-list pointers, depth policy, and fade. It is not another drawable
+producer. Indexed model ownership restores both side characters and the top/bottom center arrows.
+The remaining stable visual mismatch is the two left/right objective markers, bright yellow in retail
+but dim teal/gold natively. Attribute their source model/material state next; do not reconstruct
+product input from OT, GP0, VRAM output, or the diagnostic framebuffer.
