@@ -18,14 +18,24 @@ pending table `0x800B8E50` once. The longer Cross leg now proves the successor r
 at that queue: it reads 42 sectors from LBA 28136, executes DAT28136 registration `0x800B4E1C`,
 replaces app update callback `0x80093038` with `0x800B4694`, and executes that callback. Whole-image
 generation discovers the former miss without a manual seed. A 2400-frame real product run completes
-with no recomp miss, fatal, or guest-VSync violation. Issue 0022 is resolved; the next S002 boundary
-is controlled flow beyond this DAT28136 scene while retaining the single native frame owner.
+with no recomp miss, fatal, or guest-VSync violation. Controlled real input now continues through
+DAT28136: holding Up reaches portal 0 (`0x8005A677`: `0xFF` to `0x00`), and a fresh Cross edge loads
+31 sectors from LBA 28241 into `0x800B32B4`. The Crashball arena renders through frame 3500 with no
+recomp miss, fatal, or guest-VSync violation. Issue 0022 is resolved; the next S002 boundary is a
+playable match or demonstrated player control beyond this static arena while retaining the single
+native frame owner.
 
-Crash Bash records psxport `1f3ebda5`, whose generated-substrate identity closes the stale-binary
+Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (later): a deterministic 2500-frame real-pad recording drives the title screen through
+DAT28136 and portal 0 into the DAT28241 Crashball arena. The portal-selection byte at `0x8005A677`
+changes from `0xFF` to `0x00`; the following Cross edge reads 31 sectors from LBA 28241 into
+`0x800B32B4`. The arena remains rendered through frame 3500 with no recomp miss, fatal, or guest-VSync
+violation, but it is static: this does not yet prove match start or player control.
 
 2026-08-30: the Cross-controlled path added the fourth alternative in the nested slot. DAT28136 is
 the exact `CRASHBSH.DAT+0x0367E000` 42-sector image (SHA-256 `c5052413...e43ad`) loaded at
@@ -181,12 +191,12 @@ psxport now owns those hardware boundaries. The frame-200 idle/START A/B recorde
 issue 0019 and `docs/findings/crashbash-pad-sio.md` proves the exact driver, parser, and
 game-facing P1 values; no direct buffer injection or title-local input path exists.
 
-Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, 0021, and 0022 are resolved. The verified active
-menu accepts Cross, queues table `0x800B8E50`, installs DAT28136 callback `0x800B4694`, and executes it;
-START is correctly ignored. A non-black frame on the SHIPPING
-native path still requires S004's native producers. The strict MENU
-gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
-lifecycle boundaries and do not certify picture content.
+Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, 0021, and 0022 are resolved. The verified
+active menu accepts Cross, queues table `0x800B8E50`, installs DAT28136 callback `0x800B4694`, and
+executes it; START is correctly ignored. Controlled input continues through portal 0 and loads the
+DAT28241 Crashball arena, but the arena remains static through frame 3500; match start and player
+control are not yet demonstrated. A non-black frame on the SHIPPING native path still requires
+S004's native producers.
 
 ### S003 — Executable recompilation substrate
 
