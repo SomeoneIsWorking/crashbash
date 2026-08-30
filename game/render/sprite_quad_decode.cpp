@@ -81,6 +81,7 @@ std::optional<SpriteQuadDraw> decodeScreenColorQuad(const ScreenColorQuadCall &c
       .gouraud = true,
       .dither = true,
       .semiTransparent = (call.flags & 0x21u) != 0,
+      .authoredWorldOrder = true,
   };
   for (std::size_t index = 0; index < draw.x.size(); ++index) {
     draw.x[index] = (call.xOffset + call.x[index]) * call.displayScale / 0x280;

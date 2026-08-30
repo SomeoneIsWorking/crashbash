@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "game.h"
+#include "model_face_coverage.h"
 #include "producer_scope.h"
 #include "render_queue.h"
 
@@ -52,7 +53,11 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   }
 
   RenderQueue &queue = core.game->rq;
-  const int layer = draw.sourceFunction == kScreenColorQuadSubmit ? RQ_OVERLAY : RQ_HUD;
+  const int layer = draw.authoredWorldOrder ? RQ_WORLD : RQ_HUD;
+  const int orderMode = draw.authoredWorldOrder ? RQ_OM_DEPTH : RQ_OM_2D_FG;
+  const int sortKey = draw.authoredWorldOrder ? draw.orderingBin : -1;
+  const float keyOrd = draw.authoredWorldOrder ? fixedModelSortKeyOrd(sortKey) : 0.0f;
+  const float depth[4] = {keyOrd, keyOrd, keyOrd, keyOrd};
   const int textureMode = draw.textured ? (draw.texturePage >> 7u) & 3u : 3;
   const int texturePageX = draw.textured ? (draw.texturePage & 0x0Fu) * 64 : 0;
   const int texturePageY = draw.textured ? ((draw.texturePage >> 4u) & 1u) * 256 : 0;
@@ -61,13 +66,13 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   queue.emitOrQueue(&core,
                     1,
                     layer,
-                    RQ_OM_2D_FG,
+                    orderMode,
                     4,
                     draw.semiTransparent ? 1 : 0,
                     0,
                     xs,
                     ys,
-                    nullptr,
+                    draw.authoredWorldOrder ? depth : nullptr,
                     nullptr,
                     us,
                     vs,
@@ -90,8 +95,8 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
                     gpu.s_da_y1,
                     draw.blendMode,
                     nullptr,
-                    -1,
-                    0.0f,
+                    sortKey,
+                    keyOrd,
                     draw.gouraud ? 1 : 0,
                     draw.dither ? 1 : 0);
 }

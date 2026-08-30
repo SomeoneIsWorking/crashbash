@@ -36,7 +36,7 @@ int main() {
       draw->green != std::array<std::uint8_t, 4>{0x00, 0x20, 0x40, 0x04} ||
       draw->blue != std::array<std::uint8_t, 4>{0x0C, 0x00, 0x7F, 0x08} || draw->texturePage != 0x03EFu ||
       draw->clut != descriptor.clut || draw->blendMode != 3 || !draw->textured || !draw->gouraud || !draw->dither ||
-      !draw->semiTransparent) {
+      !draw->semiTransparent || draw->authoredWorldOrder) {
     return EXIT_FAILURE;
   }
   SpriteQuadCall flatCall = call;
@@ -45,7 +45,7 @@ int main() {
   flatCall.gouraud = false;
   const auto flatDraw = decodeSpriteQuad(descriptor, flatCall, 0x280, 0);
   if (!flatDraw || flatDraw->sourceFunction != flatCall.sourceFunction || !flatDraw->textured || flatDraw->gouraud ||
-      !flatDraw->dither || flatDraw->blendMode != 0 ||
+      !flatDraw->dither || flatDraw->authoredWorldOrder || flatDraw->blendMode != 0 ||
       flatDraw->red != std::array<std::uint8_t, 4>{0x10, 0x10, 0x10, 0x10} ||
       flatDraw->green != std::array<std::uint8_t, 4>{0x20, 0x20, 0x20, 0x20} ||
       flatDraw->blue != std::array<std::uint8_t, 4>{0x40, 0x40, 0x40, 0x40}) {
@@ -73,8 +73,8 @@ int main() {
   const auto colorDraw = decodeScreenColorQuad(colorCall);
   if (!colorDraw || colorDraw->sourceFunction != colorCall.sourceFunction ||
       colorDraw->sourceAddress != colorCall.sourceAddress || colorDraw->orderingBin != 3 || colorDraw->textured ||
-      !colorDraw->gouraud || !colorDraw->dither || !colorDraw->semiTransparent || colorDraw->blendMode != 1 ||
-      colorDraw->x != std::array<std::int32_t, 4>{-5, 35, -5, 35} ||
+      !colorDraw->gouraud || !colorDraw->dither || !colorDraw->semiTransparent || !colorDraw->authoredWorldOrder ||
+      colorDraw->blendMode != 1 || colorDraw->x != std::array<std::int32_t, 4>{-5, 35, -5, 35} ||
       colorDraw->y != std::array<std::int32_t, 4>{-11, -11, 19, 19} ||
       colorDraw->red != std::array<std::uint8_t, 4>{0x20, 0x60, 0x7F, 0x08} ||
       colorDraw->green != std::array<std::uint8_t, 4>{0x10, 0x40, 0x60, 0x04} ||

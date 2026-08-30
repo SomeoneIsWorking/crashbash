@@ -23,19 +23,30 @@ independent timing and differential evidence, not on product reachability.
 The native path renders the Crashball arena, ships, and balls. Its first 2D producer now owns
 `0x8002992C` from authored descriptor, position, OT-bin, and color inputs and restores the objective
 instructions and top score digits without consuming guest GPU output. The shared flat-color boundary
-at `0x80029D28` additionally restores all four top portraits and the two lower markers. Issue 0023
-remains open for the residual objective-marker color mismatch. The authored-screen branch of `0x8001A0D8` now
-restores the dimmer and yellow frame in the overlay layer while preserving HUD sprites and text. The
-indexed `0x1000`/`0x4000` model-frame recipe now restores the two side characters and top/bottom center
-arrows from source animation-bank indices. `0x80018B08` is viewport/camera/render-list setup rather
-than a drawable. The next S004 discriminator is the source model/material state behind the two side
-markers, which are bright yellow in retail but dim teal/gold natively.
+at `0x80029D28` additionally restores all four top portraits and the two lower markers. The
+authored-screen branch of `0x8001A0D8` restores the dimmer and yellow frame; it now retains its source
+OT bin in the keyed world ordering domain while textured sprites remain HUD. The indexed
+`0x1000`/`0x4000` model-frame recipe restores the two side characters and all four objective arrows
+from source animation-bank indices. Exact frame-2500 provenance proves the key-192 semi dimmer stays
+behind the key-128 side marker, restoring its retail-bright yellow result. Issue 0023 is resolved.
+`0x80018B08` is viewport/camera/render-list setup rather than a drawable. S004 remains partial for
+broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (Crashball authored cross-layer order): matched frame-2500 evidence identifies the left
+objective marker as object `0x8009AC04`, face 178, CLUT row 335, with zero depth cue and packet colors
+equal to its raw source colors. Presenting the completed model snapshot selects that retail animation
+phase, and packet-quantized SXY restores the thin face's coverage. The final mismatch was the
+key-192 semi `0x8001A0D8` dimmer painting after the key-128 opaque marker because it had been forced
+into `RQ_OVERLAY`. The authored-screen decoder now retains that quad in the same keyed world domain
+as models. An exact 2,502-frame replay exits cleanly; pixel provenance reports authored ord
+`0.994125366` for the dimmer behind `0.996078491` for the marker, and the presented capture restores
+both side arrows to bright yellow like retail. Issue 0023 is resolved.
 
 2026-08-30 (indexed model frames): retail pixel `(30,105)` selects packet `0x8014814C`, written by
 `0x800193A8` under model decoder `0x80019A60`. It is face 48 in block `0x801479CC` for object
@@ -50,9 +61,10 @@ zero layers. Interpolated indexed frames remain deliberately unsupported pending
 `0x10000000` and therefore bypass GTE projection. Their copied source geometry is one full briefing
 dimmer plus four border strips at depth bias 384/bin 192. Capturing four XY/RGB vertices with title
 offset, scale, fade, blend, and bin restores the dimmer and yellow frame. Classifying that family as
-overlay rather than HUD preserves the bin-1 portraits and text above it. The 2,480-frame run emits
-5,830 native quads over 1,395 frames and reconciles every frame with zero dropped layers; GTE-mode
-calls remain guest-only pending a separate source-transform recipe.
+authored world rather than HUD preserves the bin-1 portraits and text above it while retaining its
+cross-layer OT relationship with models. The 2,480-frame run emits 5,830 native quads over 1,395
+frames and reconciles every frame with zero dropped layers; GTE-mode calls remain guest-only pending
+a separate source-transform recipe.
 
 2026-08-30 (flat textured sprites): Ghidra proves `0x80029D28` is the flat-color twin of the first
 native quad leaf, with the same descriptor, position, bin, fade, blend, UV/CLUT/tpage, return, and

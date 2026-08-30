@@ -1,7 +1,7 @@
 ---
 id: 23
 title: Crashball briefing parity remains partial after native HUD and character ownership
-status: investigating
+status: resolved
 symptom: The native objective page now owns text, HUD, overlay, side characters, and center arrows, but its two side objective markers remain dim teal/gold where retail renders bright yellow
 state_items: S004
 tags: graphics,sprite,hud,ui,native-renderer,crashball,flow
@@ -47,7 +47,8 @@ frame and records 3,091 native flat quads over 1,329 frames.
 The five objective-frame `0x8001A0D8` calls all take its authored-screen branch. One source quad is
 the briefing dimmer and four are the yellow frame; all use four copied XY/RGB vertices and title-owned
 offset/scale/fade/blend/bin state. Their native overlay-layer owner restores the dimmer and frame while
-preserving the HUD portraits and text. The 2,480-frame run emits 5,830 native quads from this branch
+preserving the HUD portraits and text. The later resolution below corrects that initial layer choice
+without changing the decoded inputs. The 2,480-frame run emits 5,830 native quads from this branch
 over 1,395 frames and again reconciles every frame with no dropped layer.
 
 The cached/model residual is also attributed. Retail pixel provenance at `(30,105)` selects packet
@@ -63,7 +64,7 @@ separate interpolation branch remains explicitly refused. After the fix, face 48
 SXY `(20,108)/(30,107)/(36,102)` exactly and retains authored sort key 542. A stable 2,480-frame run
 emits 4,265,746 native faces under `0x80019F1C`, reconciles every frame, and drops zero layers.
 
-## Remaining work
+## Resolution
 
 `0x80018B08` is viewport/camera/render-list setup: it installs draw environment, screen offsets, GTE
 projection/matrix state, render-list pointers, depth policy, and fade. It is not another drawable
@@ -75,9 +76,15 @@ rendered the newer CLUT-row-336 phase; deferring fixed-model submission to
 `SceneSnapshotHistory::presentable` selects row 335. Quantizing raster XY to verified packet SXY also
 restores the thin face's coverage.
 
-The remaining dim result is compositing: native pixel provenance shows the correct opaque model winner,
-then the semi-transparent `0x8001A0D8` screen-color quad in `RQ_OVERLAY` paints afterward. Retail pixel
-provenance shows the model packet paints after that dimmer. The proper next fix is one authored ordering
-domain that can interleave semi screen quads and opaque models by their source OT policy. Do not add a
-marker/color special case or blanket-reclassify all screen-color quads behind the world; other calls are
-real foreground fades and overlays.
+The remaining dim result was compositing: native pixel provenance showed the correct opaque model
+winner, then the semi-transparent `0x8001A0D8` screen-color quad in `RQ_OVERLAY` painted afterward.
+Retail pixel provenance showed the model packet painted after that dimmer. The decoder now marks that
+authored-screen family for the keyed world ordering domain while ordinary textured sprites remain HUD.
+Its existing source bin supplies the same frame-wide key/ord mapping as fixed models, so dimmers and
+foreground fades interleave by title policy instead of by a hard layer split.
+
+The exact 2,502-frame replay exits cleanly. At native display frame 2500, the semi quad is key 192 / ord
+`0.994125366` and the opaque objective marker is key 128 / ord `0.996078491`; both are authored-depth
+world items, so the farther dimmer cannot repaint the marker. The presented capture restores both side
+markers to bright yellow like retail. This resolves the Crashball briefing residual without a
+marker/color special case or any guest OT, packet, GP0, VRAM, or framebuffer product input.

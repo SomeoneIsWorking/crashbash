@@ -105,6 +105,7 @@ struct SpriteQuadDraw {
   bool gouraud = false;
   bool dither = false;
   bool semiTransparent = false;
+  bool authoredWorldOrder = false;
 };
 
 struct SceneSnapshot {
