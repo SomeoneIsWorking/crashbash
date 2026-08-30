@@ -76,7 +76,7 @@ void cdLicenseStartupOwned(Core *core) {
   }
 
   DiscState &disc = core->game->disc;
-  // The player launcher has already hash-verified the executable and both loaded modules from one
+  // The player launcher has already hash-verified the executable and every registered module from one
   // disc. Bind that provisioned identity to the runtime-opened medium using the measured one-track
   // geometry, all three authoritative file extents, and exact SYSTEM.CNF contents. A mismatched
   // medium is a host refusal, never permission to enter the game's failure renderer.

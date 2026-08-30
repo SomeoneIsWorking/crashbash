@@ -43,7 +43,15 @@
     // 0x800C0B94 (image offset 0xD8E0) decodes as valid R3000A (lui v1,0x8006 / lui v0,0x800B).
     // Its name table is animation states too (BREATHE/BANK/IDLE_A/TAUN...), so it is the same
     // family as DAT28272, provisionally another attract demo scene.
-    "DAT28241": "0x800B32B4"
+    "DAT28241": "0x800B32B4",
+    // A FOURTH alternative in the nested slot, reached by the user-controlled Cross path:
+    // `42 sector(s) from LBA 28136 to 0x800B32B4` immediately precedes recomp-MISS 0x800B4E1C
+    // from BOOT dispatch site ra=0x80078D10 (forced-Cross trace 2026-08-30). The miss is image
+    // offset 0x1B68 and the extracted retail bytes match the runtime code there exactly; the body
+    // installs callback/vtable pointers at 0x8005AA70 and replaces app update callback 0x80093038
+    // with 0x800B4694 at 0x8009F8B4. It is entryless because the runtime-patched dispatch table,
+    // not an image header pointer, reaches it.
+    "DAT28136": "0x800B32B4"
   },
   "overlay_base_patterns": [],
   "overlay_seeds": {

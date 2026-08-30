@@ -13,24 +13,25 @@ MANIFEST = ROOT / "titles" / "crashbash" / "boot_module.json"
 MENU_MANIFEST = ROOT / "titles" / "crashbash" / "menu_module.json"
 DAT28272_MANIFEST = ROOT / "titles" / "crashbash" / "dat28272_module.json"
 DAT28241_MANIFEST = ROOT / "titles" / "crashbash" / "dat28241_module.json"
+DAT28136_MANIFEST = ROOT / "titles" / "crashbash" / "dat28136_module.json"
 
 # Every measured code module the port loads out of CRASHBSH.DAT, keyed by the overlay stem the
 # recompiler emits and the runtime router routes by. Provisioning and the recompiler both read this
 # one registry, so a newly measured module is added here and nowhere else.
 #
-# MENU and DAT28272 are ALTERNATIVES in one nested slot at 0x800B32B4, never co-resident; the router
-# tells them apart by the content signature of guest RAM at the base. DAT28272 is named by its
-# measured disc LBA rather than a role: its dispatched code at 0x800C3434 registers a behavior
-# vtable at 0x8005AA70 and the image's name table is character animation states
-# (BREATHE/JUMP/DAZED/WIN/TAZING), which is not the front-end menu text MENU carries -- but that is
-# not enough to name the role, and a stem is baked into generated identifiers.
+# MENU and the DAT-prefixed images are ALTERNATIVES in one nested slot at 0x800B32B4, never
+# co-resident; the router tells them apart by the content signature of guest RAM at the base. DAT
+# stems are named by their measured disc LBA rather than inferred roles because the stem is baked
+# into generated identifiers. For example, DAT28272's dispatched code at 0x800C3434 registers a
+# behavior vtable and carries character-animation names, while DAT28136's 0x800B4E1C registers a
+# different table after Cross; neither observation establishes a durable scene/role name.
 MODULES: dict[str, pathlib.Path] = {
     "BOOT": MANIFEST,
     "MENU": MENU_MANIFEST,
     "DAT28272": DAT28272_MANIFEST,
     "DAT28241": DAT28241_MANIFEST,
+    "DAT28136": DAT28136_MANIFEST,
 }
-
 
 
 class Refused(RuntimeError):
@@ -156,7 +157,10 @@ def load_identity(path: pathlib.Path = MANIFEST) -> ModuleIdentity:
             "module manifest ships an entry without an entry pointer or the reverse — both are "
             "measured, or neither"
         )
-    if identity.entry_pointer_offset is not None and identity.entry_pointer_offset + 4 > identity.payload_size:
+    if (
+        identity.entry_pointer_offset is not None
+        and identity.entry_pointer_offset + 4 > identity.payload_size
+    ):
         raise Refused("module entry pointer lies outside the measured payload")
     return identity
 

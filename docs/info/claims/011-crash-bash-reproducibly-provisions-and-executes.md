@@ -4,22 +4,29 @@ kind: claim
 status: holds
 created: 2026-08-22
 tags: loaded-code,boot
-depends: tools/loaded_module.py#verify_source, tools/provision.py#provision, tools/recomp_bootstrap.py#generated_measurement, tools/verify_boot.py#judge, game/diagnostics/menu_boundary.cpp, titles/crashbash/boot_module.json, titles/crashbash/menu_module.json, game/recomp_seeds.json, psxport.pin
-reconfirmed: 2026-08-27
-verified_at: 2026-08-24 19:37:54
+depends: tools/verify_menu_accept.py#judge, game/diagnostics/menu_boundary.cpp, titles/crashbash/dat28136_module.json
+reconfirmed: 2026-08-30
+verified_at: 2026-08-30 04:46:17
 ---
 
 ## Claim
 
-Crash Bash reproducibly provisions and executes the measured BOOT and nested MENU CRASHBSH.DAT code modules through the measured MENU entry
+Crash Bash reproducibly provisions and executes BOOT plus every measured nested CRASHBSH.DAT code module reached by the controlled attract and Cross paths
 
 ## Evidence
 
-Real USA DAT verification passes 14/14 module facts. Current recompilation emits 2,005 resident/BOOT/MENU functions. The current serialized Clang trace completes exactly two module loads, prints `empty prims`, and reaches measured MENU entry 0x800B5244 from ra=0x8001E7C0 without a watchdog stall, fatal, recomp miss, or guest-VSync timeout. The corrected verifier passes 13/13 controls and accepts the 67-line strict product trace.
+Real USA DAT verification passes 32/32 module facts across BOOT and four nested alternatives. Current
+recompilation emits 1,411 roots into 2,593 functions and discovers DAT28136 registration
+`0x800B4E1C` without a manual seed. The exact-identity Cross differential reaches MENU, observes
+DAT28136 replace app callback `0x80093038` with `0x800B4694`, and observes that update execute. Its
+10/10 controls reject missing/wrong transition evidence, and a 2400-frame Clang product run exits 0
+without a fatal, recomp miss, or guest-VSync violation.
 
 ## What would falsify it
 
-If a verified USA DAT changes either payload identity/entry, generated ranges omit either module, or the real consumer no longer reaches the measured MENU entry after both loads.
+If any registered USA DAT payload identity changes, generated ranges omit a registered module, the
+real consumer no longer reaches the measured MENU entry, or the controlled Cross path no longer
+installs and executes DAT28136 callback `0x800B4694` without a forbidden runtime failure.
 
 ## Re-confirmed 2026-08-22
 
@@ -67,3 +74,11 @@ strict 67-line product trace reaches `2/2 loads -> empty prims -> MENU 0x800B524
 ra=0x8001E7C0` with no timeout, fatal, watchdog terminal, recompilation miss, or guest-VSync
 violation. This reconfirms module execution only; the subsequent direct run still presents black and
 aborts at a later residual VSync owner.
+
+## Re-confirmed 2026-08-30
+
+Exact-identity idle/START/Cross gate passed: 88/88 idle/START updates, three ignored START edges, one Cross accept, DAT28136 callback 0x800B4694 installed and executed; its 10/10 falsifiers, 24/24 Clang CTest, 26 Python tests, and a 2400-frame no-miss/no-fatal/no-guest-VSync product extension passed.
+
+## Re-confirmed 2026-08-30
+
+Final exact-identity product differential passed 88/88 idle/START updates, three ignored START edges, one Cross accept, and DAT28136 callback 0x800B4694 installation/execution; final 10/10 judge, 24/24 Clang CTest, 26/26 Python tests, and retained 2400-frame no-failure extension passed.

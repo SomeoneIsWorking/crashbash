@@ -5,8 +5,8 @@ The disc selection order is CLI > process environment > .env > one repository-ro
 ``*.chd`` drop-in.  The selected source is authoritative: a missing configured path is a
 refusal, never permission to silently use a lower-priority disc.
 
-Exit 0 means SYSTEM.CNF, the executable identity/header, the full data file, and both
-loaded-module identities matched their tracked manifests.  Exit 1 means readable media
+Exit 0 means SYSTEM.CNF, the executable identity/header, the full data file, and every measured
+loaded-module identity matched its tracked manifest.  Exit 1 means readable media
 contradicted a manifest.  Exit 2 means the tool could not make the comparison.  Copyrighted
 inputs and extracted output stay outside git; publication starts only after the entire set verifies,
 and each destination is replaced atomically below ``scratch/bin/crashbash``.

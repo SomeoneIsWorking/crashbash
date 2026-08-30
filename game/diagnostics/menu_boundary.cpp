@@ -9,6 +9,7 @@
 #include <lucent/log.h>
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
+#include "ov_dat28136_decls.h"
 #include "ov_menu_decls.h"
 #endif
 
@@ -23,6 +24,9 @@ constexpr std::uint32_t kCurrentManager = 0x8009F8A4u;
 constexpr std::uint32_t kPendingManager = 0x8009F8A8u;
 constexpr std::uint32_t kStateIndex = 0x8005A648u;
 constexpr std::uint32_t kSelection = 0x800B95F0u;
+constexpr std::uint32_t kDat28136Registration = 0x800B4E1Cu;
+constexpr std::uint32_t kDat28136Update = 0x800B4694u;
+constexpr std::uint32_t kAppUpdateCallback = 0x8009F8B4u;
 
 #ifdef CRASHBASH_HAVE_SUBSTRATE
 void observeMenuEntry(Core *core) {
@@ -59,6 +63,30 @@ void observeMenuAccept(Core *core) {
                core->mem_r32(kPendingManager),
                selection);
 }
+
+void observeDat28136Registration(Core *core) {
+  const std::uint32_t returnAddress = core->r[31];
+  const std::uint32_t callbackBefore = core->mem_r32(kAppUpdateCallback);
+  ov_dat28136_gen_800B4E1C(core);
+  lucent::info("crashbash-boundary",
+               "DAT28136 registration addr={:08X} ra={:08X} callback={:08X}->{:08X}",
+               kDat28136Registration,
+               returnAddress,
+               callbackBefore,
+               core->mem_r32(kAppUpdateCallback));
+}
+
+void observeDat28136Update(Core *core) {
+  static std::once_flag marker;
+  std::call_once(marker, [core] {
+    lucent::info("crashbash-boundary",
+                 "DAT28136 update addr={:08X} ra={:08X} callback={:08X}",
+                 kDat28136Update,
+                 core->r[31],
+                 core->mem_r32(kAppUpdateCallback));
+  });
+  ov_dat28136_gen_800B4694(core);
+}
 #endif
 
 } // namespace
@@ -71,6 +99,16 @@ void registerMenuBoundary() {
       kMenuUpdate, "CrashBashDiagnostics::menuUpdate", observeMenuUpdate, ov_menu_gen_800B3CA8, ov_menu_set_override);
   overrides::install(
       kMenuAccept, "CrashBashDiagnostics::menuAccept", observeMenuAccept, ov_menu_gen_800B5360, ov_menu_set_override);
+  overrides::install(kDat28136Registration,
+                     "CrashBashDiagnostics::dat28136Registration",
+                     observeDat28136Registration,
+                     ov_dat28136_gen_800B4E1C,
+                     ov_dat28136_set_override);
+  overrides::install(kDat28136Update,
+                     "CrashBashDiagnostics::dat28136Update",
+                     observeDat28136Update,
+                     ov_dat28136_gen_800B4694,
+                     ov_dat28136_set_override);
 #else
   lucent::debug("crashbash-boundary", "MENU boundary registration deferred: no generated substrate");
 #endif

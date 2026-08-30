@@ -2,9 +2,9 @@
 
 | ID | Capability / observable outcome | State | Dependencies | Goals |
 |---|---|---|---|---|
-| S001 | The selected USA disc, executable, BOOT module, and MENU module are reproducibly identified and derived | verified | — | G001 |
+| S001 | The selected USA disc, executable, and measured CRASHBSH.DAT code modules are reproducibly identified and derived | verified | — | G001 |
 | S002 | The retail boot reaches a guest-visible first frame with faithful drive timing | partial | S001 | G001 |
-| S003 | Resident, BOOT, and MENU code form a reproducible executable recompilation substrate | verified | S001 | G001 |
+| S003 | Resident code and every measured CRASHBSH.DAT module form a reproducible executable recompilation substrate | verified | S001 | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state | partial | S002, S003 | G001, G002, G003 |
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | missing | S004 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | missing | S004 | G003 |
@@ -12,25 +12,31 @@
 
 ## Current focus
 
-S002 is the current focus. The shared framework input defect landed as psxport `a390ceed`; a fresh
-finite idle/START RAM A/B against that milestone proves the guest driver packet changes
-`41 5A FF FF -> 41 5A F7 FF`, the parsed P1 word changes `FFFF -> FFF7`, and the game-facing
-active-high state at `0x8005133C` changes `0 -> 8`, while P2 stays absent/zero. Issue 0019 is
-resolved. Static retail analysis then resolved issue 0020's wrong action premise: the active
-type-`0x0101` menu deliberately bypasses its generic START scan and accepts Cross through
-`FUN_800B3CA8`. The exact-identity-bound idle/START/Cross product differential now proves three START
-edges produce zero accepts while Cross schedules pending table `0x800B8E50` exactly once. Issues 0020
-and 0021 are resolved; no START mapping is missing.
+S002 is the current focus. Input delivery and the active menu action are closed: the exact-identity
+idle/START/Cross differential proves three START edges produce zero accepts while Cross schedules
+pending table `0x800B8E50` once. The longer Cross leg now proves the successor rather than stopping
+at that queue: it reads 42 sectors from LBA 28136, executes DAT28136 registration `0x800B4E1C`,
+replaces app update callback `0x80093038` with `0x800B4694`, and executes that callback. Whole-image
+generation discovers the former miss without a manual seed. A 2400-frame real product run completes
+with no recomp miss, fatal, or guest-VSync violation. Issue 0022 is resolved; the next S002 boundary
+is controlled flow beyond this DAT28136 scene while retaining the single native frame owner.
 
-Crash Bash now records psxport `1f3ebda5`, whose generated-substrate identity closes the stale-binary
-evidence gap from issue 0018. The same Clang product proves the MENU boundary and Cross transition;
-the combined suite passes 24/24.
+Crash Bash records psxport `1f3ebda5`, whose generated-substrate identity closes the stale-binary
+evidence gap from issue 0018. The current generated identity is
+`recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
 
+2026-08-30: the Cross-controlled path added the fourth alternative in the nested slot. DAT28136 is
+the exact `CRASHBSH.DAT+0x0367E000` 42-sector image (SHA-256 `c5052413...e43ad`) loaded at
+`0x800B32B4`; provisioning now verifies 32/32 facts across BOOT and four nested modules. Regeneration
+derives 1,411 roots into 2,593 functions, including 143 DAT28136 functions, without seeding the old
+`0x800B4E1C` miss. The strengthened product differential observes callback installation and first
+update, and its 2400-frame extension exits 0 with no miss, fatal, or guest-VSync violation.
+
 2026-08-29 (later): the nested 0x800B32B4 slot is a FAMILY of attract modules, not a two-entry
 slot. A third member — `31 sector(s) from LBA 28241` — was byte-verified against the miss RAM dump
-and provisioned as stem `DAT28241` (26/26 provisioning facts across four modules). With it, the
+and provisioned as stem `DAT28241`; current provisioning is 32/32 across five total modules. With it, the
 flow runs 9000- and 40000-frame probes to exit 0 with zero recomp-MISS, and the attract demo
 scenes render real native content (measured screenshots: lightning temple, character close-up,
 complete bumper arena). The menu transition is still the next flow boundary; a START press does
@@ -46,7 +52,7 @@ together (issue 0017).
 The `0x800C3434` boundary was never a discovery gap: `crashbash-cd` names the load outright,
 `38 sector(s) from LBA 28272 to 0x800B32B4` — a SECOND module in the same nested slot, read over
 MENU once the flow leaves the menu. It is provisioned as overlay stem `DAT28272` (6/6 facts;
-provisioning is 26/26 across the four modules) and emits beside MENU with a distinct signature,
+current provisioning is 32/32 across five total modules) and emits beside MENU with a distinct signature,
 which is what lets the router tell two same-base modules apart. It is named by disc LBA, not role:
 its dispatched code registers a behavior vtable at `0x8005AA70` and its name table is animation
 states, which rules out "second menu phase" without establishing what it is. `loaded_module.MODULES`
@@ -175,8 +181,9 @@ psxport now owns those hardware boundaries. The frame-200 idle/START A/B recorde
 issue 0019 and `docs/findings/crashbash-pad-sio.md` proves the exact driver, parser, and
 game-facing P1 values; no direct buffer injection or title-local input path exists.
 
-Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, and 0021 are resolved. The verified active
-menu accepts Cross and queues table `0x800B8E50`; START is correctly ignored. A non-black frame on the SHIPPING
+Gap: Issue 0009 remains open. Issues 0012, 0014, 0019, 0020, 0021, and 0022 are resolved. The verified active
+menu accepts Cross, queues table `0x800B8E50`, installs DAT28136 callback `0x800B4694`, and executes it;
+START is correctly ignored. A non-black frame on the SHIPPING
 native path still requires S004's native producers. The strict MENU
 gate is green and the 120-frame product run is now clean end to end, but both remain boot/module and
 lifecycle boundaries and do not certify picture content.
@@ -184,8 +191,8 @@ lifecycle boundaries and do not certify picture content.
 ### S003 — Executable recompilation substrate
 
 Evidence: the 2026-08-30 shared emitter applies one merge/prune pipeline to return-delimited functions
-in both resident MAIN and loaded modules. Verified retail emission derives 2,450 functions: 1,355
-resident, 710 BOOT, 89 MENU, 190 DAT28272, and 106 DAT28241. Removing five redundant MAIN seeds leaves
+in both resident MAIN and loaded modules. Verified retail emission derives 2,593 functions: 1,355
+resident, 710 BOOT, 89 MENU, 190 DAT28272, 106 DAT28241, and 143 DAT28136. Removing five redundant MAIN seeds leaves
 all five addresses dispatchable and preserves the exact output hash; only `0x8003B1BC` remains a
 manual MAIN seed because current binary analyses do not derive it. Compared with the old emitter on
 the same inputs, the added 391 functions cost 146,697 bytes of C (+0.56%) under the unchanged size

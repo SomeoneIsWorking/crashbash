@@ -181,7 +181,7 @@ Verified end to end at `02430b1b`+ on the real disc:
 Still the same guest state (0x8004E0B8) and app mode (0x80078C90); the menu transition remains the
 next flow boundary.
 
-## The nested slot is a THREE-module carousel; DAT28241 provisioned and verified
+## The uncontrolled attract carousel exercises three members of the nested-slot family
 
 A `PSXPORT_DEBUG=crashbash-cd` census over two boots x 9000 frames shows the 0x800B32B4 slot is a
 carousel, not a one-shot nest — it receives **LBA 28178 (16 sectors, = MENU), LBA 28241 (31 sectors),
@@ -197,9 +197,9 @@ demo scene. With all three stems provisioned:
 
 Before DAT28241 was in the build, the miss address VARIED per boot (0x800C3434, 0x800C0B94) with the
 same caller (ra=0x80078D10) — which demo scene the attract cycle loads first is per-boot, so a
-single-stem build fail-fasts nondeterministically. Any future miss in 0x800B32B4..0x800C2AB4 should
-be checked against the census FIRST: "module not provisioned" is the default hypothesis, and the
-nested-slot attribution stays ambiguous by range.
+single-stem build fail-fasts nondeterministically. Any future miss in the nested slot must first be
+correlated with the immediately preceding CD read: "module not provisioned" is the default
+hypothesis, and range attribution is inherently ambiguous because every alternative shares a base.
 
 ## Two diagnostic defects observed this session (open)
 
@@ -211,25 +211,25 @@ nested-slot attribution stays ambiguous by range.
    (`scratch/logs/cd-census1.log` ends at the miss RAM dump); the game-local `crashbash-cd` channel
    runs the same shape clean. Not root-caused.
 
-## Flow boundary unchanged at 9000 frames
+## Historical uncontrolled-flow result at 9000 frames
 
 Even with the carousel fully provisioned, both boots dwell in state 0x8004E0B8 / app mode
 0x80078C90 for all 9000 frames while the demo scenes visibly cycle (model draws oscillate
 0 -> 71 -> 2 -> 3 -> 80 -> 6 across the dwell logs; the slot modules reload). The attract demo
-loops on itself; the menu transition was NOT reached by time alone. Next step: drive pad input
-(START) at the attract loop via the dbg server — which first requires fixing defect 1 above —
-or RE whether retail's transition path reads a pad state the port never delivers.
+loops on itself; the menu transition was NOT reached by time alone. Later SIO A/B and static MENU RE
+proved that START was the wrong action for this type-`0x0101` state: Cross is the measured accept
+input, now exercised by `tools/verify_menu_accept.py`.
 
-### The nested slot is a FAMILY of modules; DAT28241 is the third, and the attract demo scenes now render
+### The nested slot is a four-image family; the Cross path adds DAT28136
 
 The 9000-frame probe exposed the miss class again at `0x800C0B94` (same caller `ra=0x80078D10`,
 same dispatch site as `0x800C3434`), and this time the `crashbash-cd` trace caught the load that
 fed it: `31 sector(s) from LBA 28241 to 0x800B32B4` — a THIRD module in the nested slot, distinct
 from both MENU (LBA 28178) and DAT28272 (LBA 28272). The nested slot is a FAMILY of alternatives
-rotated by the attract cycle, not a two-entry slot; expect more members as the flow advances.
+rotated by flow state, not a fixed attract-only carousel.
 
-Provisioned as overlay stem `DAT28241` (`titles/crashbash/dat28241_module.json`, 6/6 facts;
-provisioning is 26/26 across the four modules). Byte-verified: the miss RAM dump over the slot
+DAT28241 is provisioned as overlay stem `DAT28241` (`titles/crashbash/dat28241_module.json`, 6/6
+facts). Byte-verified: the miss RAM dump over the slot
 differs from this image in only 567/63488 bytes (the runtime-patched pointer slots) and from
 DAT28272 in 54571 — the two are distinct images. The miss address (image offset 0xD8E0) decodes
 as valid R3000A. Its name table is animation states too (BREATHE/BANK/IDLE_A/TAUN...), the same
@@ -240,7 +240,12 @@ the flow runs the full attract demo cycle with ZERO recomp-MISS. The demo scenes
 native content — measured screenshots at f~8k/13k/19k show a lightning temple interior, a
 character close-up, and a complete Crash Bash bumper arena. 9000- and 40000-frame runs exit 0.
 
-The app mode still never leaves 0x80078C90 / state 0x8004E0B8, even at 40000 frames, and a dbg
-server START press (2 s) did not change it either — the menu transition remains the next flow
-boundary (issue 0018 records a separate flaky first-boot miss that must not be confused with
-this family).
+The controlled Cross path then identified the fourth nested image: `42 sector(s) from LBA 28136 to
+0x800B32B4`, immediately before BOOT dispatch at `ra=0x80078D10` reached `0x800B4E1C` (+0x1B68 in
+the image). Its exact retail slice is `CRASHBSH.DAT+0x0367E000`, size `0x15000`, SHA-256
+`c5052413c19fcab896ffa19d18b278f4418181d6c927bc903f9cc3de9e6e43ad`. It is provisioned as entryless
+stem `DAT28136`; total module verification is now 32/32 across BOOT and four nested alternatives.
+Whole-image generation discovers the old miss without a manual seed. The exact-identity verifier
+proves registration body `0x800B4E1C` replaces app callback `0x80093038` with `0x800B4694`, then
+observes that update execute. A 2400-frame real product run exits 0 with no recomp miss, fatal, or
+guest-VSync violation.

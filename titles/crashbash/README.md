@@ -2,8 +2,9 @@
 
 The selected target is the North American retail disc (`SCUS-94570`, NTSC-U). Its identity and boot
 image measurements now drive the shipped game seam and reproducible generated substrate. The port
-reaches guest main and the measured IRQ callback, then executes two measured code modules loaded from
-`CRASHBSH.DAT`. Its next stop is shared CD command-response timing; this is not yet a gameplay claim.
+reaches guest main and the measured IRQ callback, executes BOOT plus four measured alternatives in
+the nested `0x800B32B4` slot, and follows a real Cross press into DAT28136 without a recomp miss or
+guest-VSync violation.
 
 `SYSTEM.CNF` names `cdrom:\SCUS_945.70;1`. The executable independently contains both the
 `Sony Computer Entertainment Inc. for North America area` and `BASCUS-94570` markers. The disc also
@@ -27,11 +28,14 @@ The tracked machine-readable executable identity is `executable.json`.
 ## Loaded-module evidence
 
 The first file read loads 189 sectors at `0x80078C90`; its first word is the dispatcher entry
-`0x80092BDC`. That BOOT module later loads a nested 16-sector MENU range at `0x800B32B4`; its raw
-function table at `+0x6270` holds the observed callback `0x800B5244`. Full-DAT identity, disc LBA,
-DAT offset, payload identity, load range, and entry-pointer evidence are tracked in
-`boot_module.json` and `menu_module.json`. Provisioning verifies 14/14 module facts before publishing
-either payload, and the real consumer executes MENU without a recomp miss.
+`0x80092BDC`. That BOOT module later reuses a nested slot at `0x800B32B4` for MENU and three
+DAT-prefixed alternatives. MENU's raw function table at `+0x6270` holds observed callback
+`0x800B5244`; the entryless alternatives are reached through runtime-patched dispatch tables and are
+therefore named by measured disc LBA rather than inferred roles. Full-DAT identity, disc LBA, DAT
+offset, payload identity, load range, and any entry-pointer evidence are tracked in the five
+`*_module.json` manifests. Provisioning verifies 32/32 facts before publishing any payload. The
+Cross-controlled product path loads the 42-sector DAT28136 image from LBA 28136, executes registration
+body `0x800B4E1C`, replaces app callback `0x80093038` with `0x800B4694`, and executes the new callback.
 
 ## CRT0 evidence
 
@@ -66,6 +70,6 @@ scratch/build/maintainer/psxport_build/tools/crt0_extract scratch/raw/crashbash-
 ```
 
 Disc images and extracted files stay under external storage or gitignored `scratch/`; neither is tracked.
-For normal provisioning, `uv run --frozen python tools/provision.py [disc.chd]` owns disc resolution, validates
-`SYSTEM.CNF`, checks these same 11 executable facts plus both module identities, and atomically
-publishes only the verified executable and payload set.
+For normal provisioning, `uv run --frozen python tools/provision.py [disc.chd]` owns disc resolution,
+validates `SYSTEM.CNF`, checks these same 11 executable facts plus every registered module identity,
+and atomically publishes only the verified executable and complete payload set.
