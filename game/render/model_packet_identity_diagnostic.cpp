@@ -107,9 +107,13 @@ identifyModelPacketNode(const ModelDraw &draw, std::uint32_t packetBlock, std::u
       .packetNode = packetNode,
       .packetBlock = packetBlock,
       .object = draw.object,
+      .objectFlags = draw.objectFlags,
+      .callFlags = draw.callFlags,
       .modelAsset = draw.modelAsset,
       .modelData = draw.modelData,
       .frameCode = draw.frameCode,
+      .depthCueFarColor = draw.depthCueFarColor,
+      .depthCueFactor = draw.depthCueFactor,
       .submitter = draw.submitter,
       .face = draw.faces[faceIndex],
   };
@@ -167,6 +171,7 @@ ModelPacketGeometryComparison compareModelPacketGeometry(const ModelDraw &draw, 
     const auto native =
         psxport::native_projection::project(affine, projection, {.x = source.x, .y = source.y, .z = source.z});
     comparison.nativeVertices[vertexIndex] = {native.sx, native.sy};
+    comparison.nativeFloatVertices[vertexIndex] = {native.px, native.py};
     comparison.nativeDepths[vertexIndex] = native.sz;
     comparison.projectedCoordinatesMatch &=
         comparison.packetVertices[vertexIndex] == comparison.nativeVertices[vertexIndex];
@@ -305,8 +310,9 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
     const ModelPacketGeometryComparison &geometry = identity.geometry;
     lucent::debug("crashbash-packet-identity",
                   "f{} packet={:08X} block={:08X} submitter={:08X} obj={:08X} asset={:08X} data={:08X} "
-                  "frame={:04X} face={} mat={:04X} topo={:02X} textured={} tpage={:04X} clut={:04X} "
-                  "semi={} blend={} colors={:08X}/{:08X}/{:08X}",
+                  "frame={:04X} flags={:08X}/{:08X} cue={}:({},{},{}) face={} mat={:04X} topo={:02X} "
+                  "textured={} tpage={:04X} clut={:04X} semi={} blend={} "
+                  "raw={:08X}/{:08X}/{:08X} modeled={:08X}/{:08X}/{:08X} packet={:08X}/{:08X}/{:08X}",
                   frame,
                   identity.packetNode,
                   identity.packetBlock,
@@ -315,6 +321,12 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
                   identity.modelAsset,
                   identity.modelData,
                   identity.frameCode,
+                  identity.objectFlags,
+                  identity.callFlags,
+                  identity.depthCueFactor,
+                  identity.depthCueFarColor[0],
+                  identity.depthCueFarColor[1],
+                  identity.depthCueFarColor[2],
                   face.sourceFace,
                   face.sourceMaterial,
                   face.topologyFlags,
@@ -325,12 +337,19 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
                   face.blendMode,
                   face.colors[0],
                   face.colors[1],
-                  face.colors[2]);
+                  face.colors[2],
+                  face.retailColors[0],
+                  face.retailColors[1],
+                  face.retailColors[2],
+                  identity.payload ? identity.payload->words[1] : 0u,
+                  identity.payload ? identity.payload->words[4] : 0u,
+                  identity.payload ? identity.payload->words[7] : 0u);
     if (geometry.valid) {
       lucent::debug("crashbash-packet-identity",
                     "f{} packet={:08X} live-vtx={:08X} live-topo={:08X} source-vtx={:08X} "
                     "group={}/{} source=({},{},{},{:04X})/({},{},{},{:04X})/({},{},{},{:04X}) "
                     "packet-sxy=({},{})/({},{})/({},{}) native-sxy=({},{})/({},{})/({},{}) "
+                    "native-xyf=({:.6f},{:.6f})/({:.6f},{:.6f})/({:.6f},{:.6f}) "
                     "native-sz={}/{}/{} zsf3={} otz={} projection-match={} coverage={} sort={}",
                     frame,
                     identity.packetNode,
@@ -363,6 +382,12 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
                     geometry.nativeVertices[1][1],
                     geometry.nativeVertices[2][0],
                     geometry.nativeVertices[2][1],
+                    geometry.nativeFloatVertices[0][0],
+                    geometry.nativeFloatVertices[0][1],
+                    geometry.nativeFloatVertices[1][0],
+                    geometry.nativeFloatVertices[1][1],
+                    geometry.nativeFloatVertices[2][0],
+                    geometry.nativeFloatVertices[2][1],
                     geometry.nativeDepths[0],
                     geometry.nativeDepths[1],
                     geometry.nativeDepths[2],

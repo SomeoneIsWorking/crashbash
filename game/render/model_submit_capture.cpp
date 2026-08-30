@@ -7,7 +7,6 @@
 #include "model_recipe_capture.h"
 #include "model_transform_capture.h"
 #include "model_transform_input_diagnostic.h"
-#include "native_model_producer.h"
 #include "override_registry.h"
 #include "scene_snapshot.h"
 
@@ -90,12 +89,7 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
       captureFixedModelRecipe(core, draw);
     }
     finishModelPacketIdentityDraw(draw);
-    ModelDraw &stored = history.record(std::move(draw));
-    const NativeModelSubmitResult submitted = submitFixedModel(core, stored);
-    stored.nativeFacesSubmitted = submitted.submitted;
-    stored.nativeZeroDepthRejected = submitted.zeroDepthRejected;
-    stored.nativeFarDepthRejected = submitted.farDepthRejected;
-    stored.nativeWindingRejected = submitted.windingRejected;
+    history.record(std::move(draw));
   } else {
     finishModelPacketIdentityDraw(draw);
   }

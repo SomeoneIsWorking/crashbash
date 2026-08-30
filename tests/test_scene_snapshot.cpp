@@ -51,23 +51,24 @@ int main() {
       .clut = 0x0456u,
   });
   if (!history.current().valid || history.current().logicFrame != 7u || history.current().models.size() != 1u ||
-      history.current().spriteQuads.size() != 1u || history.previous().valid) {
+      history.current().spriteQuads.size() != 1u || history.presentable().valid) {
     return EXIT_FAILURE;
   }
 
   history.beginFrame(8u);
-  if (!history.previous().valid || history.previous().logicFrame != 7u || history.previous().models.size() != 1u ||
-      history.previous().spriteQuads.size() != 1u || !history.current().valid || history.current().logicFrame != 8u ||
-      !history.current().models.empty() || !history.current().spriteQuads.empty()) {
+  if (!history.presentable().valid || history.presentable().logicFrame != 7u ||
+      history.presentable().models.size() != 1u || history.presentable().spriteQuads.size() != 1u ||
+      !history.current().valid || history.current().logicFrame != 8u || !history.current().models.empty() ||
+      !history.current().spriteQuads.empty()) {
     return EXIT_FAILURE;
   }
-  const SpriteQuadDraw &previousSprite = history.previous().spriteQuads.front();
+  const SpriteQuadDraw &previousSprite = history.presentable().spriteQuads.front();
   if (previousSprite.sourceFunction != 0x8002992Cu || previousSprite.sourceAddress != 0x800B0000u ||
       previousSprite.renderList != 0x8005F79Cu || previousSprite.texturePage != 0x0123u ||
       previousSprite.clut != 0x0456u) {
     return EXIT_FAILURE;
   }
-  const ModelDraw &previousDraw = history.previous().models.front();
+  const ModelDraw &previousDraw = history.presentable().models.front();
   if (previousDraw.depthBias != -7 || previousDraw.depthLimit != 0x1234 || previousDraw.texturedFaces != 1u ||
       previousDraw.faces.size() != 1u || !previousDraw.faces.front().textured ||
       previousDraw.faces.front().textureCoordinates[2] != 0x5060u ||

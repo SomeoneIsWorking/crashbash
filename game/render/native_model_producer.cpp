@@ -117,8 +117,12 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     for (std::uint32_t i = 0; i < 3; ++i) {
       xs[i] = projected[i].sx + gpu.s_off_x;
       ys[i] = projected[i].sy + gpu.s_off_y;
-      screenX[i] = projected[i].px + static_cast<float>(gpu.s_off_x);
-      screenY[i] = projected[i].py + static_cast<float>(gpu.s_off_y);
+      // Retail rasterizes the quantized GTE SXY written into the packet. Feeding the pre-quantized
+      // float projection to the native rasterizer changes edge coverage for thin faces even when
+      // every packet SXY matches; Crashball's briefing arrows are a measured example. Native depth
+      // remains continuous, but fixed-model screen coverage follows the verified packet contract.
+      screenX[i] = static_cast<float>(xs[i]);
+      screenY[i] = static_cast<float>(ys[i]);
       depth[i] = core.rsub.projParams.pzToOrd(projected[i].raw_view[2]);
       red[i] = static_cast<unsigned char>(renderColors[i]);
       green[i] = static_cast<unsigned char>(renderColors[i] >> 8u);
@@ -187,6 +191,19 @@ NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw) {
     ++result.submitted;
   }
   return result;
+}
+
+void submitFixedModels(Core &core, SceneSnapshot &snapshot) {
+  if (!snapshot.valid) {
+    return;
+  }
+  for (ModelDraw &draw : snapshot.models) {
+    const NativeModelSubmitResult submitted = submitFixedModel(core, draw);
+    draw.nativeFacesSubmitted = submitted.submitted;
+    draw.nativeZeroDepthRejected = submitted.zeroDepthRejected;
+    draw.nativeFarDepthRejected = submitted.farDepthRejected;
+    draw.nativeWindingRejected = submitted.windingRejected;
+  }
 }
 
 } // namespace crashbash::render

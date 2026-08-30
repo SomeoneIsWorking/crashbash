@@ -114,20 +114,22 @@ struct SceneSnapshot {
   std::vector<SpriteQuadDraw> spriteQuads;
 };
 
-// Two immutable-at-present snapshots are the title-owned temporal input. beginFrame rotates the
-// completed current snapshot to previous exactly once, then opens a new current snapshot. Source
-// capture overrides append only to the current frame and never mutate guest RAM.
+// Two snapshots are the title-owned temporal input. beginFrame rotates the completed current
+// snapshot to presentable exactly once, then opens a new current snapshot. The guest displays the
+// ordering table built from that presentable snapshot while it builds the current one, so native
+// model submission must consume presentable rather than the still-in-flight current capture.
 class SceneSnapshotHistory {
 public:
   void beginFrame(std::uint32_t logicFrame);
   ModelDraw &record(ModelDraw draw);
   SpriteQuadDraw &record(SpriteQuadDraw draw);
 
-  const SceneSnapshot &previous() const;
+  SceneSnapshot &presentable();
+  const SceneSnapshot &presentable() const;
   const SceneSnapshot &current() const;
 
 private:
-  SceneSnapshot previous_;
+  SceneSnapshot presentable_;
   SceneSnapshot current_;
 };
 

@@ -15,7 +15,7 @@ void SceneSnapshotHistory::beginFrame(std::uint32_t logicFrame) {
     std::abort();
   }
   if (current_.valid) {
-    previous_ = std::move(current_);
+    presentable_ = std::move(current_);
   }
   current_ = SceneSnapshot{.logicFrame = logicFrame, .valid = true};
 }
@@ -36,8 +36,12 @@ SpriteQuadDraw &SceneSnapshotHistory::record(SpriteQuadDraw draw) {
   return current_.spriteQuads.back();
 }
 
-const SceneSnapshot &SceneSnapshotHistory::previous() const {
-  return previous_;
+SceneSnapshot &SceneSnapshotHistory::presentable() {
+  return presentable_;
+}
+
+const SceneSnapshot &SceneSnapshotHistory::presentable() const {
+  return presentable_;
 }
 
 const SceneSnapshot &SceneSnapshotHistory::current() const {

@@ -6,6 +6,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "measured_guest_call.h"
+#include "native_model_producer.h"
 #include "native_sprite_quad_producer.h"
 #include "override_registry.h"
 
@@ -198,7 +199,9 @@ void displayFrameOwned(Core *core) {
     frameDriver(*core).deliverDisplayFields(*core, fields);
 
     measuredGuestCall(*core, 0x8002F598u, 0x80027398u, 2u, environment.address());
-    render::submitSpriteQuads(*core, frameDriver(*core).sceneSnapshots().current(), orderingTable);
+    render::SceneSnapshotHistory &snapshots = frameDriver(*core).sceneSnapshots();
+    render::submitFixedModels(*core, snapshots.presentable());
+    render::submitSpriteQuads(*core, snapshots.current(), orderingTable);
     measuredGuestCall(*core, 0x8002F35Cu, 0x800273A8u, 4u, orderingTable + kOrderingTableDrawOffset);
     const std::uint32_t nextOrderingTable = orderingTable == kOrderingTableA ? kOrderingTableB : kOrderingTableA;
     core->mem_w32(kOrderingTablePointer, nextOrderingTable);

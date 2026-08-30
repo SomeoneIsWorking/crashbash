@@ -68,6 +68,16 @@ emits 4,265,746 native faces under `0x80019F1C`, reconciles every frame, and dro
 `0x80018B08` is viewport/camera/render-list setup: it installs draw environment, screen offsets, GTE
 projection/matrix state, render-list pointers, depth policy, and fade. It is not another drawable
 producer. Indexed model ownership restores both side characters and the top/bottom center arrows.
-The remaining stable visual mismatch is the two left/right objective markers, bright yellow in retail
-but dim teal/gold natively. Attribute their source model/material state next; do not reconstruct
-product input from OT, GP0, VRAM output, or the diagnostic framebuffer.
+Matched replay/frame evidence now identifies the remaining mismatch exactly. Retail display frame 2500
+pixel `(125,70)` is packet `0x80159FA4`, model object `0x8009AC04`, face 178, CLUT row 335. Its cue
+factor is zero and its packet colors equal the raw source colors, ruling out DPCS. Native initially
+rendered the newer CLUT-row-336 phase; deferring fixed-model submission to
+`SceneSnapshotHistory::presentable` selects row 335. Quantizing raster XY to verified packet SXY also
+restores the thin face's coverage.
+
+The remaining dim result is compositing: native pixel provenance shows the correct opaque model winner,
+then the semi-transparent `0x8001A0D8` screen-color quad in `RQ_OVERLAY` paints afterward. Retail pixel
+provenance shows the model packet paints after that dimmer. The proper next fix is one authored ordering
+domain that can interleave semi screen quads and opaque models by their source OT policy. Do not add a
+marker/color special case or blanket-reclassify all screen-color quads behind the world; other calls are
+real foreground fades and overlays.

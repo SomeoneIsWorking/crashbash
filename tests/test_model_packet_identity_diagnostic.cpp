@@ -18,9 +18,13 @@ crashbash::render::ModelDraw sampleDraw() {
   ModelDraw draw{
       .submitter = ModelSubmitter::Alternate,
       .object = 0x80123450u,
+      .objectFlags = 0x40000000u,
+      .callFlags = 0x20u,
       .modelAsset = 0x80110000u,
       .modelData = 0x80111000u,
       .frameCode = 0x200Bu,
+      .depthCueFarColor = {11, 22, 33},
+      .depthCueFactor = 44,
   };
   draw.faces = {
       ModelFace{.sourceFace = 0u, .sourceMaterial = 0x1111u},
@@ -59,6 +63,9 @@ int main() {
   require(identity->packetBlock == block, "the allocator block base must survive attribution");
   require(identity->object == draw.object && identity->frameCode == draw.frameCode,
           "the packet must retain its object/frame owner");
+  require(identity->objectFlags == draw.objectFlags && identity->callFlags == draw.callFlags &&
+              identity->depthCueFarColor == draw.depthCueFarColor && identity->depthCueFactor == draw.depthCueFactor,
+          "the packet must retain the captured cue inputs used by the native color model");
   require(identity->face.sourceFace == 1u && identity->face.sourceMaterial == 0x0222u,
           "the packet index must select the corresponding decoded source face/material");
 

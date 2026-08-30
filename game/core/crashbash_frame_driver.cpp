@@ -196,12 +196,14 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
   for (const render::ModelDraw &draw : sceneSnapshots_.current().models) {
     capturedFaces += static_cast<std::uint32_t>(draw.faces.size());
     texturedFaces += draw.texturedFaces;
+    transformedModels += draw.transform.valid ? 1u : 0u;
+    decodedModels += draw.faces.empty() ? 0u : 1u;
+  }
+  for (const render::ModelDraw &draw : sceneSnapshots_.presentable().models) {
     submittedFaces += draw.nativeFacesSubmitted;
     zeroDepthRejected += draw.nativeZeroDepthRejected;
     farDepthRejected += draw.nativeFarDepthRejected;
     windingRejected += draw.nativeWindingRejected;
-    transformedModels += draw.transform.valid ? 1u : 0u;
-    decodedModels += draw.faces.empty() ? 0u : 1u;
   }
   const render::ModelTransformCaptureCensus &transformCensus = render::modelTransformCaptureCensus();
   const render::ModelTransformInputCensus &inputCensus = render::modelTransformInputCensus();
