@@ -69,6 +69,7 @@ ModelPacketIdentityScan scanModelPacketIdentity(const ModelDraw &draw,
                                                 const std::vector<ModelPacketFillObservation> &packetBlocks,
                                                 const std::vector<std::uint32_t> &packetNodes);
 ModelPacketGeometryComparison compareModelPacketGeometry(const ModelDraw &draw, const ModelPacketIdentity &identity);
+std::array<std::uint32_t, 3> modelPacketColors(const ModelPacketPayload &payload, bool textured);
 
 std::optional<std::vector<std::uint32_t>> parseModelPacketIdentityTargets(std::string_view text);
 

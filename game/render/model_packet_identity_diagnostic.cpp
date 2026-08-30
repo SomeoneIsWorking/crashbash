@@ -190,6 +190,12 @@ ModelPacketGeometryComparison compareModelPacketGeometry(const ModelDraw &draw, 
   return comparison;
 }
 
+std::array<std::uint32_t, 3> modelPacketColors(const ModelPacketPayload &payload, bool textured) {
+  const std::array<std::uint32_t, 3> colorWords =
+      textured ? std::array<std::uint32_t, 3>{1u, 4u, 7u} : std::array<std::uint32_t, 3>{3u, 5u, 7u};
+  return {payload.words[colorWords[0]], payload.words[colorWords[1]], payload.words[colorWords[2]]};
+}
+
 std::optional<std::vector<std::uint32_t>> parseModelPacketIdentityTargets(std::string_view text) {
   std::vector<std::uint32_t> targets;
   std::size_t cursor = 0;
@@ -308,6 +314,8 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
   for (const ModelPacketIdentity &identity : census.matches) {
     const ModelFace &face = identity.face;
     const ModelPacketGeometryComparison &geometry = identity.geometry;
+    const std::array<std::uint32_t, 3> packetColors =
+        identity.payload ? modelPacketColors(*identity.payload, face.textured) : std::array<std::uint32_t, 3>{};
     lucent::debug("crashbash-packet-identity",
                   "f{} packet={:08X} block={:08X} submitter={:08X} obj={:08X} asset={:08X} data={:08X} "
                   "frame={:04X} flags={:08X}/{:08X} cue={}:({},{},{}) face={} mat={:04X} topo={:02X} "
@@ -341,9 +349,9 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
                   face.retailColors[0],
                   face.retailColors[1],
                   face.retailColors[2],
-                  identity.payload ? identity.payload->words[1] : 0u,
-                  identity.payload ? identity.payload->words[4] : 0u,
-                  identity.payload ? identity.payload->words[7] : 0u);
+                  packetColors[0],
+                  packetColors[1],
+                  packetColors[2]);
     if (geometry.valid) {
       lucent::debug("crashbash-packet-identity",
                     "f{} packet={:08X} live-vtx={:08X} live-topo={:08X} source-vtx={:08X} "

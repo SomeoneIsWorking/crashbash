@@ -74,6 +74,17 @@ int main() {
   require(!identifyModelPacketNode(draw, block, block + 3u * 0x28u),
           "the first packet after the decoded face denominator must not map");
 
+  ModelPacketPayload colorPayload;
+  colorPayload.words[1] = 0x30111111u;
+  colorPayload.words[3] = 0x30222222u;
+  colorPayload.words[4] = 0x00333333u;
+  colorPayload.words[5] = 0x30444444u;
+  colorPayload.words[7] = 0x30555555u;
+  require(modelPacketColors(colorPayload, true) == std::array<std::uint32_t, 3>{0x30111111u, 0x00333333u, 0x30555555u},
+          "textured G3 colors must use command words 1/4/7");
+  require(modelPacketColors(colorPayload, false) == std::array<std::uint32_t, 3>{0x30222222u, 0x30444444u, 0x30555555u},
+          "untextured G3 colors must use command words 3/5/7 rather than SXY slots");
+
   ModelPacketPayload payload{.packetNode = block + 0x28u};
   payload.words[4] = 160u | (120u << 16u);
   payload.words[6] = 176u | (120u << 16u);

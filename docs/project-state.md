@@ -33,12 +33,12 @@ behind the key-128 side marker, restoring its retail-bright yellow result. Issue
 broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
 Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
-modeled, and packet colors and its SXY agree exactly. The residual was partly psxport's Vulkan affine-UV
-truncation. Pin `d6c51535` applies PSX round-to-nearest and reduces the exact frame-300 diff>8 from
-98,280 to 90,906 pixels, including a 7,242-pixel reduction in the subtitle band. S004 remains partial
-for the measured upper/lower gradient-band and smaller raster residuals.
+modeled, and packet colors and its SXY agree exactly. The residual combined psxport's Vulkan affine-UV
+truncation with direct-to-5-bit untextured Gouraud quantization. Pins `d6c51535` and `9d370b06` apply
+PSX UV round-to-nearest and `round8 -> optional dither -> truncate5`, reducing the exact frame-300
+diff>8 from 98,280 to 25,383 pixels. S004 remains partial for the smaller raster residuals.
 
-Crash Bash records psxport `d6c51535`, whose generated-substrate identity closes the stale-binary
+Crash Bash records psxport `9d370b06`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
@@ -52,8 +52,11 @@ Vulkan sampled the adjacent gray palette texel because it truncated fractional a
 software path rounds to nearest. Framework `d6c51535` corrects the shared shader and makes its shipping
 GPU selftest reachable: UV phase passes 28/28 at 1x/3x across opaque/semitransparent integer and
 fractional slopes, while blend equations remain 16/16. The exact frame-300 diff>8 falls 98,280 ->
-90,906; subtitle-band differences fall 21,512 -> 14,270. Issue 0015 remains open only for the measured
-gradient-band and raster residuals, not a cue-model discrepancy.
+90,906; subtitle-band differences fall 21,512 -> 14,270. A second exact witness binds untextured G3
+packet `0x800C397C` to object `0x800A0C74`/face94 with exact packet/native SXY and colors and DTD off.
+Framework `9d370b06` corrects direct-to-5-bit Vulkan quantization; source `(111,25)` becomes exact and
+the frame diff>8 falls again to 25,383 (upper 14,399, subtitle 4,313, lower 6,671). Issue 0015 remains
+open only for the smaller raster residual, not a cue-model discrepancy.
 
 2026-08-30 (Crashball authored cross-layer order): matched frame-2500 evidence identifies the left
 objective marker as object `0x8009AC04`, face 178, CLUT row 335, with zero depth cue and packet colors

@@ -1,8 +1,8 @@
 ---
 id: 15
-title: Frame-300 parity retains gradient-band and raster residuals after exact DPCS and UV phase
+title: Frame-300 parity retains smaller raster residuals after exact DPCS, UV phase, and Gouraud quantization
 status: open
-symptom: After correcting Vulkan affine-UV rounding, 90,906 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8; most are upper and lower background gradient bands
+symptom: After correcting Vulkan affine-UV rounding and untextured Gouraud quantization, 25,383 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
 state_items: S004
 tags: render,texture,uv,raster,gradient,parity
 created: 2026-08-29
@@ -29,6 +29,24 @@ capture, with the PSX diagnostic path retained as the reference:
 The subtitle band improves by 7,242 pixels and the full frame by 7,374. At source display pixel
 `(61,145)`, native VRAM changes from `(136,112,160)` to `(232,208,248)`, matching retail.
 
+The largest remaining gradient witness, display pixel `(111,25)`, then bound to untextured G3 packet
+`0x800C397C`: object `0x800A0C74`, frame `0x200B`, face 94, material `0x0225`. Packet/native SXY and
+all three captured colors agree exactly; GP0 draw mode `0xE1000000` proves dither is off. Retail emits
+5-bit RGB `(3,0,6)`, while the ordinary Vulkan shader emitted `(4,0,7)`. Framework `9d370b06`
+preserves the queue item's Gouraud/DTD state and applies PSX `round8 -> optional dither -> truncate5`
+instead of rounding the interpolated float directly to 5-bit.
+
+| region | after UV fix | after Gouraud fix |
+|---|---:|---:|
+| upper background (`y < 420`) | 46,332 | 14,399 |
+| subtitle (`420 <= y < 490`) | 14,270 | 4,313 |
+| lower background (`y >= 490`) | 30,304 | 6,671 |
+| **whole frame** | **90,906** | **25,383** |
+
+The source pixel is now `(24,0,48)` and presented pixel `(25,0,49)`, both exact retail matches. The
+shipping GPU discriminator changed from the measured failure `1C04` versus expected `1803` to an exact
+pass, and separately proves the negative/positive DTD cells as `3DEF`/`4210`.
+
 ## Proven cause and falsified hypothesis
 
 Retail packet `0x800C84D4` is opcode `0x36`, a semitransparent textured Gouraud triangle from object
@@ -47,15 +65,16 @@ slopes; the independent blend matrix remains 16/16.
 
 ## Remaining falsifier and next step
 
-This issue stays open because 90,906 pixels still differ. The largest classes are the upper-background
-46,332 pixels and lower-background 30,304 pixels, with the subtitle retaining 14,270. Bind a
-representative pixel from each gradient class to its exact packet, source texel or Gouraud inputs,
-dither state, and retail/native interpolation result. Do not tune colors, add per-object exceptions,
-or alter DPCS: exact packet evidence has already ruled those out for the subtitle object.
+This issue stays open because 25,383 pixels still differ: upper 14,399, subtitle 4,313, and lower 6,671.
+Select a representative from the new residual—not one already closed by UV or G3 quantization—and bind
+its final writer and raster inputs before changing another shared rule. Do not tune colors, add per-object
+exceptions, or alter DPCS.
 
 ## Where
 
 `external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
 `external/psxport/runtime/recomp/gpu_vk_texture_phase_selftest.cpp`,
+`external/psxport/runtime/recomp/shaders_gpu/tri.frag`,
+`external/psxport/runtime/recomp/gpu_vk_untextured_selftest.cpp`,
 `external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
 `game/render/native_model_producer.cpp`, `game/render/model_packet_identity_diagnostic.cpp`.
