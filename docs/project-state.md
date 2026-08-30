@@ -34,11 +34,11 @@ broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
 Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
 modeled, and packet colors and its SXY agree exactly. The residual combined psxport's Vulkan affine-UV
-truncation with direct-to-5-bit untextured Gouraud quantization. Pins `d6c51535` and `9d370b06` apply
-PSX UV round-to-nearest and `round8 -> optional dither -> truncate5`, reducing the exact frame-300
-diff>8 from 98,280 to 25,383 pixels. S004 remains partial for the smaller raster residuals.
+truncation, direct-to-5-bit untextured Gouraud quantization, and untextured half-pixel coverage phase.
+Pins `d6c51535`, `9d370b06`, and `3b033259` correct those three shared boundaries, reducing the exact
+frame-300 diff>8 from 98,280 to 5,546 pixels. S004 remains partial for the smaller raster residuals.
 
-Crash Bash records psxport `9d370b06`, whose generated-substrate identity closes the stale-binary
+Crash Bash records psxport `3b033259`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
@@ -55,8 +55,13 @@ fractional slopes, while blend equations remain 16/16. The exact frame-300 diff>
 90,906; subtitle-band differences fall 21,512 -> 14,270. A second exact witness binds untextured G3
 packet `0x800C397C` to object `0x800A0C74`/face94 with exact packet/native SXY and colors and DTD off.
 Framework `9d370b06` corrects direct-to-5-bit Vulkan quantization; source `(111,25)` becomes exact and
-the frame diff>8 falls again to 25,383 (upper 14,399, subtitle 4,313, lower 6,671). Issue 0015 remains
-open only for the smaller raster residual, not a cue-model discrepancy.
+the frame diff>8 falls again to 25,383. A third witness binds packet `0x800C89EC` to object
+`0x801E18B0`/frame `0x2001`/face27/material002C with exact SXY and colors. PSX integer-coordinate
+coverage includes vertex `(85,137)`, while unshifted Vulkan half-pixel sampling misses it. Framework
+`3b033259` aligns only the untextured path and its shipping edge probe changes from `1C04` to expected
+`350B`; the exact frame diff>8 falls to 5,546 (upper 466, subtitle 2,829, lower 2,251). The same shift
+on the textured path regressed to 15,053 and was rejected. Issue 0015 remains open only for the small
+raster residual, not a cue-model discrepancy.
 
 2026-08-30 (Crashball authored cross-layer order): matched frame-2500 evidence identifies the left
 objective marker as object `0x8009AC04`, face 178, CLUT row 335, with zero depth cue and packet colors

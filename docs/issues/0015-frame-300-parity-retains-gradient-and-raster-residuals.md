@@ -1,8 +1,8 @@
 ---
 id: 15
-title: Frame-300 parity retains smaller raster residuals after exact DPCS, UV phase, and Gouraud quantization
+title: Frame-300 parity retains small residuals after exact DPCS, UV, Gouraud, and untextured coverage
 status: open
-symptom: After correcting Vulkan affine-UV rounding and untextured Gouraud quantization, 25,383 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
+symptom: After correcting Vulkan UV, Gouraud quantization, and untextured coverage, 5,546 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
 state_items: S004
 tags: render,texture,uv,raster,gradient,parity
 created: 2026-08-29
@@ -47,6 +47,24 @@ The source pixel is now `(24,0,48)` and presented pixel `(25,0,49)`, both exact 
 shipping GPU discriminator changed from the measured failure `1C04` versus expected `1803` to an exact
 pass, and separately proves the negative/positive DTD cells as `3DEF`/`4210`.
 
+The next residual witness, source display pixel `(85,137)`, binds to retail packet `0x800C89EC`:
+object `0x801E18B0`, frame `0x2001`, face 27, material `0x002C`, with exact packet/native SXY
+`(90,127)/(85,137)/(90,138)` and exact white colors. Retail includes the second vertex and writes
+white; Vulkan missed it and exposed the darker preceding face because PSX coverage samples integer
+pixel coordinates while Vulkan samples at half-integer pixel centers. Framework `3b033259` shifts
+only the ordinary untextured vertex path by half a native pixel.
+
+| region | after Gouraud fix | after untextured coverage fix |
+|---|---:|---:|
+| upper background (`y < 420`) | 14,399 | 466 |
+| subtitle (`420 <= y < 490`) | 4,313 | 2,829 |
+| lower background (`y >= 490`) | 6,671 | 2,251 |
+| **whole frame** | **25,383** | **5,546** |
+
+The shipping 2x GPU edge discriminator shows the other answer: unshifted coverage resolves to
+`1C04`, while PSX-centered coverage resolves to the expected `350B`. Applying the same transform to
+the textured path was tested and rejected because it worsened the whole-frame diff to 15,053.
+
 ## Proven cause and falsified hypothesis
 
 Retail packet `0x800C84D4` is opcode `0x36`, a semitransparent textured Gouraud triangle from object
@@ -65,7 +83,7 @@ slopes; the independent blend matrix remains 16/16.
 
 ## Remaining falsifier and next step
 
-This issue stays open because 25,383 pixels still differ: upper 14,399, subtitle 4,313, and lower 6,671.
+This issue stays open because 5,546 pixels still differ: upper 466, subtitle 2,829, and lower 2,251.
 Select a representative from the new residual—not one already closed by UV or G3 quantization—and bind
 its final writer and raster inputs before changing another shared rule. Do not tune colors, add per-object
 exceptions, or alter DPCS.
@@ -75,6 +93,7 @@ exceptions, or alter DPCS.
 `external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
 `external/psxport/runtime/recomp/gpu_vk_texture_phase_selftest.cpp`,
 `external/psxport/runtime/recomp/shaders_gpu/tri.frag`,
+`external/psxport/runtime/recomp/shaders_gpu/tri.vert`,
 `external/psxport/runtime/recomp/gpu_vk_untextured_selftest.cpp`,
 `external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
 `game/render/native_model_producer.cpp`, `game/render/model_packet_identity_diagnostic.cpp`.
