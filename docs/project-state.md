@@ -22,16 +22,24 @@ independent timing and differential evidence, not on product reachability.
 
 The native path renders the Crashball arena, ships, and balls. Its first 2D producer now owns
 `0x8002992C` from authored descriptor, position, OT-bin, and color inputs and restores the objective
-instructions and top score digits without consuming guest GPU output. Issue 0023 remains open for the
-other briefing/HUD/character layers. The exact objective frame attributes all 108 direct-pool rows;
-the next S004 boundary is the six-row family at `0x80029D28`, followed by the five-row state families
-at `0x80018B08` and `0x8001A0D8`.
+instructions and top score digits without consuming guest GPU output. The shared flat-color boundary
+at `0x80029D28` additionally restores all four top portraits and the two lower markers. Issue 0023
+remains open for any other briefing/HUD/character layers. The next S004 boundary is the five-row
+`0x8001A0D8` draw-mode plus untextured-Gouraud-quad family; the other five-row family at `0x80018B08`
+is draw-area state and must be compared with the GPU state already captured by the native producer.
 
 Crash Bash records psxport `a0c18b9e`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (flat textured sprites): Ghidra proves `0x80029D28` is the flat-color twin of the first
+native quad leaf, with the same descriptor, position, bin, fade, blend, UV/CLUT/tpage, return, and
+render-list semantics. Its three static call sites are in `0x800243A0` and `0x80019A60`. A retained
+super now feeds the shared decoder with one repeated color and explicit flat shading. Stable frame
+2480 restores four portraits and two lower markers without disturbing objective text; the 2,480-frame
+run reconciles every frame and emits 3,091 native flat quads across 1,329 frames.
 
 2026-08-30 (first native 2D producer): the retained-super `0x8002992C` capture decodes only authored
 descriptor, position, bin, color, display-scale, and fade inputs into the current immutable scene

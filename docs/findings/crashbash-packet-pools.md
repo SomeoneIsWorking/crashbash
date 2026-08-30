@@ -40,5 +40,13 @@ the texture descriptor, packed screen position, OT bin, and four vertex colors; 
 UV/CLUT/tpage state and writes a `0x34`-byte packet. The retained-super capture now decodes those
 source inputs into the immutable current-tick scene and the native producer restores the objective
 text and score digits. It uses the title render-list identity for presentation routing but consumes no
-packet or OT contents, GP0 stream, VRAM output, or PSX framebuffer. The next attributed family is
-`0x80029D28` with six direct-pool rows.
+packet or OT contents, GP0 stream, VRAM output, or PSX framebuffer.
+
+`0x80029D28` is the flat-color twin of that leaf. It shares the descriptor, packed position, OT bin,
+fade, blend, UV/CLUT/tpage, return, and render-list semantics, but takes one color and emits opcode
+`0x2C`. Its retained super therefore feeds the same decoder with that color repeated across four
+vertices and explicit flat shading. The stable frame-2480 native capture restores all four top
+portraits and the two lower markers without disturbing the Gouraud text. The remaining direct rows
+are `0x8001A0D8`'s draw-mode plus untextured Gouraud quad path and `0x80018B08`'s draw-area state path.
+The former is the next picture boundary; the latter must be compared with the GPU state already
+captured by native submission rather than treated as a drawable.

@@ -39,10 +39,15 @@ current scene snapshot, and the native producer emits only records addressed to 
 presented. It reads no guest packet or OT contents, GP0 stream, VRAM output, or framebuffer. The exact
 2,500-frame Crashball replay reconciles every frame with no dropped layer and reports 51,318 native
 quads over 1,283 frames; the native capture restores the objective instructions and top score digits.
+Its flat-color twin at `0x80029D28` shares the same authored geometry/texture recipe and now carries an
+explicit flat-shading record through that boundary. At stable pre-transition frame 2480 it restores
+all four top portraits and the two lower markers while retaining the text; the run reconciles every
+frame and records 3,091 native flat quads over 1,329 frames.
 
 ## Remaining work
 
-Attribute and own the still-missing 2D elements through the remaining direct-pool families:
-`0x80029D28` (six rows), `0x80018B08` (five), and `0x8001A0D8` (five). Use the PSX objective frame only
-as an independent visual/differential oracle; do not reconstruct product input from OT, GP0, VRAM
-output, or the diagnostic framebuffer.
+Decompile the remaining five-row families: `0x8001A0D8` combines draw mode with an untextured Gouraud
+quad and is the next picture candidate; `0x80018B08` emits draw-area state whose native owner depends
+on whether that state is already represented by the captured GPU state. Use the stable pre-Cross
+objective frame as an independent visual/differential oracle; do not reconstruct product input from
+OT, GP0, VRAM output, or the diagnostic framebuffer.

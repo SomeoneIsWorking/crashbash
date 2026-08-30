@@ -30,6 +30,7 @@ std::optional<SpriteQuadDraw> decodeSpriteQuad(const SpriteQuadDescriptor &descr
   const std::int32_t y1 = y0 + descriptor.height - 1;
 
   SpriteQuadDraw draw{
+      .sourceFunction = call.sourceFunction,
       .descriptor = call.descriptor,
       .renderList = call.renderList,
       .packedPosition = call.packedPosition,
@@ -39,6 +40,7 @@ std::optional<SpriteQuadDraw> decodeSpriteQuad(const SpriteQuadDescriptor &descr
       .y = {y0, y0, y1, y1},
       .texturePage = static_cast<std::uint16_t>((descriptor.texturePage & 0xFF9Fu) | ((call.colors[0] >> 19u) & 0x60u)),
       .clut = descriptor.clut,
+      .gouraud = call.gouraud,
       .semiTransparent = static_cast<std::int32_t>(call.colors[0]) < 0,
   };
   for (std::size_t index = 0; index < draw.u.size(); ++index) {

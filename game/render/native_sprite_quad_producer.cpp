@@ -13,7 +13,12 @@
 namespace crashbash::render {
 namespace {
 
-constexpr std::uint32_t kProducerKey = 0x8002992Cu;
+constexpr std::uint32_t kGouraudSpriteQuadSubmit = 0x8002992Cu;
+constexpr std::uint32_t kFlatSpriteQuadSubmit = 0x80029D28u;
+
+const char *producerName(std::uint32_t sourceFunction) {
+  return sourceFunction == kFlatSpriteQuadSubmit ? "sprite:ft4" : "sprite:gt4";
+}
 
 void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   if (core.game == nullptr || core.game->oracle || core.rsub.mode.psxRender()) {
@@ -83,7 +88,7 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
                     nullptr,
                     -1,
                     0.0f,
-                    1,
+                    draw.gouraud ? 1 : 0,
                     dither);
 }
 
@@ -114,9 +119,13 @@ void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t 
     return left > right;
   });
 
-  ProducerScope producer(&core.rsub.producerScope, kProducerKey, "sprite:gt4");
   for (const std::size_t index : order) {
-    submitSpriteQuad(core, snapshot.spriteQuads[index]);
+    const SpriteQuadDraw &draw = snapshot.spriteQuads[index];
+    if (draw.sourceFunction != kGouraudSpriteQuadSubmit && draw.sourceFunction != kFlatSpriteQuadSubmit) {
+      continue;
+    }
+    ProducerScope producer(&core.rsub.producerScope, draw.sourceFunction, producerName(draw.sourceFunction));
+    submitSpriteQuad(core, draw);
   }
 }
 
