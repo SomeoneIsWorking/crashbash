@@ -2,7 +2,7 @@
 id: 15
 title: Frame-300 parity retains small residuals after exact DPCS, UV, Gouraud, and untextured coverage
 status: open
-symptom: After correcting Vulkan UV, Gouraud quantization, untextured coverage, and texture modulation, 45 of 691,200 frame-300 pixels still differ from the PSX reference by more than 8
+symptom: After correcting Vulkan UV, Gouraud quantization, untextured and textured coverage, and texture modulation, one source pixel of frame 300 still differs from the PSX reference by more than 8
 state_items: S004
 tags: render,texture,uv,raster,gradient,parity
 created: 2026-08-29
@@ -95,13 +95,36 @@ native result was `0x1022`. Framework `db30e329` makes both Vulkan textured path
 | lower background (`y >= 490`) | 2,251 | 6 |
 | **whole frame** | **5,546** | **45** |
 
+The 45-pixel residual then resolved to seven source pixels, and binding two of them named one cause.
+Source `(206,82)` is covered by object `0x801D0AC8`, frame `0x2019`, faces 0 and 3 — TEXTURED triangles
+two pixels wide, whose vertices are `(206,83)/(206,81)/(207,82)`. Source `(320,63)` is covered by a
+semitransparent textured face of frame `0x200C`, material `0xA092`, over an untextured base whose retail
+writer `0x800BEF5C` and native producer agree exactly. Both differing pixels sit on the edge of a tiny
+textured primitive, and the model layer underneath matches retail exactly in geometry and color.
+
+The cause is that only the untextured pipeline carried the PSX coverage rule. `tri.vert` shifted by half a
+native pixel so PSX integer-coordinate coverage lands on Vulkan pixel centers; `tritex.vert` did not. On a
+two-pixel-wide primitive that is the difference between covering a pixel and missing it. Framework
+`0e6c7e5d` applies the same shift to the textured pipeline and rewinds affine UV from the native pixel's
+center rather than its corner, so geometry and UV express one convention. This supersedes the earlier
+rejection of the textured shift: that attempt kept the corner-relative rewind, double-correcting by half a
+pixel, and was measured before the modulation fix.
+
+| region | after modulation fix | after textured coverage fix |
+|---|---:|---:|
+| upper background (`y < 420`) | 39 | 6 |
+| subtitle (`420 <= y < 490`) | 0 | 0 |
+| lower background (`y >= 490`) | 6 | 0 |
+| **whole frame** | **45** | **6** |
+
+Frames 299/300/301 fall from 99/45/24 to 0/6/6. Frame 299 is exact.
+
 ## Remaining falsifier and next step
 
-This issue stays open because 45 pixels still differ: upper 39, subtitle 0, lower 6. They form two small
-clusters rather than a spread residual. The largest is display `(386..387, 252..254)`, where native
-`(16,33,58)` faces retail `(8,0,33)`; the second is `(390..391, 249..251)`, native `(16,25,49)` versus
-retail `(16,8,41)`. Bind one of those exact pixels to its final writer and raster inputs before changing
-another shared rule. Do not tune colors, add per-object exceptions, or alter DPCS.
+This issue stays open because one source pixel still differs on frame 300: `(118,209)`, where native
+`(11,0,15)` faces retail `(11,0,16)` — a single 5-bit step in blue, spread over six display pixels by the
+960x720 upscale. Bind that pixel to its final writer and raster inputs before changing another shared
+rule. Do not tune colors, add per-object exceptions, or alter DPCS.
 
 ## Where
 
@@ -111,6 +134,9 @@ another shared rule. Do not tune colors, add per-object exceptions, or alter DPC
 `external/psxport/runtime/recomp/shaders_gpu/tri.vert`,
 `external/psxport/runtime/recomp/gpu_vk_untextured_selftest.cpp`,
 `external/psxport/runtime/recomp/gpu_vk_modulation_selftest.cpp`,
+`external/psxport/runtime/recomp/gpu_vk_texture_coverage_selftest.cpp`,
+`external/psxport/runtime/recomp/shaders_gpu/tritex.vert`,
+`external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
 `external/psxport/runtime/recomp/shaders_gpu/tritex.frag`,
 `external/psxport/runtime/recomp/shaders_gpu/trisemi_hw.frag`,
 `external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,

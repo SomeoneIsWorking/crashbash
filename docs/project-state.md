@@ -34,16 +34,33 @@ broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
 Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
 modeled, and packet colors and its SXY agree exactly. The residual combined psxport's Vulkan affine-UV
-truncation, direct-to-5-bit untextured Gouraud quantization, untextured half-pixel coverage phase, and
-rounded texture modulation. Pins `d6c51535`, `9d370b06`, `3b033259`, and `db30e329` correct those four
-shared boundaries, reducing the exact frame-300 diff>8 from 98,280 to 45 of 691,200 pixels. S004 remains
-partial for the two small residual clusters.
+truncation, direct-to-5-bit untextured Gouraud quantization, untextured half-pixel coverage phase,
+rounded texture modulation, and an unshifted textured coverage phase. Pins `d6c51535`, `9d370b06`,
+`3b033259`, `db30e329`, and `0e6c7e5d` correct those five shared boundaries, reducing the exact frame-300
+diff>8 from 98,280 to 6 of 691,200 pixels — one source pixel — while frame 299 is exact. S004 remains
+partial for that last pixel and for gameplay-wide parity beyond this frame.
 
-Crash Bash records psxport `db30e329`, whose generated-substrate identity closes the stale-binary
+Crash Bash records psxport `0e6c7e5d`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The current generated identity is
 `recomp-2026-08-30.3-bd29ec0f103d99a1e5557f6c20a351704b530a1cf9ff46c2c7495cda59465aa2`.
 
 ## Recent evidence
+
+2026-08-30 (textured coverage phase): the 45-pixel residual resolves to seven source pixels. Source
+`(206,82)` is covered by object `0x801D0AC8`, frame `0x2019`, faces 0 and 3 — textured triangles two
+pixels wide at `(206,83)/(206,81)/(207,82)`; source `(320,63)` is covered by a semitransparent textured
+face of frame `0x200C`, material `0xA092`, over an untextured base whose retail writer `0x800BEF5C` and
+native producer agree exactly. Every differing pixel sits on the edge of a tiny textured primitive while
+the model layer underneath matches retail exactly. The cause was that only `tri.vert` carried the PSX
+coverage rule: `tritex.vert` left textured coverage on Vulkan pixel centers, which moves a two-pixel-wide
+primitive by one pixel. Framework `0e6c7e5d` applies the same half-native-pixel shift to the textured
+pipeline and rewinds affine UV from the native pixel's center rather than its corner, and adds
+`gpu_vk_texture_coverage_selftest.cpp`, which reports the seeded background `1882` at the edge probe with
+`34D4` at its interior control before the fix and `34D4` for both after. This supersedes the earlier
+rejection of the textured shift, which kept the corner-relative rewind and was measured before the
+modulation fix. The exact 303-frame run reconciles every frame with no recompilation miss or fatal trap,
+and presented frames 299/300/301 fall from 99/45/24 to 0/6/6 differing pixels of 691,200. The last
+frame-300 difference is source pixel `(118,209)`: native `(11,0,15)` versus retail `(11,0,16)`.
 
 2026-08-30 (PSX texture modulation truncation): source display pixel `(238,61)` binds to retail packet
 `0x800C7454`, a dark textured face over an underlying G3 face with exact native/packet geometry and
