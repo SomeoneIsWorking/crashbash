@@ -118,7 +118,7 @@ def _input(edge: int, pending: int = 0) -> str:
 
 
 def selftest() -> bool:
-    identity = "recomp-2026-08-30.2-" + "a" * 64
+    identity = "recomp-2026-08-30.3-" + "a" * 64
     idle = _identity_line(identity) + _input(0) * 4
     start = _identity_line(identity) + _input(0) + _input(8) + _input(0) * 2
     cross = (

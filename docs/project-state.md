@@ -22,7 +22,7 @@ type-`0x0101` menu deliberately bypasses its generic START scan and accepts Cros
 edges produce zero accepts while Cross schedules pending table `0x800B8E50` exactly once. Issues 0020
 and 0021 are resolved; no START mapping is missing.
 
-Crash Bash now records psxport `ec3bd414`, whose generated-substrate identity closes the stale-binary
+Crash Bash now records psxport `1f3ebda5`, whose generated-substrate identity closes the stale-binary
 evidence gap from issue 0018. The same Clang product proves the MENU boundary and Cross transition;
 the combined suite passes 24/24.
 

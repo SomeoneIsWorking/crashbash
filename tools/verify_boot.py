@@ -274,7 +274,7 @@ def _fixture(substrate_identity: str) -> str:
 
 
 def selftest() -> bool:
-    substrate_identity = "recomp-2026-08-30.2-" + "a" * 64
+    substrate_identity = "recomp-2026-08-30.3-" + "a" * 64
     fixture = _fixture(substrate_identity)
     passed = 0
     cases = 15
