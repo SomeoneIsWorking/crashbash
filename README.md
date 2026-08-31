@@ -6,15 +6,16 @@ PC-native PlayStation port of Crash Bash, built on
 The port source is distributed under GPL-3.0-or-later; see `COPYING`. Original Crash Bash game
 content is not included and must be supplied by the player.
 
-Current status: the North American executable plus BOOT and four measured nested modules are
-reproducibly provisioned and emitted into a 2,593-function substrate. The tracked
-`replays/flow/crashball-control.pad` drives the title screen through the Crashball portal, both
-briefing pages, and into a live match, then moves the player ship left and right. The exact 3,740-frame
-shipping-native replay completes without a guest-VSync violation, timeout, watchdog, recompilation
-miss, or fatal. Native producers render the arena, ships, balls, briefing/HUD, portraits, and
-characters from title-owned state. Gameplay uses a centred wide camera; an authored briefing remains
-a complete centred 4:3 composition. `PSXPORT_FPS60=1` presents interpolated midpoints from immutable
-scene snapshots. Broader game-mode coverage and full native parity remain in progress.
+Current status: the North American executable plus BOOT and five measured nested modules are
+reproducibly provisioned and emitted into a 2,698-function substrate. The tracked
+`replays/flow/crashball-control.pad` reaches and controls a live Crashball match; the tracked
+`replays/flow/battle-crate-crush-control.pad` reaches and controls a live Crate Crush match through
+its title-owned objective, controls, and special-items pages. Both shipping-native paths complete
+without a guest-VSync violation, timeout, watchdog, recompilation miss, or fatal. Native producers
+render the arenas, players, HUD, briefing layers, crates, balls, and items from title-owned state.
+Gameplay uses a centred wide camera; an authored briefing remains a complete centred 4:3 composition.
+`PSXPORT_FPS60=1` presents interpolated midpoints from immutable scene snapshots. Broader game-mode
+coverage and full native parity remain in progress.
 
 ## Run the current product
 

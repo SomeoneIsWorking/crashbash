@@ -30,11 +30,13 @@ than on a per-frame difference count.
 
 2026-08-31 (Battle Mode reachability): after the real title-menu sequence selected Battle Mode, the
 port loaded the previously unprovisioned entryless DAT28382 alternative and stopped at callback
-`0x800BB370`. The measured 35-sector image is now provisioned and discovered as a whole; a 10,200-frame
-shipping-native replay reaches the Crate Crush objective screen at frame 10,000 with no recompilation
-miss, fatal, watchdog, or dropped render layer. The observed screen is coherent on direct inspection.
-S008 is partial: Crashball and this second game-mode branch reach a live pre-match boundary, but the
-other retail mode families still need end-to-end play coverage.
+`0x800BB370`. The measured 35-sector image is now provisioned and discovered as a whole; the tracked
+15,401-frame shipping-native replay reaches a live Crate Crush match after its measured objective,
+controls, and special-items pages, then drives Left for 90 frames and Right for 180. It reconciles every
+frame with no recompilation miss, fatal, watchdog, or dropped render layer. Direct captures show the
+complete arena, four-player HUD, characters, crates, special items, and the controlled player movement.
+S008 is partial: Crashball and this second game mode are live and controllable, but the other retail
+mode families still need end-to-end play coverage.
 
 S004's prior focus statement follows, for the flow and producer facts it records. Controlled flow is closed through the first playable boundary: the tracked
 3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
