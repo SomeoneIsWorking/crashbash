@@ -34,16 +34,47 @@ and can spawn the `0x1604` contact effects before clearing the consumed entry's 
 other callers are the sibling player-state handoffs, so this is an arena contact/effect update, not
 the generic presentation cadence.
 
-The owner contract is now statically resolved: `DAT_800D6010` is an ascending 256-pointer contact
-table; each contact is `{flags, x, y, z}` at offsets `0/+4/+8/+12`, and bit `0x8000` is active. Player
-slots start at `0x8009D52C + 0x6C*i`; the entity pointer is `+4`, auxiliary motion pointer `+0x18`,
-and configuration index `u16 +0x2E`. A contact passes only when `abs(dx) < 331`, `abs(dz) < 331`, and
-`dx*dx + dz*dz < 108900` (so 108899 is inside and 108900 is outside). A geometric pass either retains
-the active bit after motion adjustment or consumes it after the threshold branch, which spawns three
-`0x1604` effects and performs the associated event/choreography writes. The first passing table entry
-returns immediately. A native owner needs typed player/contact/motion views, the existing math/effect
-owners, a generated A/B mirror over every touched guest range, and explicit counters for scanned,
-active, disk-pass, retained, consumed, and emitted effects.
+The owner contract is now statically resolved from the DAT22510 retail body at `0x800C0888` (the
+Ghidra dump is kept at the ignored `scratch/decomp/polar-dat22510.c`; the emitted body is the
+independent instruction/accounting source). `DAT_800D6010` is a pointer vector traversed in ascending
+index order. The loop has **no count comparison**: it loads `DAT_800D6010[index]`, advances `index`, and
+stops only on the first null pointer. Earlier shorthand calling this a 256-element bounded loop was
+wrong; 256 is the measured allocated contact capacity, not this helper's termination condition. Each
+non-null contact is `{flags, x, y, z}` at offsets `0/+4/+8/+12`, and bit `0x8000` is active. Player slots
+start at `0x8009D52C + 0x6C*i`; the entity pointer is `+4`, auxiliary motion pointer is `+0x18`, and the
+configuration index is `u16 +0x2E`.
+
+A contact passes only when `abs(dx) < 331`, `abs(dz) < 331`, and `dx*dx + dz*dz < 108900` (so 108899 is
+inside and 108900 is outside). The first disk pass returns immediately, whether it retains or consumes
+the contact. It calls the resident angle/square-root helpers at `0x8001463C` / `0x80032490`, subtracts
+the `330 - (sqrt(distanceSquared) >> 6)` impulse through the resident sine table rooted at
+`0x80068BD4` (`s16` value at `+2 + 4*(angle & 0xFFF)`), then recomputes the auxiliary motion vector from
+the same helpers. The second `0x8001463C` call intentionally supplies only `a0 = entity+0x10`: retail
+leaves its `a1` as the first angle helper's caller-saved residue, so the native call must preserve that
+ABI fact rather than inventing a zero second coordinate.
+
+The active bit is retained when the auxiliary motion pointer is null or when the threshold is not
+crossed. The exact threshold is `signed32((uint32(configTable[slot.configIndex].u16 * 6) << 14) >> 8) <
+(sqrt(motion[+0x20]^2 + motion[+0x40]^2) >> 6) * s16(motion+0x4E)`, where the table base is the pointer
+at `0x8009D6F4`; the left shift and signed shift are MIPS-width operations. On a crossing it calls the
+existing `0x80022A3C` effect allocator three times with `(contact.x, contact.y - 0x80, contact.z,
+0x1604, 0x11)`, then clears the contact active bit even when an allocation returns null.
+
+For each non-null allocation, `result+0x58` is the optional emitted-effect record and
+`result+0x54 -> +0x6C` is the optional choreography record. All three write choreography
+`u16(+0x68)=0x0200` when `(angle - 0x400) > 0x800` as an unsigned 32-bit test. Effect one writes
+`u8(+0x0D)=30`, `s16(+0x0E)=sin(angle-0x200)*17 >> 11`, `s16(+0x16)=-256`, `+0x18=-32`,
+`+0x1A=3`, `+0x20=-128`, `+0x22=sin(angle+0x200)*17 >> 11`, and `+0x2A=256`; it also calls
+`0x80015590(3)` and emits one resident event through `0x80022660`: selector 0/1/2 maps to
+`0x46A/0x46B/0x46C`, respectively, with `(0, 0, 0x1000, 0x1E00, 0)`. Effect two writes
+`+0x0D=30`, `+0x0E=sin(angle)*11 >> 10`, `+0x16=256`, `+0x18=-42`, `+0x1A=3`, `+0x20=128`,
+`+0x22=sin(angle+0x400)*11 >> 10`, and `+0x2A=-256`. Effect three writes `+0x0D=30`,
+`+0x0E=sin(angle-0x400)*11 >> 10`, `+0x16=256`, `+0x18=-72`, `+0x1A=3`, `+0x20=-128`,
+`+0x22=sin(angle)*11 >> 10`, and `+0x2A=256`. These are field facts, not inferred visual labels.
+
+A native owner therefore needs typed player/contact/motion/effect-result views, the resident
+math/effect supers, a generated A/B mirror over every touched guest range, and explicit counters for
+scanned, active, disk-pass, retained, consumed, and emitted effects.
 
 All three `VSync(1)` return values are dead in this helper: the entry value is stored at `sp+0x18`
 and never loaded, and the two exit values are likewise stored at `sp+0x1C` and never loaded. That
