@@ -24,9 +24,13 @@ frame-300 comparison recorded below is retained as history and as a working inst
 
 ## Current focus
 
-S008 is the current focus: reach and play the retail game modes on the shipping native path and fix
-what visibly breaks. S004 continues underneath it, judged on how the game looks while playing rather
-than on a per-frame difference count.
+S008 is the current focus.
+
+## Focus evidence
+
+Reach and play the retail game modes on the shipping native path and fix what visibly breaks. Native
+graphics coverage continues underneath it, judged on how the game looks while playing rather than on a
+per-frame difference count.
 
 2026-08-31 (Battle Mode reachability): after the real title-menu sequence selected Battle Mode, the
 port loaded the previously unprovisioned entryless DAT28382 alternative and stopped at callback
@@ -496,16 +500,18 @@ parity, widescreen, and interpolation remain unverified.
 
 ### S005 — Widescreen camera
 
-Missing capability: no PC-owned Crash Bash camera/projection producer exists. The nearest measurable
-gate is runtime proof of the active projection-state owner, then 4:3 native parity, followed by wider
-horizontal view with unchanged vertical framing. GTE/OT/GP0 output cannot be the source.
+The native camera shows a real wider horizontal Crashball view while preserving vertical framing, and
+authored 4:3 briefing compositions remain centered instead of exposing unrelated world content.
+
+Gap: representative retail modes beyond the exercised Crashball and current menu/briefing routes still
+need live widescreen coverage.
 
 ### S006 — Interpolated presentation
 
-Missing capability: the PC-owned history now retains consecutive copied camera/world transform and
-fixed-face snapshots, but no presentation-time render consumes an interpolated pair. The nearest
-measurable gate is unchanged simulation with interpolation disabled, then an alpha-0.5 native render
-between verified snapshots without guest-RAM mutation.
+The native path rebuilds midpoint model geometry from immutable title snapshots and reports millions of
+interpolated primitives across the exercised Crashball route without changing simulation rate.
+
+Gap: interpolation coverage remains incomplete for wider mode, effect, UI, and transition families.
 
 ### S007 — Differential verification
 
@@ -517,3 +523,11 @@ Gap: full-memory lockstep, a passing clean pinned CDC/completion run, first-fram
 attribution, and native 4:3 image parity are not yet demonstrated. The
 old exact-pin watchdog refusal and the corrected exact-pin `784e5212` MENU gate are valid evidence for
 their declared boundaries; neither satisfies any of those later gates.
+
+### S008 — Retail mode playability
+
+Crashball, Battle Mode Crate Crush, and Tournament Mode's first Crate Crush match are live and
+controllable on the shipping native path. Polar Push reaches its arena-entry boundary without the former
+fatal, and its selection/options/loading path is covered.
+
+Gap: controllable Polar Push and the remaining retail mode families still need end-to-end play coverage.
