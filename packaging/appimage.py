@@ -494,6 +494,7 @@ def build_appimage(
 
 
 def verify_artifact(artifact: Path) -> None:
+    artifact = artifact.resolve()
     check = WORK / "artifact-check"
     _reset_directory(check)
     completed = subprocess.run(
