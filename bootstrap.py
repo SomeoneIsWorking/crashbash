@@ -300,23 +300,19 @@ def run_command(arguments: Sequence[str], environment: Mapping[str, str]) -> Non
         raise LaunchError(f"command exited {completed.returncode}: {rendered}")
 
 
-def configure_arguments(build: Path, *, fresh: bool) -> list[str]:
-    arguments = ["cmake"]
-    if fresh:
-        arguments.append("--fresh")
-    arguments.extend(
-        [
-            "-S",
-            ".",
-            "-B",
-            str(build),
-            f"-DPython3_EXECUTABLE={sys.executable}",
-            "-DPython3_FIND_VIRTUALENV=ONLY",
-            "-DBUILD_TESTING=OFF",
-            "-DPSXPORT_BUILD_TESTS=OFF",
-        ]
-    )
-    return arguments
+def configure_arguments(build: Path) -> list[str]:
+    """Configure in place so CMake can incrementally reuse the player build."""
+    return [
+        "cmake",
+        "-S",
+        ".",
+        "-B",
+        str(build),
+        f"-DPython3_EXECUTABLE={sys.executable}",
+        "-DPython3_FIND_VIRTUALENV=ONLY",
+        "-DBUILD_TESTING=OFF",
+        "-DPSXPORT_BUILD_TESTS=OFF",
+    ]
 
 
 def prepare_product(
@@ -333,7 +329,7 @@ def prepare_product(
     jobs = str(min(os.cpu_count() or 1, 16))
 
     runner([sys.executable, "-B", "tools/psxport_sync.py", "--auto"], environment)
-    runner(configure_arguments(paths.build, fresh=True), environment)
+    runner(configure_arguments(paths.build), environment)
     runner(
         [
             "cmake",
@@ -368,7 +364,7 @@ def prepare_product(
         ],
         environment,
     )
-    runner(configure_arguments(paths.build, fresh=False), environment)
+    runner(configure_arguments(paths.build), environment)
     runner(
         [
             "cmake",

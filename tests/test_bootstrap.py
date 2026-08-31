@@ -143,6 +143,7 @@ class ProductWorkflowTest(unittest.TestCase):
         self.assertTrue(
             all("-DPSXPORT_BUILD_TESTS=OFF" in command for command in configure)
         )
+        self.assertTrue(all("--fresh" not in command for command in configure))
         self.assertFalse(
             any(
                 argument.startswith(("-DCMAKE_C_COMPILER=", "-DCMAKE_CXX_COMPILER="))
