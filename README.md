@@ -10,12 +10,14 @@ Current status: the North American executable plus BOOT and five measured nested
 reproducibly provisioned and emitted into a 2,698-function substrate. The tracked
 `replays/flow/crashball-control.pad` reaches and controls a live Crashball match; the tracked
 `replays/flow/battle-crate-crush-control.pad` reaches and controls a live Crate Crush match through
-its title-owned objective, controls, and special-items pages. Both shipping-native paths complete
-without a guest-VSync violation, timeout, watchdog, recompilation miss, or fatal. Native producers
-render the arenas, players, HUD, briefing layers, crates, balls, and items from title-owned state.
-Gameplay uses a centred wide camera; an authored briefing remains a complete centred 4:3 composition.
-`PSXPORT_FPS60=1` presents interpolated midpoints from immutable scene snapshots. Broader game-mode
-coverage and full native parity remain in progress.
+its title-owned objective, controls, and special-items pages; and the tracked
+`replays/flow/tournament-crate-crush-control.pad` reaches and controls Tournament Mode's first
+Crate Crush match. All three shipping-native paths complete without a guest-VSync violation, timeout,
+watchdog, recompilation miss, or fatal. Native producers render the arenas, players, HUD, briefing
+layers, crates, balls, and items from title-owned state. Gameplay uses a centred wide camera; an
+authored briefing remains a complete centred 4:3 composition. `PSXPORT_FPS60=1` presents interpolated
+midpoints from immutable scene snapshots. Broader game-mode coverage and full native parity remain in
+progress.
 
 ## Run the current product
 

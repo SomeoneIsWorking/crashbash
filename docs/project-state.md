@@ -35,8 +35,16 @@ port loaded the previously unprovisioned entryless DAT28382 alternative and stop
 controls, and special-items pages, then drives Left for 90 frames and Right for 180. It reconciles every
 frame with no recompilation miss, fatal, watchdog, or dropped render layer. Direct captures show the
 complete arena, four-player HUD, characters, crates, special items, and the controlled player movement.
-S008 is partial: Crashball and this second game mode are live and controllable, but the other retail
-mode families still need end-to-end play coverage.
+
+2026-08-31 (Tournament Mode reachability): the measured title selection `2` reaches Tournament Mode's
+first Crate Crush match without a further disc-module load. The tracked 7,910-frame
+`replays/flow/tournament-crate-crush-control.pad` advances its objective, controls, and special-items
+pages, then drives Left for 90 frames and Right for 180 in the live arena. Its standalone shipping-native
+replay fully consumes all frames with no recompilation miss, fatal, watchdog, or dropped render layer;
+the final direct capture shows the arena, four-player HUD, crates, items, and controlled player.
+
+S008 is partial: Crashball, Battle Mode, and Tournament Mode's first match are live and controllable,
+but the remaining retail mode paths still need end-to-end play coverage.
 
 S004's prior focus statement follows, for the flow and producer facts it records. Controlled flow is closed through the first playable boundary: the tracked
 3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
