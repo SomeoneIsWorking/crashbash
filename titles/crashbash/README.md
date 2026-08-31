@@ -61,12 +61,12 @@ with zero disagreement or unresolved values before dispatching guest main `0x800
 Build the framework tools explicitly with Clang, then inspect and extract from a provisioned disc:
 
 ```sh
-CC=clang CXX=clang++ cmake -S . -B scratch/build/maintainer
-cmake --build scratch/build/maintainer --target discdump crt0_extract -j16
-scratch/build/maintainer/psxport_build/tools/discdump list "$CRASHBASH_DISC"
-scratch/build/maintainer/psxport_build/tools/discdump get SYSTEM.CNF "$CRASHBASH_DISC" scratch/raw/crashbash-usa
-scratch/build/maintainer/psxport_build/tools/discdump get SCUS_945.70 "$CRASHBASH_DISC" scratch/raw/crashbash-usa
-scratch/build/maintainer/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/SCUS_945.70
+CC=clang CXX=clang++ cmake -S . -B build/maintainer
+cmake --build build/maintainer --target discdump crt0_extract -j16
+build/maintainer/psxport_build/tools/discdump list "$CRASHBASH_DISC"
+build/maintainer/psxport_build/tools/discdump get SYSTEM.CNF "$CRASHBASH_DISC" scratch/raw/crashbash-usa
+build/maintainer/psxport_build/tools/discdump get SCUS_945.70 "$CRASHBASH_DISC" scratch/raw/crashbash-usa
+build/maintainer/psxport_build/tools/crt0_extract scratch/raw/crashbash-usa/SCUS_945.70
 ```
 
 Disc images and extracted files stay under external storage or gitignored `scratch/`; neither is tracked.

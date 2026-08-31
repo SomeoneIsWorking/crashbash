@@ -15,6 +15,7 @@ void SceneSnapshotHistory::beginFrame(std::uint32_t logicFrame) {
     std::abort();
   }
   if (current_.valid) {
+    previous_ = std::move(presentable_);
     presentable_ = std::move(current_);
   }
   current_ = SceneSnapshot{.logicFrame = logicFrame, .valid = true};
@@ -32,6 +33,7 @@ SpriteQuadDraw &SceneSnapshotHistory::record(SpriteQuadDraw draw) {
   if (!current_.valid) {
     std::abort();
   }
+  current_.authoredScreenPresentation |= draw.authoredWorldOrder;
   current_.spriteQuads.push_back(draw);
   return current_.spriteQuads.back();
 }
@@ -44,8 +46,24 @@ const SceneSnapshot &SceneSnapshotHistory::presentable() const {
   return presentable_;
 }
 
+const SceneSnapshot &SceneSnapshotHistory::previous() const {
+  return previous_;
+}
+
 const SceneSnapshot &SceneSnapshotHistory::current() const {
   return current_;
+}
+
+bool SceneSnapshotHistory::temporalPairValid() const {
+  return temporalContinuous_ && previous_.valid && presentable_.valid;
+}
+
+void SceneSnapshotHistory::markPresented() {
+  temporalContinuous_ = true;
+}
+
+void SceneSnapshotHistory::markUnpresented() {
+  temporalContinuous_ = false;
 }
 
 } // namespace crashbash::render

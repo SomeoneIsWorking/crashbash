@@ -108,17 +108,38 @@ struct SpriteQuadDraw {
   bool authoredWorldOrder = false;
 };
 
+// GPU draw state sampled at the real native-model submission boundary. DisplayFrame flips the guest
+// framebuffer immediately afterwards, so a present-time midpoint must not read the now-current GPU
+// offset/clip state or it renders into the opposite 256-line buffer.
+struct ModelRenderEnvironment {
+  std::int32_t drawOffsetX = 0;
+  std::int32_t drawOffsetY = 0;
+  std::int32_t drawAreaX0 = 0;
+  std::int32_t drawAreaY0 = 0;
+  std::int32_t drawAreaX1 = -1;
+  std::int32_t drawAreaY1 = -1;
+  std::int32_t textureWindowMaskX = 0;
+  std::int32_t textureWindowMaskY = 0;
+  std::int32_t textureWindowOffsetX = 0;
+  std::int32_t textureWindowOffsetY = 0;
+  std::int32_t textureDither = 0;
+  bool authoredScreenPresentation = false;
+  bool valid = false;
+};
+
 struct SceneSnapshot {
   std::uint32_t logicFrame = 0;
   bool valid = false;
+  bool authoredScreenPresentation = false;
+  ModelRenderEnvironment modelEnvironment;
   std::vector<ModelDraw> models;
   std::vector<SpriteQuadDraw> spriteQuads;
 };
 
-// Two snapshots are the title-owned temporal input. beginFrame rotates the completed current
-// snapshot to presentable exactly once, then opens a new current snapshot. The guest displays the
-// ordering table built from that presentable snapshot while it builds the current one, so native
-// model submission must consume presentable rather than the still-in-flight current capture.
+// Three slots preserve the two completed snapshots needed for temporal presentation while a new
+// snapshot is being captured. The guest displays the ordering table built from presentable while it
+// builds current; previous and presentable are therefore the exact bounding simulation states for an
+// inserted frame.
 class SceneSnapshotHistory {
 public:
   void beginFrame(std::uint32_t logicFrame);
@@ -127,11 +148,17 @@ public:
 
   SceneSnapshot &presentable();
   const SceneSnapshot &presentable() const;
+  const SceneSnapshot &previous() const;
   const SceneSnapshot &current() const;
+  bool temporalPairValid() const;
+  void markPresented();
+  void markUnpresented();
 
 private:
+  SceneSnapshot previous_;
   SceneSnapshot presentable_;
   SceneSnapshot current_;
+  bool temporalContinuous_ = false;
 };
 
 } // namespace crashbash::render

@@ -762,7 +762,7 @@ def selftest(extractor: Path) -> bool:
 
 
 def default_extractor() -> Path:
-    return ROOT / "scratch/build/maintainer/psxport_build/tools/crt0_extract"
+    return ROOT / "build/maintainer/psxport_build/tools/crt0_extract"
 
 
 def main() -> int:

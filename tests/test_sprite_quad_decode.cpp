@@ -8,7 +8,6 @@ int main() {
   using crashbash::render::ScreenColorQuadCall;
   using crashbash::render::SpriteQuadCall;
   using crashbash::render::SpriteQuadDescriptor;
-
   const SpriteQuadDescriptor descriptor{
       .width = 16,
       .height = 9,

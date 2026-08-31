@@ -1,4 +1,4 @@
-build/
+/build/
 scratch/
 generated/
 .env
@@ -16,3 +16,6 @@ __pycache__/
 # The framework. Not tracked: either a symlink to the workspace shared clone (local) or a
 # private clone at psxport.pin (fresh machine). Managed by tools/psxport_sync.py.
 /external/psxport
+
+# Android package outputs and locally built native libraries live under the
+# authoritative top-level build/ tree and are covered by build/ above.

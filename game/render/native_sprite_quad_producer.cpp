@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "game.h"
+#include "gpu_vk.h"
 #include "model_face_coverage.h"
 #include "producer_scope.h"
 #include "render_queue.h"
@@ -25,7 +26,7 @@ const char *producerName(std::uint32_t sourceFunction) {
   return sourceFunction == kScreenColorQuadSubmit ? "hud:g4" : "sprite:gt4";
 }
 
-void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
+void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScreenPresentation) {
   if (core.game == nullptr || core.game->oracle || core.rsub.mode.psxRender()) {
     return;
   }
@@ -33,6 +34,16 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   if ((draw.textured && (draw.x[0] > draw.x[1] || draw.y[0] > draw.y[2])) || gpu.s_da_x0 > gpu.s_da_x1 ||
       gpu.s_da_y0 > gpu.s_da_y1) {
     return;
+  }
+  const int authoredCanvasShift = draw.authoredWorldOrder && !draw.textured && gpu_vk_wide_engine(&core)
+                                      ? (gpu_vk_wide_engine_w(&core) - gpu_vk_native_w(&core)) / 2
+                                      : 0;
+  int drawAreaX0 = gpu.s_da_x0;
+  int drawAreaX1 = gpu.s_da_x1;
+  if (authoredScreenPresentation && gpu_vk_wide_engine(&core)) {
+    const int margin = (gpu_vk_wide_engine_w(&core) - gpu_vk_native_w(&core)) / 2;
+    drawAreaX0 = std::max(drawAreaX0, margin);
+    drawAreaX1 = std::min(drawAreaX1, margin + gpu_vk_native_w(&core) - 1);
   }
 
   int xs[4]{};
@@ -43,7 +54,7 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
   unsigned char green[4]{};
   unsigned char blue[4]{};
   for (std::size_t index = 0; index < draw.x.size(); ++index) {
-    xs[index] = draw.x[index] + gpu.s_off_x;
+    xs[index] = draw.x[index] + authoredCanvasShift + gpu.s_off_x;
     ys[index] = draw.y[index] + gpu.s_off_y;
     us[index] = draw.u[index];
     vs[index] = draw.v[index];
@@ -89,9 +100,9 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw) {
                     gpu.s_tw_my,
                     gpu.s_tw_ox,
                     gpu.s_tw_oy,
-                    gpu.s_da_x0,
+                    drawAreaX0,
                     gpu.s_da_y0,
-                    gpu.s_da_x1,
+                    drawAreaX1,
                     gpu.s_da_y1,
                     draw.blendMode,
                     nullptr,
@@ -135,7 +146,7 @@ void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t 
       continue;
     }
     ProducerScope producer(&core.rsub.producerScope, draw.sourceFunction, producerName(draw.sourceFunction));
-    submitSpriteQuad(core, draw);
+    submitSpriteQuad(core, draw, snapshot.authoredScreenPresentation);
   }
 }
 

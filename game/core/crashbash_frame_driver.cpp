@@ -137,6 +137,7 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   render::reportModelPacketIdentityDiagnosticFrame(frame);
   snapshot_tick(&core);
   if (deliveredFields_ == 0) {
+    sceneSnapshots_.markUnpresented();
     game_.presentation.commitUnpresented(&core);
   } else {
     game_.presentation.commit(&core, static_cast<int>(deliveredFields_), game_.temporalPresentation.get());

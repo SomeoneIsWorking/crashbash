@@ -27,7 +27,7 @@ still come from the real executable and real assets.
 Drive the game and look at it before believing a picture claim:
 
     python3 external/psxport/tools/port/looks_right.py \
-        --binary scratch/bin/crashbash_port --frames 3740 --shot-at 3700 \
+        --binary build/bin/crashbash_port --frames 3740 --shot-at 3700 \
         --replay replays/flow/crashball-control.pad
 
 Measured 2026-08-30: reaches PASS, widescreen PASS, fps60 FAIL (3,739 duplicate presents, issue 0025).
@@ -43,5 +43,5 @@ The player entry point is `./run.sh`, a slim repository-root handoff to the froz
 root `bootstrap.py`. Zero arguments provision, build, and launch `crashbash_port`; `--check` and
 `--prepare-only` are the non-launching paths. The bootstrap passes its exact interpreter into CMake,
 honors `CC`/`CXX` without compiler identity policy, and owns platform-specific dependency refusals.
-Its isolated `scratch/build/player` tree has `BUILD_TESTING=OFF`; tests belong only to the separate
+Its isolated `build/player` tree has `BUILD_TESTING=OFF`; tests belong only to the separate
 maintainer build.

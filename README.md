@@ -3,14 +3,18 @@
 PC-native PlayStation port of Crash Bash, built on
 [psxport](https://github.com/SomeoneIsWorking/psxport).
 
+The port source is distributed under GPL-3.0-or-later; see `COPYING`. Original Crash Bash game
+content is not included and must be supplied by the player.
+
 Current status: the North American executable plus BOOT and four measured nested modules are
 reproducibly provisioned and emitted into a 2,593-function substrate. The tracked
 `replays/flow/crashball-control.pad` drives the title screen through the Crashball portal, both
 briefing pages, and into a live match, then moves the player ship left and right. The exact 3,740-frame
 shipping-native replay completes without a guest-VSync violation, timeout, watchdog, recompilation
-miss, or fatal. The native producer renders the arena, ships, and balls from title-owned state, but
-the briefing text, HUD, portraits, and character sprites remain absent; full 4:3 parity, widescreen,
-and presentation interpolation are not yet claimed.
+miss, or fatal. Native producers render the arena, ships, balls, briefing/HUD, portraits, and
+characters from title-owned state. Gameplay uses a centred wide camera; an authored briefing remains
+a complete centred 4:3 composition. `PSXPORT_FPS60=1` presents interpolated midpoints from immutable
+scene snapshots. Broader game-mode coverage and full native parity remain in progress.
 
 ## Run the current product
 
@@ -42,24 +46,26 @@ CTest.
 `run.sh` is deliberately only a stable repository-root handoff to
 `uv run --frozen python bootstrap.py`; dependency discovery, sync, provisioning, build policy, and
 launch behavior have one owner in `bootstrap.py`. The player uses the isolated
-`scratch/build/player` tree with `BUILD_TESTING=OFF` and builds only `crashbash_port`.
+`build/player` tree with `BUILD_TESTING=OFF` and builds only `crashbash_port`. Compiler output,
+package caches, and release artifacts share the top-level `build/` owner; `scratch/` is reserved for
+disposable runtime captures, logs, and extracted restricted inputs.
 
 ## Build and verify explicitly
 
 ```sh
 LOCKED_PYTHON="$(uv run --frozen python -c 'import sys; print(sys.executable)')"
 uv run --frozen python tools/psxport_sync.py --auto
-CC=clang CXX=clang++ cmake --fresh -S . -B scratch/build/maintainer \
+CC=clang CXX=clang++ cmake --fresh -S . -B build/maintainer \
   -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
-cmake --build scratch/build/maintainer --target discdump crt0_extract -j16
+cmake --build build/maintainer --target discdump crt0_extract -j16
 uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
 uv run --frozen python tools/recomp_bootstrap.py --ensure \
-  --crt0-extract scratch/build/maintainer/psxport_build/tools/crt0_extract
-CC=clang CXX=clang++ cmake -S . -B scratch/build/maintainer \
+  --crt0-extract build/maintainer/psxport_build/tools/crt0_extract
+CC=clang CXX=clang++ cmake -S . -B build/maintainer \
   -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
-cmake --build scratch/build/maintainer --target crashbash_port -j16
+cmake --build build/maintainer --target crashbash_port -j16
 PSXPORT_CRASHBASH_DISC="/path/to/Crash Bash (USA).chd" \
-  ctest --test-dir scratch/build/maintainer --output-on-failure
+  ctest --test-dir build/maintainer --output-on-failure
 uv run --frozen python -m unittest discover -s tests -p 'test_*.py'
 ```
 
@@ -84,7 +90,7 @@ uv run --frozen python tools/verify_cdc_phase_progress.py
 Build `discdump` with Clang, then run the title-local provisioner:
 
 ```sh
-cmake --build scratch/build/maintainer --target discdump -j16
+cmake --build build/maintainer --target discdump -j16
 uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
 ```
 

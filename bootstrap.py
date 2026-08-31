@@ -15,10 +15,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-BUILD = ROOT / "scratch" / "build" / "player"
+BUILD = ROOT / "build" / "player"
 PORT = (
     ROOT
-    / "scratch"
+    / "build"
     / "bin"
     / ("crashbash_port.exe" if os.name == "nt" else "crashbash_port")
 )

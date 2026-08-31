@@ -9,6 +9,7 @@
 #include "crashbash_frame_driver.h"
 #include "display_frame.h"
 #include "gpu_timeout.h"
+#include "interpolated_scene.h"
 #include "legacy_game_interface.h"
 #include "memcard.h"
 #include "memory_card_startup.h"
@@ -50,6 +51,10 @@ void CrashBashRuntime::registerOverrides(Game &game) {
 void CrashBashRuntime::bootInit(Core &core) {
   lucent::info("boot", "executing finite Crash Bash boot prefix; native FrameDriver owns repetition");
   runBootPrefix(core);
+}
+
+std::unique_ptr<TemporalFramePresentation> CrashBashRuntime::createTemporalFramePresentation(Game &game) {
+  return std::make_unique<render::InterpolatedScenePresentation>(game);
 }
 
 std::unique_ptr<FrameDriver> CrashBashRuntime::createFrameDriver(Game &game) {

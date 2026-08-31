@@ -7,7 +7,7 @@
 | S003 | Resident code and every measured CRASHBSH.DAT module form a reproducible executable recompilation substrate | verified | S001 | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct | partial | S002, S003 | G001, G002, G003 |
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | partial | S004 | G002 |
-| S006 | Native camera and world transforms render between simulation ticks | missing | S004 | G003 |
+| S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic checks compare the port with independent retail behavior at proven boundaries | partial | S001 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the shipping native path | missing | S002, S004 | G001 |
 
@@ -70,19 +70,16 @@ The 4:3 gameplay picture is correct: arena, floor, all four player ships with th
 puck, the four portraits with their score digits, and the player ship. Nothing is missing or
 misplaced.
 
-Widescreen WORKS and S005 moves from `missing` to `partial`. At `aspect=1` the warp room shows a
-third mode sign and more of both side walls, and the arena shows the full right-hand ramp that 4:3
-cuts off, with no horizontal stretch — a real FOV widening. Two 2D layers did not follow the widened
-frame (issue 0024): the objective briefing's dimmer and yellow border cover only a 4:3-sized central
-region, and the HUD moves inboard — the orange score digits span x 62..865 of 960 at 4:3 but only
-80..768 at 16:9.
+Widescreen WORKS and S005 remains `partial` while other modes need coverage. At `aspect=1`, the
+Crashball arena is a real wider camera view with balanced left/right framing. The objective briefing
+is deliberately different: its title-owned dimmer is an authored 4:3 presentation signal, so the
+whole composition is clipped to one centred 4:3 viewport at full height, matching the oracle rather
+than exposing widened arena columns behind its corners (issue 0024 resolved).
 
-Interpolation is wired but inert, so S006 stays `missing` with a measured reason (issue 0025).
-`PSXPORT_FPS60=1` is accepted and does insert an extra present at `t=0.500`, and the classifier marks
-1,800 world items TIER1, but every extra present reports `tier1=0 backdrop=0` — the in-between frame
-is Q[N-1] replayed verbatim, with no `tier1Render REFUSED` line, so the world-pass re-render is never
-attempted. Captured frame-3700 presents with and without the knob are byte-identical. That is 60 Hz
-pacing of 30 Hz motion.
+Interpolation makes S006 `partial`. `PSXPORT_FPS60=1` now rebuilds midpoint model geometry from
+immutable title snapshots; the clean 3,741-frame replay reports 6,159,397 interpolated primitives
+over 3,701 extra presents. Direct midpoint captures show motion between neighbouring real frames,
+not duplicate 30 Hz presents (issue 0025 resolved).
 
 2026-08-30 (textured coverage phase): the 45-pixel residual resolves to seven source pixels. Source
 `(206,82)` is covered by object `0x801D0AC8`, frame `0x2019`, faces 0 and 3 — textured triangles two

@@ -16,6 +16,11 @@ struct NativeModelSubmitResult {
 };
 
 NativeModelSubmitResult submitFixedModel(Core &core, const ModelDraw &draw);
+NativeModelSubmitResult submitFixedModel(Core &core,
+                                         const ModelDraw &draw,
+                                         const ModelDraw *previous,
+                                         float alpha,
+                                         const ModelRenderEnvironment &environment);
 void submitFixedModels(Core &core, SceneSnapshot &snapshot);
 
 } // namespace crashbash::render

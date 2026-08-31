@@ -14,7 +14,7 @@ from pathlib import Path
 import verify_boot
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PORT = ROOT / "scratch/bin/crashbash_port"
+DEFAULT_PORT = ROOT / "build/bin/crashbash_port"
 DEFAULT_EXECUTABLE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
 LOG_DIR = ROOT / "scratch/logs"
 

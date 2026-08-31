@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PORT = ROOT / "scratch/bin/crashbash_port"
+DEFAULT_PORT = ROOT / "build/bin/crashbash_port"
 DEFAULT_EXECUTABLE = ROOT / "scratch/bin/crashbash/SCUS_945.70"
 DEFAULT_LOG = ROOT / "scratch/logs/verify-cdc-phase-progress.log"
 TARGET_LINE = "[cdc] sector LBA 17655 "

@@ -21,6 +21,7 @@ public:
   }
   void registerOverrides(Game &game) override;
   void bootInit(Core &core) override;
+  std::unique_ptr<TemporalFramePresentation> createTemporalFramePresentation(Game &game) override;
   std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
 };
 

@@ -51,14 +51,21 @@ int main() {
       .clut = 0x0456u,
   });
   if (!history.current().valid || history.current().logicFrame != 7u || history.current().models.size() != 1u ||
-      history.current().spriteQuads.size() != 1u || history.presentable().valid) {
+      history.current().spriteQuads.size() != 1u || history.current().authoredScreenPresentation ||
+      history.presentable().valid) {
+    return EXIT_FAILURE;
+  }
+
+  history.record(SpriteQuadDraw{.sourceFunction = 0x8001A0D8u, .authoredWorldOrder = true});
+  if (!history.current().authoredScreenPresentation) {
     return EXIT_FAILURE;
   }
 
   history.beginFrame(8u);
-  if (!history.presentable().valid || history.presentable().logicFrame != 7u ||
-      history.presentable().models.size() != 1u || history.presentable().spriteQuads.size() != 1u ||
-      !history.current().valid || history.current().logicFrame != 8u || !history.current().models.empty() ||
+  if (history.previous().valid || !history.presentable().valid || history.presentable().logicFrame != 7u ||
+      history.presentable().models.size() != 1u || history.presentable().spriteQuads.size() != 2u ||
+      !history.presentable().authoredScreenPresentation || !history.current().valid ||
+      history.current().logicFrame != 8u || !history.current().models.empty() ||
       !history.current().spriteQuads.empty()) {
     return EXIT_FAILURE;
   }
@@ -73,6 +80,22 @@ int main() {
       previousDraw.faces.size() != 1u || !previousDraw.faces.front().textured ||
       previousDraw.faces.front().textureCoordinates[2] != 0x5060u ||
       previousDraw.faces.front().texturePage != 0x0123u || previousDraw.faces.front().clut != 0x0456u) {
+    return EXIT_FAILURE;
+  }
+
+  history.record(draw);
+  history.beginFrame(9u);
+  if (!history.previous().valid || history.previous().logicFrame != 7u || !history.presentable().valid ||
+      history.presentable().logicFrame != 8u || !history.current().valid || history.current().logicFrame != 9u ||
+      history.temporalPairValid()) {
+    return EXIT_FAILURE;
+  }
+  history.markPresented();
+  if (!history.temporalPairValid()) {
+    return EXIT_FAILURE;
+  }
+  history.markUnpresented();
+  if (history.temporalPairValid()) {
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
