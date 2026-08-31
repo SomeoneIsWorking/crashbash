@@ -48,6 +48,16 @@ behind the key-128 side marker, restoring its retail-bright yellow result. Issue
 `0x80018B08` is viewport/camera/render-list setup rather than a drawable. S004 remains partial for
 broader native 4:3 parity, not for a known missing Crashball briefing layer.
 
+2026-08-31 (startup native sprites): the title/menu regression was not an Auto aspect, resolution,
+or interpolation defect. `0x80018B08` stores the selected bucket address inside one alternating
+4,096-word ordering table; retained `0x8002992C` and `0x8001A0D8` records therefore hold that bucket,
+not the table base. Native submission compared it with the base and discarded every startup sprite.
+The source-owned membership predicate restores 4,752 textured sprites and 880 authored-screen quads
+at frames 512..599. Native f360 and f600 now visibly restore the Eurocom/Cerny screen and game-mode
+menu at Auto/60; 2560x1080 retains the menu as a centred 4:3 composition. A generated-body trace
+falsifies the pending `0x80019A60` frame-family-`0x3000`/`0x80029D28` theory for this startup interval:
+neither boundary runs at its f360 presentation source frames.
+
 Frame-300 packet identity now falsifies issue 0015's former DPCS hypothesis: the subtitle face's raw,
 modeled, and packet colors and its SXY agree exactly. The residual combined psxport's Vulkan affine-UV
 truncation, direct-to-5-bit untextured Gouraud quantization, untextured half-pixel coverage phase,
