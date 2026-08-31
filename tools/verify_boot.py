@@ -96,8 +96,13 @@ def judge(text: str, substrate_identity: str) -> Verdict:
     completions = _matching_lines(lines, LOAD_COMPLETE)
     menu_entries = _matching_lines(lines, MENU_ENTRY)
     empty_prims = _matching_lines(lines, EMPTY_PRIMS)
-    identity_line = f"[recomp] generated substrate identity: {substrate_identity}"
-    identities = _matching_lines(lines, identity_line)
+    # Lucent prefixes normal product records with an ISO-8601 timestamp.  The generated
+    # substrate identity is still the exact same record, so match its structured event
+    # rather than treating the formatter prefix as part of the build identity contract.
+    identity_record = re.compile(
+        rf"(?:^|\]\s+)\[recomp\]\s+generated substrate identity: {re.escape(substrate_identity)}$"
+    )
+    identities = _matching_lines(lines, identity_record)
     counts = (
         ("matching compiled-substrate identity", len(identities), 1),
         (LOAD_START, len(starts), 2),
@@ -277,7 +282,7 @@ def selftest() -> bool:
     substrate_identity = "recomp-2026-08-30.3-" + "a" * 64
     fixture = _fixture(substrate_identity)
     passed = 0
-    cases = 15
+    cases = 16
     try:
         verdict = judge(fixture, substrate_identity)
         passed += 1
@@ -288,6 +293,17 @@ def selftest() -> bool:
         )
     except Refused as error:
         print(f"FAIL positive: {error}", file=sys.stderr)
+
+    timestamped_fixture = fixture.replace(
+        f"[recomp] generated substrate identity: {substrate_identity}",
+        f"[2026-08-31T14:54:05.425Z] [recomp] generated substrate identity: {substrate_identity}",
+    )
+    try:
+        judge(timestamped_fixture, substrate_identity)
+        passed += 1
+        print("PASS positive: timestamped compiled-substrate identity is accepted")
+    except Refused as error:
+        print(f"FAIL timestamped positive: {error}", file=sys.stderr)
 
     menu_entry_line = next(
         line for line in fixture.splitlines() if "[crashbash-boundary]" in line
