@@ -20,10 +20,16 @@ struct ModelFrameResolveInputs {
 struct ModelFrameSource {
   std::uint32_t frameRecord = 0;
   std::uint32_t vertexIndexStream = 0;
+  std::uint32_t interpolationIndexStream = 0;
   std::uint32_t vertexPool = 0;
+  std::uint32_t interpolationWeight = 0;
 
   bool indexedVertices() const {
     return vertexIndexStream != 0;
+  }
+
+  bool interpolatedIndexedVertices() const {
+    return interpolationIndexStream != 0 && interpolationWeight != 0;
   }
 
   bool operator==(const ModelFrameSource &) const = default;

@@ -59,13 +59,22 @@ int main() {
                  {animationHandle, animation},
                  {animation, vertexPoolRelative},
                  {animationEntry, vertexIndicesRelative},
+                 {animationEntry + 4u, 0u},
                  {animationEntry + 8u, 0u}};
   assert((resolveModelFrameSource({.frameCode = 0x4000u, .modelData = model}, reader(indexed)) ==
           ModelFrameSource{.frameRecord = frameRecord,
                            .vertexIndexStream = animationEntry + vertexIndicesRelative + 0x14u,
                            .vertexPool = animation + vertexPoolRelative}));
 
-  indexed[animationEntry + 8u] = 0x20u;
+  indexed[animationEntry + 4u] = 0x120u;
+  indexed[animationEntry + 8u] = 0x800u;
+  assert((resolveModelFrameSource({.frameCode = 0x4000u, .modelData = model}, reader(indexed)) ==
+          ModelFrameSource{.frameRecord = frameRecord,
+                           .vertexIndexStream = animationEntry + vertexIndicesRelative + 0x14u,
+                           .interpolationIndexStream = animationEntry + 0x120u + 0x18u,
+                           .vertexPool = animation + vertexPoolRelative,
+                           .interpolationWeight = 0x800u}));
+  indexed[animationEntry + 4u] = 0u;
   assert(!resolveModelFrameSource({.frameCode = 0x4000u, .modelData = model}, reader(indexed)));
   indexed[animationEntry + 8u] = 0u;
   const ModelFrameResolveInputs overridden{
@@ -75,6 +84,21 @@ int main() {
       .objectFrameIndex = 2u,
   };
   assert(resolveModelFrameSource(overridden, reader(indexed))->frameRecord == model + 0x24u + 2u * 0x34u);
+
+  constexpr std::uint32_t nextAnimationEntry = animationEntry + 0x10u;
+  indexed[nextAnimationEntry] = 0x140u;
+  indexed[nextAnimationEntry + 4u] = 0x180u;
+  indexed[nextAnimationEntry + 8u] = 0u;
+  const ModelFrameResolveInputs objectInterpolated{
+      .frameCode = 0x4000u,
+      .modelData = model,
+      .effectiveFlags = 0x80000000u,
+      .objectAnimationFrame = 0,
+      .objectInterpolationWeight = 0x8000u,
+  };
+  const auto objectSource = resolveModelFrameSource(objectInterpolated, reader(indexed));
+  assert(objectSource && objectSource->interpolationIndexStream == nextAnimationEntry + 0x180u + 0x14u &&
+         objectSource->interpolationWeight == 0x800u);
 
   indexed[animation] = 0u;
   indexed[model + 0x28u] = 0x900u;

@@ -63,6 +63,30 @@ std::optional<ModelVertex> readIndexedVertex(Core &core, std::uint32_t indexAddr
   };
 }
 
+std::int16_t interpolateCoordinate(std::int16_t from, std::int16_t to, std::uint32_t weight) {
+  const std::int32_t delta = static_cast<std::int32_t>(to) - from;
+  return static_cast<std::int16_t>(static_cast<std::int32_t>(from) +
+                                   ((delta * static_cast<std::int32_t>(weight)) >> 12u));
+}
+
+std::optional<ModelVertex> readInterpolatedIndexedVertex(Core &core,
+                                                         std::uint32_t firstIndexAddress,
+                                                         std::uint32_t secondIndexAddress,
+                                                         std::uint32_t vertexPool,
+                                                         std::uint32_t weight) {
+  const auto first = readIndexedVertex(core, firstIndexAddress, vertexPool);
+  const auto second = readIndexedVertex(core, secondIndexAddress, vertexPool);
+  if (!first || !second) {
+    return std::nullopt;
+  }
+  return ModelVertex{
+      .x = interpolateCoordinate(first->x, second->x, weight),
+      .y = interpolateCoordinate(first->y, second->y, weight),
+      .z = interpolateCoordinate(first->z, second->z, weight),
+      .flags = second->flags,
+  };
+}
+
 bool decodeTextureMaterial(Core &core,
                            const ModelDraw &draw,
                            std::uint16_t material,
@@ -188,6 +212,8 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
     ++census.groups;
     if (count > kMaxFaces - census.faces ||
         !ramRange(vertices, (static_cast<std::uint32_t>(count) + 2u) * vertexStride) ||
+        (source->interpolatedIndexedVertices() &&
+         !ramRange(source->interpolationIndexStream, (static_cast<std::uint32_t>(count) + 2u) * vertexStride)) ||
         !ramRange(materials, static_cast<std::uint32_t>(count) * 2u)) {
       return census;
     }
@@ -218,8 +244,16 @@ ModelRecipeCensus captureFixedModelRecipe(Core &core, ModelDraw &draw) {
       const std::uint32_t faceVertex = vertices + faceIndex * vertexStride;
       const auto vertexAt = [&](std::uint32_t index) -> std::optional<ModelVertex> {
         const std::uint32_t address = faceVertex + index * vertexStride;
-        return source->indexedVertices() ? readIndexedVertex(core, address, source->vertexPool)
-                                         : std::optional<ModelVertex>(readVertex(core, address));
+        if (!source->indexedVertices()) {
+          return readVertex(core, address);
+        }
+        if (!source->interpolatedIndexedVertices()) {
+          return readIndexedVertex(core, address, source->vertexPool);
+        }
+        const std::uint32_t interpolationAddress =
+            source->interpolationIndexStream + (address - source->vertexIndexStream);
+        return readInterpolatedIndexedVertex(
+            core, address, interpolationAddress, source->vertexPool, source->interpolationWeight);
       };
       const auto vertex0 = vertexAt(0u);
       const auto vertex1 = vertexAt(1u);

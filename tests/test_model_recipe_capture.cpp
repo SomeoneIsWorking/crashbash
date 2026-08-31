@@ -110,6 +110,7 @@ int main() {
   constexpr std::uint32_t animation = 0x80023000u;
   constexpr std::uint32_t vertexPool = 0x80024000u;
   constexpr std::uint32_t vertexIndices = 0x80025000u;
+  constexpr std::uint32_t interpolationIndices = 0x80025100u;
   constexpr std::uint32_t indexedTopology = 0x80026000u;
   constexpr std::uint32_t indexedTextureIndices = 0x80026100u;
   constexpr std::uint32_t indexedTextureDescriptors = 0x80026200u;
@@ -125,7 +126,8 @@ int main() {
   core.mem_w32(animationHandle, animation);
   core.mem_w32(animation, vertexPool - animation);
   writeRelative(core, animation + 4u, 0u, 0x14u, vertexIndices);
-  core.mem_w32(animation + 0x0Cu, 0u);
+  writeRelative(core, animation + 4u, 4u, 0x18u, interpolationIndices);
+  core.mem_w32(animation + 0x0Cu, 0x800u);
   writeRelative(core, indexedFrame, 0x14u, 0x14u, indexedTopology);
   writeRelative(core, indexedFrame, 0x18u, 0x18u, indexedTextureIndices);
   writeRelative(core, indexedFrame, 0x1Cu, 0x1Cu, indexedTextureDescriptors);
@@ -133,9 +135,12 @@ int main() {
   writeRelative(core, indexedModelData, 0x20u, 0x20u, indexedColors);
   writeRelative(core, indexedModelData, 0x24u, 0x24u, indexedUv);
 
-  for (std::uint32_t vertex = 0; vertex < 3u; ++vertex) {
+  for (std::uint32_t vertex = 0; vertex < 6u; ++vertex) {
     writePackedVertex(core, vertexPool + vertex * 6u, static_cast<std::int16_t>(100 + vertex * 10u));
+  }
+  for (std::uint32_t vertex = 0; vertex < 3u; ++vertex) {
     core.mem_w16(vertexIndices + vertex * 2u, static_cast<std::uint16_t>((vertex << 2u) | vertex));
+    core.mem_w16(interpolationIndices + vertex * 2u, static_cast<std::uint16_t>(((vertex + 3u) << 2u) | (3u - vertex)));
   }
   core.mem_w8(indexedTopology, 1u);
   core.mem_w8(indexedTopology + 1u, 1u);
@@ -158,12 +163,12 @@ int main() {
         "indexed animation-family recipe is decoded");
   check(indexedDraw.faces.size() == 1u, "indexed recipe retains its source face");
   if (indexedDraw.faces.size() == 1u) {
-    check(indexedDraw.faces[0].vertices[0].x == 100 && indexedDraw.faces[0].vertices[1].x == 110 &&
-              indexedDraw.faces[0].vertices[2].x == 120,
-          "indexed recipe expands its three six-byte source vertices");
-    check(indexedDraw.faces[0].vertices[0].flags == 0u && indexedDraw.faces[0].vertices[1].flags == 1u &&
-              indexedDraw.faces[0].vertices[2].flags == 2u,
-          "indexed recipe preserves the low two index bits as retail vertex flags");
+    check(indexedDraw.faces[0].vertices[0].x == 115 && indexedDraw.faces[0].vertices[1].x == 125 &&
+              indexedDraw.faces[0].vertices[2].x == 135,
+          "indexed recipe expands and blends the two animation vertex streams at IR0");
+    check(indexedDraw.faces[0].vertices[0].flags == 3u && indexedDraw.faces[0].vertices[1].flags == 2u &&
+              indexedDraw.faces[0].vertices[2].flags == 1u,
+          "indexed interpolation preserves retail's second-stream vertex flags");
     check(indexedDraw.faces[0].sourceVertexAddress == vertexIndices,
           "indexed face identity names the authored index-stream cursor");
   }

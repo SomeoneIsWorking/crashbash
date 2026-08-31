@@ -82,11 +82,35 @@ std::optional<ModelFrameSource> resolveIndexedFrame(const ModelFrameResolveInput
 
   const std::uint32_t animationEntry = *animation + static_cast<std::uint32_t>(frameIndex) * 0x10u + 4u;
   const std::optional<std::uint32_t> vertexIndicesRelative = readWord(animationEntry);
-  const std::optional<std::uint32_t> interpolationRelative = readWord(animationEntry + 8u);
-  if (!vertexIndicesRelative || *vertexIndicesRelative == 0u || !interpolationRelative ||
-      *interpolationRelative != 0u ||
-      (static_cast<std::int32_t>(inputs.effectiveFlags) < 0 && inputs.objectInterpolationWeight != 0u)) {
+  const std::optional<std::uint32_t> interpolationRelative = readWord(animationEntry + 4u);
+  const std::optional<std::uint32_t> interpolationWeight = readWord(animationEntry + 8u);
+  if (!vertexIndicesRelative || *vertexIndicesRelative == 0u || !interpolationWeight) {
     return std::nullopt;
+  }
+
+  std::uint32_t interpolationIndexStream = 0;
+  std::uint32_t effectiveInterpolationWeight = *interpolationWeight;
+  if (static_cast<std::int32_t>(inputs.effectiveFlags) < 0 && inputs.objectInterpolationWeight != 0u) {
+    const std::uint32_t nextAnimationEntry = animationEntry + 0x10u;
+    const std::optional<std::uint32_t> nextInterpolationRelative = readWord(nextAnimationEntry + 4u);
+    const std::optional<std::uint32_t> nextVertexIndicesRelative = readWord(nextAnimationEntry);
+    const std::optional<std::uint32_t> nextInterpolationWeight = readWord(nextAnimationEntry + 8u);
+    if (!nextInterpolationRelative || !nextVertexIndicesRelative || !nextInterpolationWeight) {
+      return std::nullopt;
+    }
+    const std::uint32_t targetWeight = *nextInterpolationWeight == 0u ? 0x1000u : *nextInterpolationWeight;
+    const std::int64_t delta = static_cast<std::int64_t>(targetWeight) - *interpolationWeight;
+    effectiveInterpolationWeight =
+        static_cast<std::uint32_t>(static_cast<std::int64_t>(*interpolationWeight) +
+                                   (static_cast<std::int64_t>(inputs.objectInterpolationWeight) * delta >> 16u));
+    const std::uint32_t secondaryRelative =
+        *nextInterpolationRelative == 0u ? *nextVertexIndicesRelative : *nextInterpolationRelative;
+    interpolationIndexStream = nextAnimationEntry + secondaryRelative + 0x14u;
+  } else if (*interpolationWeight != 0u) {
+    if (!interpolationRelative || *interpolationRelative == 0u) {
+      return std::nullopt;
+    }
+    interpolationIndexStream = animationEntry + *interpolationRelative + 0x18u;
   }
 
   std::uint32_t frameRecord = descriptor + *frameRelative + 0x0Cu;
@@ -110,7 +134,9 @@ std::optional<ModelFrameSource> resolveIndexedFrame(const ModelFrameResolveInput
   return ModelFrameSource{
       .frameRecord = frameRecord,
       .vertexIndexStream = animationEntry + *vertexIndicesRelative + 0x14u,
+      .interpolationIndexStream = interpolationIndexStream,
       .vertexPool = vertexPool,
+      .interpolationWeight = effectiveInterpolationWeight,
   };
 }
 
