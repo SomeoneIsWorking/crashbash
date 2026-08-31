@@ -1,5 +1,6 @@
 #include "crashbash_runtime.h"
 
+#include "boot_logo_skip.h"
 #include "boot_object_callbacks.h"
 #include "cd_file_read.h"
 #include "cd_license_startup.h"
@@ -42,6 +43,7 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   registerGpuTimeoutOverrides();
   registerDisplayFrameOverride();
   registerBootObjectCallbackOverrides();
+  registerBootLogoSkipOverride();
   polar::registerPolarPushContactOverride();
   render::registerModelDepthScaleCaptureOverride();
   render::registerModelTransformCaptureOverride();

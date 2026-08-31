@@ -31,6 +31,7 @@ add_subdirectory("${PSXPORT_DIR}" psxport_build)
 
 set(CRASHBASH_SEAM_SOURCES
   game/core/boot_object_callbacks.cpp
+  game/core/boot_logo_skip.cpp
   game/core/cd_file_read.cpp
   game/core/cd_license_startup.cpp
   game/core/cd_startup.cpp

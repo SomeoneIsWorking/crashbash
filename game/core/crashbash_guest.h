@@ -26,6 +26,16 @@ inline constexpr std::uint32_t kCdSync = 0x8003E6B0u;
 inline constexpr std::uint32_t kCdCommand = 0x8003EBF8u;
 inline constexpr std::uint32_t kMemoryCardStartup = 0x800486DCu;
 
+// BOOT overlay logo controller and the resident scene-transition primitive it reaches once the
+// logos have completed. The controller's natural completion requests kBootLogoHandoffState with
+// kBootLogoHandoffFlags; native Start handling uses the same dispatcher-owned request instead of
+// advancing the logo timer or mutating the active scene.
+inline constexpr std::uint32_t kBootLogoUpdate = 0x8008E5BCu;
+inline constexpr std::uint32_t kSceneTransitionRequest = 0x8001E588u;
+inline constexpr std::uint32_t kSceneTransition = 0x8009F658u;
+inline constexpr std::uint32_t kBootLogoHandoffState = 0x800A00DCu;
+inline constexpr std::uint32_t kBootLogoHandoffFlags = 0x00000012u;
+
 inline constexpr std::uint32_t kInitialProcessState = 0x8004E0B8u;
 inline constexpr std::uint32_t kCurrentProcessState = 0x8005B648u;
 inline constexpr std::uint32_t kInitialStateEnter = 0x80010410u;
