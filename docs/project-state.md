@@ -553,8 +553,9 @@ legitimate emission density is measured at 51.7x of its image (20.0 MB of C from
 verified at the pre-guard pin), so `tools/recomp_bootstrap.py` sets the size-guard knob to 56 with
 that measurement recorded rather than raising the framework default.
 
-Gap: smaller facet/gradient and sub-pixel glyph differences remain against the PSX reference. Native 4:3
-parity, widescreen, and interpolation remain unverified.
+Gap: smaller facet/gradient and sub-pixel glyph differences remain against the PSX reference. Native
+4:3 parity, wider-mode coverage beyond Crashball, and interpolation coverage beyond the exercised
+routes remain incomplete.
 
 ### S005 — Widescreen camera
 
@@ -562,7 +563,7 @@ The native camera shows a real wider horizontal Crashball view while preserving 
 authored 4:3 briefing compositions remain centered instead of exposing unrelated world content.
 
 Gap: representative retail modes beyond the exercised Crashball and current menu/briefing routes still
-need live widescreen coverage.
+need live widescreen coverage; Polar Push is currently verified only at 4:3.
 
 ### S006 — Interpolated presentation
 
@@ -584,8 +585,7 @@ their declared boundaries; neither satisfies any of those later gates.
 
 ### S008 — Retail mode playability
 
-Crashball, Battle Mode Crate Crush, and Tournament Mode's first Crate Crush match are live and
-controllable on the shipping native path. Polar Push reaches its arena-entry boundary without the former
-fatal, and its selection/options/loading path is covered.
+Crashball, Battle Mode Crate Crush, Tournament Mode's first Crate Crush match, and Polar Push are live
+and controllable on the shipping native path. Polar Push now has a complete durable boot-to-match replay.
 
-Gap: controllable Polar Push and the remaining retail mode families still need end-to-end play coverage.
+Gap: the remaining retail mode families still need end-to-end play coverage.
