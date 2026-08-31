@@ -33,7 +33,7 @@ SpriteQuadDraw &SceneSnapshotHistory::record(SpriteQuadDraw draw) {
   if (!current_.valid) {
     std::abort();
   }
-  current_.authoredScreenPresentation |= draw.authoredWorldOrder;
+  current_.authoredScreenPresentation |= draw.centered4x3Composition;
   current_.spriteQuads.push_back(draw);
   return current_.spriteQuads.back();
 }

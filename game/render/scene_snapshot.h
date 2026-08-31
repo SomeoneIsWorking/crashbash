@@ -106,6 +106,9 @@ struct SpriteQuadDraw {
   bool dither = false;
   bool semiTransparent = false;
   bool authoredWorldOrder = false;
+  // A large source-authored color quad is the Crashball objective/briefing composition. Smaller
+  // screen-color quads belong to the 3D title menu and must not suppress the widened world.
+  bool centered4x3Composition = false;
 };
 
 // GPU draw state sampled at the real native-model submission boundary. DisplayFrame flips the guest

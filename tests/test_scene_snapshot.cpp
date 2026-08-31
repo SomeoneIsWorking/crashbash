@@ -76,7 +76,8 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  history.record(SpriteQuadDraw{.sourceFunction = 0x8001A0D8u, .authoredWorldOrder = true});
+  history.record(
+      SpriteQuadDraw{.sourceFunction = 0x8001A0D8u, .authoredWorldOrder = true, .centered4x3Composition = true});
   if (!history.current().authoredScreenPresentation) {
     return EXIT_FAILURE;
   }

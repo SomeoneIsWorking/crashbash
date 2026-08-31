@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_frame_driver.h"
+#include "game.h"
 #include "override_registry.h"
 #include "sprite_quad_decode.h"
 
@@ -130,6 +131,12 @@ void screenColorQuadCapture(Core *core) {
                            (static_cast<std::uint32_t>(core->mem_r8(color + 2u)) << 16u);
     }
     draw = decodeScreenColorQuad(call);
+    if (draw) {
+      const int nativeWidth = core->game->gpu.s_disp_w > 0 ? core->game->gpu.s_disp_w : 320;
+      const int nativeHeight = core->game->gpu.s_disp_h > 0 ? core->game->gpu.s_disp_h : 240;
+      draw->centered4x3Composition =
+          isCentered4x3Composition(draw->x[1] - draw->x[0] + 1, draw->y[2] - draw->y[0] + 1, nativeWidth, nativeHeight);
+    }
   }
 
   gen_func_8001A0D8(core);

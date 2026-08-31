@@ -139,7 +139,8 @@ or interpolation defect. `0x80018B08` stores the selected bucket address inside 
 not the table base. Native submission compared it with the base and discarded every startup sprite.
 The source-owned membership predicate restores 4,752 textured sprites and 880 authored-screen quads
 at frames 512..599. Native f360 and f600 now visibly restore the Eurocom/Cerny screen and game-mode
-menu at Auto/60; 2560x1080 retains the menu as a centred 4:3 composition. A generated-body trace
+menu at Auto/60; the 3D game-type menu widens with the camera while its authored text/panels remain
+in their source positions. A generated-body trace
 falsifies the pending `0x80019A60` frame-family-`0x3000`/`0x80029D28` theory for this startup interval:
 neither boundary runs at its f360 presentation source frames.
 

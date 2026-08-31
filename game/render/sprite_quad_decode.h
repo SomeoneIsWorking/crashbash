@@ -42,6 +42,13 @@ struct ScreenColorQuadCall {
   std::int32_t fade = 0;
 };
 
+// A large source-authored color quad identifies a complete briefing composition. Smaller screen
+// quads are menu chrome over a 3D scene and must leave the widened world enabled.
+inline bool isCentered4x3Composition(int width, int height, int nativeWidth, int nativeHeight) {
+  return width > 0 && height > 0 && nativeWidth > 0 && nativeHeight > 0 && width * 4 >= nativeWidth * 3 &&
+         height * 2 >= nativeHeight;
+}
+
 // Decode only the game-authored inputs consumed by the 0x8002992C Gouraud and 0x80029D28 flat-color
 // textured-quad leaves. A zero display scale is not a valid recipe: both retail bodies trap on the
 // same divisor, so callers retain the super and decline native submission instead of manufacturing

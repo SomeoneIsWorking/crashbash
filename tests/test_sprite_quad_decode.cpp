@@ -5,9 +5,14 @@
 int main() {
   using crashbash::render::decodeScreenColorQuad;
   using crashbash::render::decodeSpriteQuad;
+  using crashbash::render::isCentered4x3Composition;
   using crashbash::render::ScreenColorQuadCall;
   using crashbash::render::SpriteQuadCall;
   using crashbash::render::SpriteQuadDescriptor;
+  if (isCentered4x3Composition(267, 93, 512, 240) || !isCentered4x3Composition(401, 153, 512, 240) ||
+      isCentered4x3Composition(0, 153, 512, 240)) {
+    return EXIT_FAILURE;
+  }
   const SpriteQuadDescriptor descriptor{
       .width = 16,
       .height = 9,

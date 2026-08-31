@@ -31,6 +31,12 @@ the SCEA title card and loading/logo stills stay centered in a 4:3 viewport with
 Frames that submit native 3D continue to sample the widened target; this is a current-frame producer
 fact, not a prior-frame or frame-aware interpolation decision.
 
+The title menu is a 3D scene, not an authored 4:3 composition. Its smaller source color quad is menu
+chrome over the camera world, so it no longer marks the whole snapshot as centered. Only a large
+source-authored quad (the briefing dimmer/border) enables the centered-composition clip. This keeps
+the game-type menu's robot/world geometry in the widened columns while leaving its text and panels
+anchored to their authored coordinates.
+
 ## Rejected follow-up (2026-08-31)
 
 A deterministic post-projection horizontal-FOV experiment was built against the same native replay,
