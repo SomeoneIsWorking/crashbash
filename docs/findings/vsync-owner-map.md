@@ -19,6 +19,30 @@ count.
 | Lifetime, diagnostics, teardown, UI | `0x800101E0`, `0x80027408`, `0x8002AB44` | 4 | residual; migrate only when its top-down caller is proven reachable |
 | BOOT object callbacks | `0x8008ADA4`, `0x8008BB48` | 4 | owned by `boot_object_callbacks.cpp`; a live 600-frame run confirmed both are reached once the BOOT scene begins animating an object, which the static inventory could not prove |
 
+## Polar Push DAT22510 contact pass — residual title ownership
+
+The Polar Push module adds a separate, loaded-overlay residual. Its first reached call is
+`DAT22510 0x800CDA54 -> 0x800C0888 -> VSync(1)`, with the trap reporting return address
+`0x800C08E0`. The exact DAT22510 bytes contain the JAL at `0x800C08D8`; the helper has two more
+`VSync(1)` sites at `0x800C0E24` and `0x800C0E54`.
+
+`0x800CDA54` is one of the per-player arena-state handoffs. For player `i`, it obtains the
+`0x6C`-byte player record, advances the state helpers, then calls `0x800C0888(record[i].position +
+0x10, i)` before its next state handler. The helper walks `DAT_800D6010`, filters active entries,
+tests a 330-unit X/Z contact radius around that player, adjusts the player-associated motion state,
+and can spawn the `0x1604` contact effects before clearing the consumed entry's active bit. Its
+other callers are the sibling player-state handoffs, so this is an arena contact/effect update, not
+the generic presentation cadence.
+
+All three `VSync(1)` return values are dead in this helper: the entry value is stored at `sp+0x18`
+and never loaded, and the two exit values are likewise stored at `sp+0x1C` and never loaded. That
+proves neither a wait nor a guest time value is needed for this path; it does **not** authorize a
+VSync success override. The framework trap remains correct. A future native
+`PolarPushArenaContactUpdate` must own the complete helper behind the existing
+`CrashBashFrameDriver` (one frame/presentation owner), retain its generated body as the A/B super,
+and omit only the three dead samples while preserving their instruction ticks. Static evidence alone
+does not establish the dynamic record invariants for that port, so no partial override was installed.
+
 `0x8008BB48` samples `VSync(1)` at entry, calls `0x8008ADA4`, and samples again before its normal
 return; `0x8008ADA4` also samples at entry and return. A live trap at `ra=0x8008BB88` via
 `0x8007976C -> 0x8008BB48` later confirmed the path, and both functions are now natively owned.
