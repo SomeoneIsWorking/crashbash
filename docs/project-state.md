@@ -117,6 +117,11 @@ is deliberately different: its title-owned dimmer is an authored 4:3 presentatio
 whole composition is clipped to one centred 4:3 viewport at full height, matching the oracle rather
 than exposing widened arena columns behind its corners (issue 0024 resolved).
 
+2026-08-31: a fresh current-build `aspect=auto`, `ires=auto`, `fps60=1` startup run at a 2560x1080
+sink captured the centred 21:9 Eurocom screen and the centred authored-4:3 Game Type menu at frames
+360/600. It reconciled all 600 frame fences with no dropped layer. The previously reported missing
+startup sprites/left-bias capture predates the sprite OT-range fix and does not describe this build.
+
 Interpolation makes S006 `partial`. `PSXPORT_FPS60=1` now rebuilds midpoint model geometry from
 immutable title snapshots; the clean 3,741-frame replay reports 6,159,397 interpolated primitives
 over 3,701 extra presents. Direct midpoint captures show motion between neighbouring real frames,
