@@ -51,7 +51,12 @@
     // installs callback/vtable pointers at 0x8005AA70 and replaces app update callback 0x80093038
     // with 0x800B4694 at 0x8009F8B4. It is entryless because the runtime-patched dispatch table,
     // not an image header pointer, reaches it.
-    "DAT28136": "0x800B32B4"
+    "DAT28136": "0x800B32B4",
+    // A FIFTH alternative in this slot, loaded on the Battle Mode path. The CD trace reads 35
+    // sectors from LBA 28382 to 0x800B32B4 immediately before BOOT indirect-dispatches the
+    // runtime-installed callback at 0x800BB370 (raw offset 0x80BC). It is entryless: word zero is
+    // 0x5D rather than an entry pointer, so whole-image discovery owns its reachable bodies.
+    "DAT28382": "0x800B32B4"
   },
   "overlay_base_patterns": [],
   "overlay_seeds": {

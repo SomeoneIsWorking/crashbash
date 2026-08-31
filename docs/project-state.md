@@ -9,7 +9,7 @@
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | partial | S004 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic checks compare the port with independent retail behavior at proven boundaries | partial | S001 | G001, G002, G003 |
-| S008 | The retail game modes are reachable and playable end to end on the shipping native path | missing | S002, S004 | G001 |
+| S008 | The retail game modes are reachable and playable end to end on the shipping native path | partial | S002, S004 | G001 |
 
 ## The evidence bar
 
@@ -27,6 +27,14 @@ frame-300 comparison recorded below is retained as history and as a working inst
 S008 is the current focus: reach and play the retail game modes on the shipping native path and fix
 what visibly breaks. S004 continues underneath it, judged on how the game looks while playing rather
 than on a per-frame difference count.
+
+2026-08-31 (Battle Mode reachability): after the real title-menu sequence selected Battle Mode, the
+port loaded the previously unprovisioned entryless DAT28382 alternative and stopped at callback
+`0x800BB370`. The measured 35-sector image is now provisioned and discovered as a whole; a 10,200-frame
+shipping-native replay reaches the Crate Crush objective screen at frame 10,000 with no recompilation
+miss, fatal, watchdog, or dropped render layer. The observed screen is coherent on direct inspection.
+S008 is partial: Crashball and this second game-mode branch reach a live pre-match boundary, but the
+other retail mode families still need end-to-end play coverage.
 
 S004's prior focus statement follows, for the flow and producer facts it records. Controlled flow is closed through the first playable boundary: the tracked
 3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
@@ -365,9 +373,9 @@ full-memory/timing comparison remains under S007; missing native picture layers 
 
 ### S003 — Executable recompilation substrate
 
-Evidence: the 2026-08-30 shared emitter applies one merge/prune pipeline to return-delimited functions
-in both resident MAIN and loaded modules. Verified retail emission derives 2,593 functions: 1,355
-resident, 710 BOOT, 89 MENU, 190 DAT28272, 106 DAT28241, and 143 DAT28136. Removing five redundant MAIN seeds leaves
+Evidence: the shared emitter applies one merge/prune pipeline to return-delimited functions in both
+resident MAIN and loaded modules. Verified retail emission derives 2,698 functions: 1,355 resident,
+710 BOOT, 89 MENU, 190 DAT28272, 106 DAT28241, 143 DAT28136, and 105 DAT28382. Removing five redundant MAIN seeds leaves
 all five addresses dispatchable and preserves the exact output hash; only `0x8003B1BC` remains a
 manual MAIN seed because current binary analyses do not derive it. Compared with the old emitter on
 the same inputs, the added 391 functions cost 146,697 bytes of C (+0.56%) under the unchanged size
