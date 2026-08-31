@@ -273,9 +273,12 @@ SZ, and the title had never published its post-initialization ZSF3. The retained
 AVSZ3. Exact PID 4054917 completed 301/301 reconciled frames at
 `138ad0a-dirty+psxport-ff21584d`: object `0x800A0C74` face 261 has matching packet/native SXY,
 ZSF3 341, OTZ 1511, is accepted at sort 1755, and writes display `(234,181)`. The formerly black
-output `(439,543)` becomes `(66,8,90)` versus PSX `(66,0,90)`. Full-frame inspection verifies the
-large angular holes close without regressing the EUROCOM word or subtitle. S004 remains partial only
-because finer facet/gradient and logo-color differences still prevent whole-frame 4:3 parity.
+output `(439,543)` becomes `(66,8,90)` versus PSX `(66,0,90)`. The later Crashball briefing holes
+were a separate shared Vulkan fault: world semitransparent primitives were bucketed by ABR pipeline,
+which reordered overlapping title submissions. The world path now retains contiguous submitted ABR
+runs while the independent 2D HUD batching remains unchanged. Its GPU self-test covers a cross-ABR
+world overlap (17/17), and the replay's 4:3, 16:9, and FPS60 captures all show the intact centred
+briefing backdrop. S004 remains partial because broader gameplay and UI coverage are still needed.
 
 ## Capability details
 
