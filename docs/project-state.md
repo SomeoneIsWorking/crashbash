@@ -164,6 +164,14 @@ sink captured the centred 21:9 Eurocom screen and the centred authored-4:3 Game 
 360/600. It reconciled all 600 frame fences with no dropped layer. The previously reported missing
 startup sprites/left-bias capture predates the sprite OT-range fix and does not describe this build.
 
+2026-08-31: framework `8eb9a79e` fixes the high-resolution native-VRAM seed used by `ires=auto` (4x
+ at a 2560x1080 sink). The target stores PSX1555 words as packed RG8 byte lanes; linear seeding blended
+ adjacent lanes and produced the observed psychedelic colour corruption. Nearest seeding was rebuilt
+ and captured at the same boot frame: the Eurocom picture is coherent and matches the 1x structure.
+ The separate existing wide-frame crop on the right remains, also present at 1x; this change does not
+ claim to fix widescreen framing or geometry interpolation. Native geometry remains sourced from matched
+ title snapshots/producers, never mixed vertices from different source frames.
+
 Interpolation makes S006 `partial`. `PSXPORT_FPS60=1` now rebuilds midpoint model geometry from
 immutable title snapshots; the clean 3,741-frame replay reports 6,159,397 interpolated primitives
 over 3,701 extra presents. Direct midpoint captures show motion between neighbouring real frames,
