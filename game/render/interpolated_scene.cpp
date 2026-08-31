@@ -116,14 +116,6 @@ ModelVertex interpolateModelVertex(const ModelVertex &previous, const ModelVerte
   };
 }
 
-bool canInterpolateModelFace(const ModelFace &previous, const ModelFace &current) {
-  return previous.sourceVertexAddress != 0 && current.sourceVertexAddress != 0 &&
-         previous.sourceFace == current.sourceFace && previous.sourceGroup == current.sourceGroup &&
-         previous.sourceGroupFace == current.sourceGroupFace && previous.sourceMaterial == current.sourceMaterial &&
-         previous.sourceVertexAddress == current.sourceVertexAddress &&
-         previous.topologyFlags == current.topologyFlags && previous.textured == current.textured;
-}
-
 InterpolatedScenePresentation::InterpolatedScenePresentation(Game &game) : game_(game) {}
 
 InterpolatedScenePresentation::~InterpolatedScenePresentation() = default;

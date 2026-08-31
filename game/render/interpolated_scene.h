@@ -13,7 +13,13 @@ namespace crashbash::render {
 
 ModelTransform interpolateModelTransform(const ModelTransform &previous, const ModelTransform &current, float alpha);
 ModelVertex interpolateModelVertex(const ModelVertex &previous, const ModelVertex &current, float alpha);
-bool canInterpolateModelFace(const ModelFace &previous, const ModelFace &current);
+inline bool canInterpolateModelFace(const ModelFace &previous, const ModelFace &current) {
+  return previous.sourceVertexAddress != 0 && current.sourceVertexAddress != 0 &&
+         previous.sourceFace == current.sourceFace && previous.sourceGroup == current.sourceGroup &&
+         previous.sourceGroupFace == current.sourceGroupFace && previous.sourceMaterial == current.sourceMaterial &&
+         previous.sourceVertexAddress == current.sourceVertexAddress &&
+         previous.topologyFlags == current.topologyFlags && previous.textured == current.textured;
+}
 
 // Crash Bash owns its temporal input as decoded scene snapshots. The framework still owns the host
 // present/pacing operations; this decorator only replaces the native model block with a midpoint

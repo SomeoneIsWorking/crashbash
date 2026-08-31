@@ -141,7 +141,8 @@ if(BUILD_TESTING)
     tests/test_scene_snapshot.cpp
     game/render/scene_snapshot.cpp
   )
-  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render)
+  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render "${PSXPORT_DIR}/runtime/recomp"
+                             "${PSXPORT_DIR}/vendor/lucent/include")
   set_target_properties(
     crashbash_scene_snapshot_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON

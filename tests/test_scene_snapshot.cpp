@@ -1,3 +1,4 @@
+#include "interpolated_scene.h"
 #include "scene_snapshot.h"
 
 #include <cstdlib>
@@ -9,6 +10,25 @@ int main() {
   using crashbash::render::ModelSubmitter;
   using crashbash::render::SceneSnapshotHistory;
   using crashbash::render::SpriteQuadDraw;
+
+  crashbash::render::ModelFace sourceA{.sourceFace = 4u,
+                                       .sourceVertexAddress = 0x80010000u,
+                                       .sourceGroup = 2u,
+                                       .sourceGroupFace = 1u,
+                                       .sourceMaterial = 7u};
+  crashbash::render::ModelFace sourceB = sourceA;
+  if (!crashbash::render::canInterpolateModelFace(sourceA, sourceB)) {
+    return EXIT_FAILURE;
+  }
+  sourceB.sourceVertexAddress += 24u;
+  if (crashbash::render::canInterpolateModelFace(sourceA, sourceB)) {
+    return EXIT_FAILURE;
+  }
+  sourceB = sourceA;
+  sourceB.sourceVertexAddress = 0u;
+  if (crashbash::render::canInterpolateModelFace(sourceA, sourceB)) {
+    return EXIT_FAILURE;
+  }
 
   SceneSnapshotHistory history;
   history.beginFrame(7u);
