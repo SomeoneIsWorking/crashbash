@@ -43,6 +43,12 @@ pages, then drives Left for 90 frames and Right for 180 in the live arena. Its s
 replay fully consumes all frames with no recompilation miss, fatal, watchdog, or dropped render layer;
 the final direct capture shows the arena, four-player HUD, crates, items, and controlled player.
 
+2026-08-31 (Polar Push loading): Battle Mode's measured `CHOOSE LEVEL` selection reaches the Polar
+Push family and loads the previously unprovisioned entryless DAT22510 alternative. The 8,733-frame
+standalone shipping-native replay consumes through the Game Options handoff with no recompilation miss,
+fatal, watchdog, or dropped render layer. It ends at the expected loading boundary; no live Polar Push
+match or control claim is made yet.
+
 S008 is partial: Crashball, Battle Mode, and Tournament Mode's first match are live and controllable,
 but the remaining retail mode paths still need end-to-end play coverage.
 
@@ -384,8 +390,8 @@ full-memory/timing comparison remains under S007; missing native picture layers 
 ### S003 — Executable recompilation substrate
 
 Evidence: the shared emitter applies one merge/prune pipeline to return-delimited functions in both
-resident MAIN and loaded modules. Verified retail emission derives 2,698 functions: 1,355 resident,
-710 BOOT, 89 MENU, 190 DAT28272, 106 DAT28241, 143 DAT28136, and 105 DAT28382. Removing five redundant MAIN seeds leaves
+resident MAIN and loaded modules. Verified retail emission derives 2,956 functions: 1,356 resident,
+710 BOOT, 89 MENU, 190 DAT28272, 106 DAT28241, 143 DAT28136, 105 DAT28382, and 257 DAT22510. Removing five redundant MAIN seeds leaves
 all five addresses dispatchable and preserves the exact output hash; only `0x8003B1BC` remains a
 manual MAIN seed because current binary analyses do not derive it. Compared with the old emitter on
 the same inputs, the added 391 functions cost 146,697 bytes of C (+0.56%) under the unchanged size

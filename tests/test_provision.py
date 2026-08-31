@@ -127,6 +127,12 @@ class FakeDiscdump:
 
 
 class ResolveDiscTest(unittest.TestCase):
+    def test_default_discdump_uses_the_maintainer_build_root(self):
+        self.assertEqual(
+            provision.DEFAULT_DISCDUMP,
+            ROOT / "build" / "maintainer" / "psxport_build" / "tools" / "discdump",
+        )
+
     def test_cli_environment_dotenv_and_dropin_precedence(self):
         with tempfile.TemporaryDirectory(dir=ROOT / "scratch") as directory:
             root = pathlib.Path(directory)

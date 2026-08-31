@@ -36,7 +36,6 @@ DEFAULT_OUTPUT = ROOT / "scratch" / "bin" / "crashbash" / "SCUS_945.70"
 DEFAULT_OVERLAYS = ROOT / "scratch" / "bin" / "crashbash" / "overlays"
 DEFAULT_DISCDUMP = (
     ROOT
-    / "scratch"
     / "build"
     / "maintainer"
     / "psxport_build"
