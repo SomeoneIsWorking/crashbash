@@ -9,6 +9,7 @@
 #include "native_model_producer.h"
 #include "native_sprite_quad_producer.h"
 #include "override_registry.h"
+#include "sprite_render_list.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -28,7 +29,6 @@ constexpr std::uint32_t kDisplayDescriptor = 0x8005B698u;
 constexpr std::uint32_t kOrderingTablePointer = 0x8005B68Cu;
 constexpr std::uint32_t kOrderingTableA = 0x8005B790u;
 constexpr std::uint32_t kOrderingTableB = 0x8005F79Cu;
-constexpr std::uint32_t kOrderingTableWords = 0x1000u;
 constexpr std::uint32_t kOrderingTableDrawOffset = 0x3FFCu;
 constexpr std::uint32_t kOrderingTableHeadCopyOffset = 0x4008u;
 constexpr std::uint32_t kOrderingTableHeadOffset = 0x4000u;
@@ -206,7 +206,7 @@ void displayFrameOwned(Core *core) {
     const std::uint32_t nextOrderingTable = orderingTable == kOrderingTableA ? kOrderingTableB : kOrderingTableA;
     core->mem_w32(kOrderingTablePointer, nextOrderingTable);
     core->mem_w32(kDisplayIndex, core->mem_r32(kDisplayIndex) + 1u);
-    measuredGuestCall(*core, 0x8002F254u, 0x800273DCu, 7u, nextOrderingTable, kOrderingTableWords);
+    measuredGuestCall(*core, 0x8002F254u, 0x800273DCu, 7u, nextOrderingTable, render::kOrderingTableWordCount);
     core->mem_w32(nextOrderingTable + kOrderingTableHeadCopyOffset,
                   core->mem_r32(nextOrderingTable + kOrderingTableHeadOffset));
   }

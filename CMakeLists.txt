@@ -34,6 +34,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/cd_file_read.cpp
   game/core/cd_license_startup.cpp
   game/core/cd_startup.cpp
+  game/core/crashbash_application.cpp
   game/core/crashbash_boot.cpp
   game/core/crashbash_frame_driver.cpp
   game/core/crashbash_runtime.cpp
@@ -121,7 +122,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
 else()
   message(STATUS "crashbash_port: generated substrate absent; run tools/recomp_bootstrap.py --ensure")
 endif()
-
 if(BUILD_TESTING)
   add_executable(
     crashbash_touch_controls_test
@@ -156,6 +156,13 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_sprite_quad_decode COMMAND crashbash_sprite_quad_decode_test)
+  add_executable(crashbash_sprite_render_list_test tests/test_sprite_render_list.cpp)
+  target_include_directories(crashbash_sprite_render_list_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_sprite_render_list_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_sprite_render_list COMMAND crashbash_sprite_render_list_test)
   add_executable(crashbash_render_capabilities_test tests/test_render_capabilities.cpp)
   target_include_directories(crashbash_render_capabilities_test PRIVATE game/core "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_render_capabilities_test PRIVATE psxport)

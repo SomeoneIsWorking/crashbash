@@ -6,6 +6,7 @@
 #include "model_face_coverage.h"
 #include "producer_scope.h"
 #include "render_queue.h"
+#include "sprite_render_list.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -123,7 +124,7 @@ void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t 
   std::vector<std::size_t> order;
   order.reserve(snapshot.spriteQuads.size());
   for (std::size_t index = 0; index < snapshot.spriteQuads.size(); ++index) {
-    if (snapshot.spriteQuads[index].renderList == renderList) {
+    if (spriteRenderListTargetsOrderingTable(snapshot.spriteQuads[index].renderList, renderList)) {
       order.push_back(index);
     }
   }
