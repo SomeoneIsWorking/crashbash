@@ -49,6 +49,13 @@ standalone shipping-native replay consumes through the Game Options handoff with
 fatal, watchdog, or dropped render layer. It ends at the expected loading boundary; no live Polar Push
 match or control claim is made yet.
 
+2026-08-31 (Polar Push arena entry): the extended 14,108-input replay reaches the former DAT22510
+arena-entry fatal (`0x800CDA54 -> 0x800C0888 -> VSync(1)`). The title-native contact/effect owner now
+replaces that complete helper behind the existing frame owner, while retaining the generated body as its
+A/B super. The shipping-native run caps at 14,160 frames, consumes the complete replay, and exits zero
+with no guest-VSync violation, recompilation miss, fatal, watchdog, or dropped render layer. This closes
+the entry blocker only; visual parity and controllable Polar Push gameplay remain unverified.
+
 S008 is partial: Crashball, Battle Mode, and Tournament Mode's first match are live and controllable,
 but the remaining retail mode paths still need end-to-end play coverage.
 

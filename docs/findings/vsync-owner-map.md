@@ -19,7 +19,7 @@ count.
 | Lifetime, diagnostics, teardown, UI | `0x800101E0`, `0x80027408`, `0x8002AB44` | 4 | residual; migrate only when its top-down caller is proven reachable |
 | BOOT object callbacks | `0x8008ADA4`, `0x8008BB48` | 4 | owned by `boot_object_callbacks.cpp`; a live 600-frame run confirmed both are reached once the BOOT scene begins animating an object, which the static inventory could not prove |
 
-## Polar Push DAT22510 contact pass — residual title ownership
+## Polar Push DAT22510 contact pass — native title ownership
 
 The Polar Push module adds a separate, loaded-overlay residual. Its first reached call is
 `DAT22510 0x800CDA54 -> 0x800C0888 -> VSync(1)`, with the trap reporting return address
@@ -72,18 +72,20 @@ For each non-null allocation, `result+0x58` is the optional emitted-effect recor
 `+0x0E=sin(angle-0x400)*11 >> 10`, `+0x16=256`, `+0x18=-72`, `+0x1A=3`, `+0x20=-128`,
 `+0x22=sin(angle)*11 >> 10`, and `+0x2A=256`. These are field facts, not inferred visual labels.
 
-A native owner therefore needs typed player/contact/motion/effect-result views, the resident
-math/effect supers, a generated A/B mirror over every touched guest range, and explicit counters for
-scanned, active, disk-pass, retained, consumed, and emitted effects.
+A native `PolarPushArenaContactUpdate` now owns the helper in
+`game/core/polar_push_contact.{h,cpp}`. It uses typed player/contact/motion/effect-result views,
+preserves the resident math/effect supers and the generated DAT22510 body as the registered A/B
+super, and reports scanned, active, disk-pass, retained, consumed, and emitted-effect denominators.
 
 All three `VSync(1)` return values are dead in this helper: the entry value is stored at `sp+0x18`
 and never loaded, and the two exit values are likewise stored at `sp+0x1C` and never loaded. That
 proves neither a wait nor a guest time value is needed for this path; it does **not** authorize a
-VSync success override. The framework trap remains correct. A future native
-`PolarPushArenaContactUpdate` must own the complete helper behind the existing
-`CrashBashFrameDriver` (one frame/presentation owner), retain its generated body as the A/B super,
-and omit only the three dead samples while preserving their instruction ticks. Static evidence alone
-does not establish the dynamic record invariants for that port, so no partial override was installed.
+VSync success override. The framework trap remains correct. The native owner remains behind the
+existing `CrashBashFrameDriver` (the sole frame/presentation owner), preserves the observed
+instruction accounting, and replaces no broader timing path. The 14,160-frame recorded route that
+previously trapped at `0x800C08E0` now exits zero after consuming all 14,108 input frames, with no
+guest-VSync violation, recompilation miss, fatal, watchdog, or dropped render layer. This proves the
+reached entry path; it does not claim Polar Push visual parity or player-control coverage.
 
 `0x8008BB48` samples `VSync(1)` at entry, calls `0x8008ADA4`, and samples again before its normal
 return; `0x8008ADA4` also samples at entry and return. A live trap at `ra=0x8008BB88` via

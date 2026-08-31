@@ -17,6 +17,7 @@
 #include "model_depth_scale_capture.h"
 #include "model_submit_capture.h"
 #include "model_transform_capture.h"
+#include "polar_push_contact.h"
 #include "sprite_quad_capture.h"
 
 #include <memory>
@@ -41,6 +42,7 @@ void CrashBashRuntime::registerOverrides(Game &game) {
   registerGpuTimeoutOverrides();
   registerDisplayFrameOverride();
   registerBootObjectCallbackOverrides();
+  polar::registerPolarPushContactOverride();
   render::registerModelDepthScaleCaptureOverride();
   render::registerModelTransformCaptureOverride();
   render::registerModelSubmitCaptureOverrides();

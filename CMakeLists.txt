@@ -41,6 +41,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/display_frame.cpp
   game/core/gpu_timeout.cpp
   game/core/memory_card_startup.cpp
+  game/core/polar_push_contact.cpp
   game/core/game_config.cpp
   game/core/game_hooks.cpp
   game/core/main.cpp
@@ -287,6 +288,18 @@ if(BUILD_TESTING)
     NAME crashbash_model_transform_input_diagnostic
     COMMAND crashbash_model_transform_input_diagnostic_test
   )
+  add_executable(
+    crashbash_polar_push_contact_test
+    tests/test_polar_push_contact.cpp
+    game/core/polar_push_contact.cpp
+  )
+  target_include_directories(crashbash_polar_push_contact_test PRIVATE game/core)
+  target_link_libraries(crashbash_polar_push_contact_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_polar_push_contact_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_polar_push_contact COMMAND crashbash_polar_push_contact_test)
   add_test(
     NAME crashbash_boot_boundary_selftest
     COMMAND
