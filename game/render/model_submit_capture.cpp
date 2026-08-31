@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_frame_driver.h"
+#include "guest_packet_filter.h"
 #include "model_material_diagnostic.h"
 #include "model_packet_identity_diagnostic.h"
 #include "model_recipe_capture.h"
@@ -11,6 +12,7 @@
 #include "scene_snapshot.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <lucent/log.h>
 #include <utility>
 
@@ -21,6 +23,7 @@
 namespace crashbash::render {
 namespace {
 
+#ifdef CRASHBASH_HAVE_SUBSTRATE
 constexpr std::uint32_t kStandardModelSubmit = 0x80019F1Cu;
 constexpr std::uint32_t kAlternateModelSubmit = 0x8001DD50u;
 constexpr std::uint32_t kBaseDepthBias = 0x800569C8u;
@@ -28,7 +31,36 @@ constexpr std::uint32_t kDepthLimit = 0x800569DEu;
 constexpr std::uint32_t kGlobalFarColor = 0x80056868u;
 constexpr std::uint32_t kGlobalDepthCueFactor = 0x800569ACu;
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
+struct PacketOwnershipRuntime {
+  ModelPacketOwnership ownership;
+  std::uint32_t logicFrame = 0;
+  bool frameKnown = false;
+};
+
+thread_local PacketOwnershipRuntime packetOwnership;
+
+std::size_t submitterIndex(ModelSubmitter submitter) {
+  return submitter == ModelSubmitter::Standard ? 0u : 1u;
+}
+
+std::uint32_t submitterAddress(ModelSubmitter submitter) {
+  return submitter == ModelSubmitter::Standard ? kStandardModelSubmit : kAlternateModelSubmit;
+}
+
+std::uint32_t beginPacketOwnershipFrame(Core &core) {
+  const SceneSnapshotHistory &history = frameDriver(core).sceneSnapshots();
+  if (!history.current().valid) {
+    std::abort();
+  }
+  const std::uint32_t logicFrame = history.current().logicFrame;
+  if (!packetOwnership.frameKnown || packetOwnership.logicFrame != logicFrame) {
+    packetOwnership.logicFrame = logicFrame;
+    packetOwnership.frameKnown = true;
+    packetOwnership.ownership.beginLogicFrame(logicFrame);
+  }
+  return logicFrame;
+}
+
 ModelDraw decodeDraw(Core &core,
                      ModelSubmitter submitter,
                      std::uint32_t object,
@@ -75,50 +107,95 @@ ModelDraw decodeDraw(Core &core,
   };
 }
 
-void recordIfRenderable(Core &core, ModelDraw draw) {
+bool recordIfRenderable(Core &core, ModelDraw draw) {
   // Retail's object submitters require render-enable plus a live model, and 0x80019A60 declines the
   // zero/sentinel frame codes before producing geometry. Recording only that accepted set makes the
   // snapshot a faithful denominator, not a list of objects the game itself declined to draw.
   if (!isRenderableModelDraw(draw)) {
     finishModelPacketIdentityDraw(draw);
-    return;
+    return false;
   }
   SceneSnapshotHistory &history = frameDriver(core).sceneSnapshots();
   if (history.current().valid) {
     if (draw.transform.valid) {
       captureFixedModelRecipe(core, draw);
     }
+    const bool complete = draw.transform.valid && !draw.faces.empty();
     finishModelPacketIdentityDraw(draw);
     history.record(std::move(draw));
+    return complete;
   } else {
     finishModelPacketIdentityDraw(draw);
+    return false;
   }
 }
 
 void standardModelSubmit(Core *core) {
+  beginPacketOwnershipFrame(*core);
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Standard, core->r[4], core->r[5], core->r[5] + 0x14u, core->r[6]);
   resetModelTransformCapture(*core, draw.object);
   beginModelPacketIdentityDraw();
-  gen_func_80019F1C(core);
+  {
+    GuestPacketOwnerScope packetOwner(&core->rsub.guestPacketFilter, kStandardModelSubmit);
+    gen_func_80019F1C(core);
+  }
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
   }
-  recordIfRenderable(*core, std::move(draw));
+  const bool complete = recordIfRenderable(*core, std::move(draw));
+  packetOwnership.ownership.noteNativeSnapshot(ModelSubmitter::Standard, complete);
 }
 
 void alternateModelSubmit(Core *core) {
+  beginPacketOwnershipFrame(*core);
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Alternate, core->r[4], 0u, 0u, 0u);
   resetModelTransformCapture(*core, draw.object);
   beginModelPacketIdentityDraw();
-  gen_func_8001DD50(core);
+  {
+    GuestPacketOwnerScope packetOwner(&core->rsub.guestPacketFilter, kAlternateModelSubmit);
+    gen_func_8001DD50(core);
+  }
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
   }
-  recordIfRenderable(*core, std::move(draw));
+  const bool complete = recordIfRenderable(*core, std::move(draw));
+  packetOwnership.ownership.noteNativeSnapshot(ModelSubmitter::Alternate, complete);
 }
 #endif
 
 } // namespace
+
+ModelPacketSuppressionScope::ModelPacketSuppressionScope(Core &core, const SceneSnapshot &renderedSnapshot)
+    : core_(&core) {
+#ifdef CRASHBASH_HAVE_SUBSTRATE
+  const std::uint32_t logicFrame = beginPacketOwnershipFrame(core);
+  constexpr std::array<ModelSubmitter, 2> submitters = {ModelSubmitter::Standard, ModelSubmitter::Alternate};
+  for (const ModelSubmitter submitter : submitters) {
+    if (!packetOwnership.ownership.completeFor(logicFrame, submitter) ||
+        !nativeSnapshotCompleteForSubmitter(renderedSnapshot, submitter)) {
+      continue;
+    }
+    core.rsub.guestPacketFilter.setSuppressed(submitterAddress(submitter), true);
+    active_[submitterIndex(submitter)] = true;
+  }
+#else
+  (void)renderedSnapshot;
+#endif
+}
+
+ModelPacketSuppressionScope::~ModelPacketSuppressionScope() {
+#ifdef CRASHBASH_HAVE_SUBSTRATE
+  if (core_ == nullptr) {
+    return;
+  }
+  constexpr std::array<ModelSubmitter, 2> submitters = {ModelSubmitter::Standard, ModelSubmitter::Alternate};
+  for (const ModelSubmitter submitter : submitters) {
+    if (active_[submitterIndex(submitter)]) {
+      core_->rsub.guestPacketFilter.setSuppressed(submitterAddress(submitter), false);
+    }
+  }
+#endif
+}
 
 void registerModelSubmitCaptureOverrides() {
 #ifdef CRASHBASH_HAVE_SUBSTRATE

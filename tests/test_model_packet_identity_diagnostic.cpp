@@ -1,4 +1,5 @@
 #include "model_packet_identity_diagnostic.h"
+#include "model_submit_capture.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -127,6 +128,37 @@ int main() {
   require(targets.has_value() && *targets == std::vector<std::uint32_t>{0x800C2FF4u, 0x800C8D84u, 0x800BDABCu},
           "the diagnostic must accept the runtime's printed packet-address spellings");
   require(!parseModelPacketIdentityTargets("800C2FF4,bad-node"), "an invalid target must be rejected, not ignored");
+
+  // The title may filter a model submitter's delayed OT packets only when every super-call for that
+  // submitter captured a native replacement and the snapshot about to render contains it.  An
+  // incomplete/ordinary path must remain retail-owned rather than disappearing behind a function-wide
+  // filter bit.
+  ModelPacketOwnership ownership;
+  ownership.beginLogicFrame(41u);
+  ownership.noteNativeSnapshot(ModelSubmitter::Standard, true);
+  require(ownership.completeFor(41u, ModelSubmitter::Standard),
+          "one complete standard model snapshot must make only the standard owner eligible");
+  require(!ownership.completeFor(41u, ModelSubmitter::Alternate),
+          "an ordinary alternate submitter must not inherit standard packet suppression");
+  SceneSnapshot replacement{
+      .logicFrame = 40u,
+      .valid = true,
+      .models = {draw},
+  };
+  replacement.models.front().submitter = ModelSubmitter::Standard;
+  require(nativeSnapshotCompleteForSubmitter(replacement, ModelSubmitter::Standard),
+          "a transformed decoded standard draw must authorize its own replacement packets");
+  require(!nativeSnapshotCompleteForSubmitter(replacement, ModelSubmitter::Alternate),
+          "a snapshot must not authorize a submitter it does not contain");
+  replacement.models.front().faces.clear();
+  require(!nativeSnapshotCompleteForSubmitter(replacement, ModelSubmitter::Standard),
+          "a source-less native snapshot must leave the guest packets visible");
+  ownership.noteNativeSnapshot(ModelSubmitter::Standard, false);
+  require(!ownership.completeFor(41u, ModelSubmitter::Standard),
+          "one incomplete standard super-call must block submitter-wide suppression for the frame");
+  ownership.beginLogicFrame(42u);
+  require(!ownership.completeFor(42u, ModelSubmitter::Standard),
+          "packet ownership must not leak into the next logic frame");
 
   std::puts("model packet identity diagnostic tests passed");
   return 0;

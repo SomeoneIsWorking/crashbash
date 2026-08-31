@@ -6,6 +6,7 @@
 #include "game.h"
 #include "guest_abi.h"
 #include "measured_guest_call.h"
+#include "model_submit_capture.h"
 #include "native_model_producer.h"
 #include "native_sprite_quad_producer.h"
 #include "override_registry.h"
@@ -202,7 +203,13 @@ void displayFrameOwned(Core *core) {
     render::SceneSnapshotHistory &snapshots = frameDriver(*core).sceneSnapshots();
     render::submitFixedModels(*core, snapshots.presentable());
     render::submitSpriteQuads(*core, snapshots.current(), orderingTable);
-    measuredGuestCall(*core, 0x8002F35Cu, 0x800273A8u, 4u, orderingTable + kOrderingTableDrawOffset);
+    {
+      // The super-called model submitters have already written their OT packets.  Suppress only the
+      // spans whose complete native snapshot has just been submitted, and only for this OT walk.
+      // All unowned/ordinary guest packets remain on the retail path.
+      render::ModelPacketSuppressionScope replacedModelPackets(*core, snapshots.presentable());
+      measuredGuestCall(*core, 0x8002F35Cu, 0x800273A8u, 4u, orderingTable + kOrderingTableDrawOffset);
+    }
     const std::uint32_t nextOrderingTable = orderingTable == kOrderingTableA ? kOrderingTableB : kOrderingTableA;
     core->mem_w32(kOrderingTablePointer, nextOrderingTable);
     core->mem_w32(kDisplayIndex, core->mem_r32(kDisplayIndex) + 1u);
