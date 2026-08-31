@@ -173,6 +173,18 @@ if(BUILD_TESTING)
   )
   add_test(NAME crashbash_render_capabilities COMMAND crashbash_render_capabilities_test)
   add_executable(
+    crashbash_guest_vram_policy_test
+    tests/test_guest_vram_policy.cpp
+    game/core/game_config.cpp
+  )
+  target_include_directories(crashbash_guest_vram_policy_test PRIVATE game/core)
+  target_link_libraries(crashbash_guest_vram_policy_test PRIVATE psxport)
+  set_target_properties(
+    crashbash_guest_vram_policy_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_guest_vram_policy COMMAND crashbash_guest_vram_policy_test)
+  add_executable(
     crashbash_model_face_coverage_test
     tests/test_model_face_coverage.cpp
     game/render/model_face_coverage.cpp

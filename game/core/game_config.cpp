@@ -72,6 +72,12 @@ static const GameConfig kCrashBashConfig = {
             .windowHi = {crashbash::guest::kVSync.end, crashbash::guest::kCdCommand + 4u},
             .vsyncTrap = crashbash::guest::kVSync.begin,
         },
+    // The current title path still uses guest VRAM as a visible producer: the SCEA boot screen is
+    // an upload-only image and later mixed native/guest frames retain their guest backdrop.  The
+    // renderer must rebuild from those writes rather than clearing them as if native producers
+    // owned every pixel.  Replace this static compatibility input with a title runtime policy once
+    // the whole picture has one native owner.
+    .preserveVramBackdrop = 1u,
     .windowTitle = "Crash Bash",
     .stackBias = {1, kCrt0StackBias},
     .packetPoolBasePtrs = {kPacketPoolBasePtrs[0], kPacketPoolBasePtrs[1]},
