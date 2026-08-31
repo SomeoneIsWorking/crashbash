@@ -25,6 +25,12 @@ At an actual 1280x720 sink, replay frame 2500 is the complete 4:3 oracle composi
 with only left/right bars: grey dimmer, all four yellow border strips, portraits, and all four life
 counts are intact. Frame 3700 remains full-width, balanced 16:9 gameplay. The 4:3 path is unchanged.
 
+The same presentation contract now covers boot and other upload-only 2D frames. The shared present
+owner samples the native display width whenever the current frame has no native world geometry, so
+the SCEA title card and loading/logo stills stay centered in a 4:3 viewport with black side bars.
+Frames that submit native 3D continue to sample the widened target; this is a current-frame producer
+fact, not a prior-frame or frame-aware interpolation decision.
+
 ## Rejected follow-up (2026-08-31)
 
 A deterministic post-projection horizontal-FOV experiment was built against the same native replay,
