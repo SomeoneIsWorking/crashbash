@@ -32,6 +32,10 @@ android {
 
     sourceSets {
         main {
+            java.srcDir rootProject.file('../../external/psxport/vendor/lucent/platforms/android/java')
+            // Crash Bash consumes Lucent's SAF transaction now. LucentActivity remains SDL-specific
+            // and joins this source set only with the title's real SDL Android entrypoint.
+            java.exclude 'io/github/someoneisworking/lucent/LucentActivity.java'
             jniLibs.srcDirs rootProject.file('../../build/android/native')
         }
     }

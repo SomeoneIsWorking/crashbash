@@ -28,6 +28,7 @@ CONFIG = ANDROID / "package.json"
 WRAPPER = ANDROID / "gradle" / "wrapper" / "gradle-wrapper.properties"
 ANDROID_BUILD = ROOT / "build" / "android"
 GRADLE_CACHE = ANDROID_BUILD / "gradle"
+GRADLE_PROJECT_CACHE = ANDROID_BUILD / "project-cache"
 APK_OUTPUT = ANDROID_BUILD / "project" / "app" / "outputs" / "apk"
 NATIVE_LIBRARY = ANDROID_BUILD / "native" / "arm64-v8a" / "libmain.so"
 FORBIDDEN_SUFFIXES = {
@@ -339,6 +340,8 @@ def run_gradle(task: str, *, release: bool = False) -> pathlib.Path:
     command = [
         str(gradle_executable(config)),
         "--no-daemon",
+        "--project-cache-dir",
+        str(GRADLE_PROJECT_CACHE),
         "--stacktrace",
         f":app:{task}",
     ]

@@ -1,15 +1,10 @@
 package io.github.someoneisworking.crashbash;
 
 import android.app.Activity;
-import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.ParcelFileDescriptor;
-import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -21,17 +16,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Locale;
 
 public final class CrashBashActivity extends Activity {
-    private static final int PICK_GAME_INPUT = 1001;
     private static final String PREFERENCES = "crashbash_install";
     private static final String INSTALLED = "installed";
-    private static final String INPUT_URI = "input_uri";
-    private static final String INSTALL_DIRECTORY = "game";
-    private static final String[] ACCEPTED_SUFFIXES = {
-        ".chd", ".iso", ".zip"
-    };
 
     private static final boolean NATIVE_RUNTIME_AVAILABLE;
 
@@ -48,6 +36,7 @@ public final class CrashBashActivity extends Activity {
 
     private TextView status;
     private Button play;
+    private CrashBashMediaImport mediaImport;
 
     private static native boolean nativeValidateAndInstall(
         int fileDescriptor,
@@ -61,6 +50,8 @@ public final class CrashBashActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mediaImport = new CrashBashMediaImport(this, CrashBashActivity::nativeValidateAndInstall);
+        mediaImport.cleanStaleImports();
         showSetupScreen();
     }
 
@@ -103,111 +94,43 @@ public final class CrashBashActivity extends Activity {
     }
 
     private void chooseGameInput() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        intent.putExtra(
-            Intent.EXTRA_MIME_TYPES,
-            new String[] {
-                "application/octet-stream",
-                "application/zip",
-                "application/x-chd",
-                "application/x-iso9660-image"
+        if (!NATIVE_RUNTIME_AVAILABLE) {
+            refreshState();
+            return;
+        }
+        mediaImport.choose(new CrashBashMediaImport.Callback() {
+            @Override
+            public void onInstalled(File directory) {
+                preferences().edit().putBoolean(INSTALLED, true).apply();
+                refreshState();
             }
-        );
-        startActivityForResult(intent, PICK_GAME_INPUT);
+
+            @Override
+            public void onRejected(CrashBashMediaImport.Rejection rejection) {
+                status.setText(selectionStatus(rejection));
+            }
+
+            @Override
+            public void onCancelled() {
+                refreshState();
+            }
+        });
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (mediaImport.handleActivityResult(requestCode, resultCode, data)) {
+            return;
+        }
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != PICK_GAME_INPUT || resultCode != RESULT_OK || data == null) {
-            return;
-        }
-        Uri uri = data.getData();
-        if (uri == null) {
-            status.setText(R.string.selection_unreadable);
-            return;
-        }
-        validateSelection(uri);
     }
 
-    private void validateSelection(Uri uri) {
-        Selection selection = inspect(uri);
-        if (selection == null) {
-            status.setText(R.string.selection_unreadable);
-            return;
-        }
-        if (!hasAcceptedSuffix(selection.displayName)) {
-            status.setText(R.string.selection_wrong_type);
-            return;
-        }
-        if (!NATIVE_RUNTIME_AVAILABLE) {
-            status.setText(R.string.native_runtime_missing);
-            return;
-        }
-
-        File installDirectory = new File(getFilesDir(), INSTALL_DIRECTORY);
-        try (ParcelFileDescriptor descriptor = getContentResolver().openFileDescriptor(uri, "r")) {
-            if (descriptor == null || !nativeValidateAndInstall(
-                descriptor.getFd(),
-                selection.displayName,
-                selection.byteCount,
-                installDirectory.getAbsolutePath()
-            )) {
-                status.setText(R.string.selection_identity_mismatch);
-                return;
-            }
-        } catch (IOException | SecurityException error) {
-            status.setText(R.string.selection_unreadable);
-            return;
-        }
-
-        // Validation copies the complete install into app-private storage while this Activity still
-        // owns the descriptor. The URI is retained as provenance, not as a runtime dependency.
-        preferences().edit()
-            .putBoolean(INSTALLED, true)
-            .putString(INPUT_URI, uri.toString())
-            .apply();
-        refreshState();
-    }
-
-    private Selection inspect(Uri uri) {
-        ContentResolver resolver = getContentResolver();
-        try (Cursor cursor = resolver.query(
-            uri,
-            new String[] {OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE},
-            null,
-            null,
-            null
-        )) {
-            if (cursor == null || !cursor.moveToFirst()) {
-                return null;
-            }
-            int nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-            int sizeColumn = cursor.getColumnIndex(OpenableColumns.SIZE);
-            if (nameColumn < 0 || sizeColumn < 0 || cursor.isNull(sizeColumn)) {
-                return null;
-            }
-            String displayName = cursor.getString(nameColumn);
-            long byteCount = cursor.getLong(sizeColumn);
-            if (displayName == null || displayName.isBlank() || byteCount <= 0) {
-                return null;
-            }
-            return new Selection(displayName, byteCount);
-        } catch (RuntimeException error) {
-            return null;
-        }
-    }
-
-    private boolean hasAcceptedSuffix(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
-        for (String suffix : ACCEPTED_SUFFIXES) {
-            if (lower.endsWith(suffix)) {
-                return true;
-            }
-        }
-        return false;
+    private int selectionStatus(CrashBashMediaImport.Rejection rejection) {
+        return switch (rejection) {
+            case WRONG_TYPE -> R.string.selection_wrong_type;
+            case IDENTITY_MISMATCH -> R.string.selection_identity_mismatch;
+            case UNREADABLE -> R.string.selection_unreadable;
+        };
     }
 
     private void refreshState() {
@@ -227,11 +150,11 @@ public final class CrashBashActivity extends Activity {
             refreshState();
             return;
         }
-        nativeStartGame(new File(getFilesDir(), INSTALL_DIRECTORY).getAbsolutePath());
+        nativeStartGame(CrashBashMediaImport.installedDirectory(getFilesDir()).getAbsolutePath());
     }
 
     private void forgetSelection() {
-        if (!deleteInstallTree(new File(getFilesDir(), INSTALL_DIRECTORY))) {
+        if (!deleteInstallTree(CrashBashMediaImport.installedDirectory(getFilesDir()))) {
             status.setText(R.string.reset_failed);
             return;
         }
@@ -301,13 +224,11 @@ public final class CrashBashActivity extends Activity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
-    private static final class Selection {
-        final String displayName;
-        final long byteCount;
-
-        Selection(String displayName, long byteCount) {
-            this.displayName = displayName;
-            this.byteCount = byteCount;
+    @Override
+    protected void onDestroy() {
+        if (isFinishing()) {
+            mediaImport.cancel();
         }
+        super.onDestroy();
     }
 }
