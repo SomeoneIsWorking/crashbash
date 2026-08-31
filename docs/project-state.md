@@ -22,6 +22,7 @@ execution. The port's intended differences are native host execution, a genuinel
 | S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | S008 | G001 |
 | S012 | Polar Push reaches a visually correct, controllable live match on the native path | verified | S008 | G001 |
 | S013 | The remaining retail modes are reachable and playable on the native path | missing | S008 | G001 |
+| S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S002 | G001 |
 
 ### S009 — Crashball: verified
 
@@ -40,8 +41,8 @@ Crush match and drives the player in both directions without a native-path failu
 
 ### S012 — Polar Push: verified
 
-The shipping native path now reaches the Polar Push objective and controls pages, enters a live match,
-and accepts player control. A direct debug-server session at the mode-selection arena showed the
+Evidence: the shipping native path now reaches the Polar Push objective and controls pages, enters a
+live match, and accepts player control. A direct debug-server session at the mode-selection arena showed the
 Polar Panic portal, accepted Cross through the objective and controls pages, and produced a complete
 match scene with the four-player HUD, arena, ships, balls, and player ship. Holding Left moved the
 player to the lower-left and holding Right moved it back to the lower-right without a fatal or render
@@ -53,6 +54,16 @@ fatal, watchdog, guest-VSync violation, or dropped render layer.
 
 Missing capability: no durable shipping-native play evidence currently covers the retail modes beyond
 the Crashball, Crate Crush, and partial Polar Push routes listed above.
+
+### S014 — Audio playback: partial
+
+Framework `773d839e` replaces the host sink's empty start and four-field (~67 ms) queue with a bounded
+180 ms playback cushion that re-primes after an underrun. An isolated SDL-device run sustained 44,097
+samples/s against the 44,100 Hz target with zero dropped fields, while a 600-frame pre/post WAV was
+byte-identical. This verifies that host delivery no longer starves during the measured run and that the
+change does not alter SPU timing or PCM.
+
+Gap: hardware listening and longer gameplay coverage have not yet verified every title audio path.
 
 ## The evidence bar
 
