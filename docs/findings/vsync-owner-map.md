@@ -34,6 +34,17 @@ and can spawn the `0x1604` contact effects before clearing the consumed entry's 
 other callers are the sibling player-state handoffs, so this is an arena contact/effect update, not
 the generic presentation cadence.
 
+The owner contract is now statically resolved: `DAT_800D6010` is an ascending 256-pointer contact
+table; each contact is `{flags, x, y, z}` at offsets `0/+4/+8/+12`, and bit `0x8000` is active. Player
+slots start at `0x8009D52C + 0x6C*i`; the entity pointer is `+4`, auxiliary motion pointer `+0x18`,
+and configuration index `u16 +0x2E`. A contact passes only when `abs(dx) < 331`, `abs(dz) < 331`, and
+`dx*dx + dz*dz < 108900` (so 108899 is inside and 108900 is outside). A geometric pass either retains
+the active bit after motion adjustment or consumes it after the threshold branch, which spawns three
+`0x1604` effects and performs the associated event/choreography writes. The first passing table entry
+returns immediately. A native owner needs typed player/contact/motion views, the existing math/effect
+owners, a generated A/B mirror over every touched guest range, and explicit counters for scanned,
+active, disk-pass, retained, consumed, and emitted effects.
+
 All three `VSync(1)` return values are dead in this helper: the entry value is stored at `sp+0x18`
 and never loaded, and the two exit values are likewise stored at `sp+0x1C` and never loaded. That
 proves neither a wait nor a guest time value is needed for this path; it does **not** authorize a
