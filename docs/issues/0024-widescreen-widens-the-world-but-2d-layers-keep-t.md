@@ -24,3 +24,13 @@ use the wide camera and full wide draw area.
 At an actual 1280x720 sink, replay frame 2500 is the complete 4:3 oracle composition at full height
 with only left/right bars: grey dimmer, all four yellow border strips, portraits, and all four life
 counts are intact. Frame 3700 remains full-width, balanced 16:9 gameplay. The 4:3 path is unchanged.
+
+## Rejected follow-up (2026-08-31)
+
+A deterministic post-projection horizontal-FOV experiment was built against the same native replay,
+using the existing wide target and draw-area extension. It produced a large untextured/incorrect
+green triangle, duplicate character geometry, and blackened arena regions in the presented image;
+the established wide image did not. The experiment was removed and is not evidence for changing the
+current projection owner. Any future widening must change the engine-owned projection and clipping
+contract together, preserving the single source vertex stream; do not add a post-submit coordinate
+remap as a shortcut.
