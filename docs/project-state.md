@@ -98,6 +98,13 @@ A/B super. The shipping-native run caps at 14,160 frames, consumes the complete 
 with no guest-VSync violation, recompilation miss, fatal, watchdog, or dropped render layer. This closes
 the entry blocker only; visual parity and controllable Polar Push gameplay remain unverified.
 
+2026-08-31 (Polar Push portal route): the exact 16,495-frame continuation reaches the live 3D mode-
+selection arena and presents the `CRASHBALL`, `POLAR PANIC`, and `POGO PANIC` portals. Left/right input
+changes the character/camera position and Cross produces an in-world response, but the route never enters
+the Polar Panic portal or loads a Polar Push match. The run consumes all frames with zero fatal,
+recompilation miss, watchdog, guest-VSync violation, or dropped layer. The remaining owner is the
+portal-selection movement/orientation sequence, not the former arena-entry contact helper.
+
 S008 is partial: Crashball, Battle Mode, and Tournament Mode's first match are live and controllable,
 but the remaining retail mode paths still need end-to-end play coverage.
 
