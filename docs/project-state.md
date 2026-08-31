@@ -1,5 +1,12 @@
 # Project state
 
+## Comparison baseline
+
+The baseline is the unmodified USA PlayStation release of *Crash Bash* running on original hardware
+or through a PS1 emulator, with its retail game modes, 4:3 camera, 30 Hz presentation, and console
+execution. The port's intended differences are native host execution, a genuinely wider camera, and
+60 Hz interpolated presentation without speeding up the 30 Hz game simulation.
+
 | ID | Capability / observable outcome | State | Dependencies | Goals |
 |---|---|---|---|---|
 | S001 | The selected USA disc, executable, and measured CRASHBSH.DAT code modules are reproducibly identified and derived | verified | — | G001 |
@@ -10,6 +17,37 @@
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic checks compare the port with independent retail behavior at proven boundaries | partial | S001 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the shipping native path | partial | S002, S004 | G001 |
+| S009 | Crashball reaches a live match and accepts player control on the native path | verified | S008 | G001 |
+| S010 | Battle Mode Crate Crush reaches a live match and accepts player control on the native path | verified | S008 | G001 |
+| S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | S008 | G001 |
+| S012 | Polar Push reaches a visually correct, controllable live match on the native path | partial | S008 | G001 |
+| S013 | The remaining retail modes are reachable and playable on the native path | missing | S008 | G001 |
+
+### S009 — Crashball: verified
+
+Evidence: the tracked 3,740-frame shipping-native replay enters a live match and drives the player
+left and right without a recompilation miss, fatal, watchdog, or guest-VSync violation.
+
+### S010 — Battle Mode Crate Crush: verified
+
+Evidence: the tracked 15,401-frame shipping-native replay crosses the objective, controls, and
+special-items pages, enters a live Crate Crush match, and drives the player in both directions.
+
+### S011 — Tournament Crate Crush: verified
+
+Evidence: the tracked 7,910-frame shipping-native replay reaches Tournament Mode's first live Crate
+Crush match and drives the player in both directions without a native-path failure.
+
+### S012 — Polar Push: partial
+
+The native path loads the Polar Push family and now crosses the former arena-entry fatal.
+
+Gap: visual correctness and controllable live gameplay have not been verified.
+
+### S013 — Remaining modes: missing
+
+Missing capability: no durable shipping-native play evidence currently covers the retail modes beyond
+the Crashball, Crate Crush, and partial Polar Push routes listed above.
 
 ## The evidence bar
 
