@@ -20,7 +20,7 @@ execution. The port's intended differences are native host execution, a genuinel
 | S009 | Crashball reaches a live match and accepts player control on the native path | verified | S008 | G001 |
 | S010 | Battle Mode Crate Crush reaches a live match and accepts player control on the native path | verified | S008 | G001 |
 | S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | S008 | G001 |
-| S012 | Polar Push reaches a visually correct, controllable live match on the native path | partial | S008 | G001 |
+| S012 | Polar Push reaches a visually correct, controllable live match on the native path | verified | S008 | G001 |
 | S013 | The remaining retail modes are reachable and playable on the native path | missing | S008 | G001 |
 
 ### S009 — Crashball: verified
@@ -38,11 +38,16 @@ special-items pages, enters a live Crate Crush match, and drives the player in b
 Evidence: the tracked 7,910-frame shipping-native replay reaches Tournament Mode's first live Crate
 Crush match and drives the player in both directions without a native-path failure.
 
-### S012 — Polar Push: partial
+### S012 — Polar Push: verified
 
-The native path loads the Polar Push family and now crosses the former arena-entry fatal.
-
-Gap: visual correctness and controllable live gameplay have not been verified.
+The shipping native path now reaches the Polar Push objective and controls pages, enters a live match,
+and accepts player control. A direct debug-server session at the mode-selection arena showed the
+Polar Panic portal, accepted Cross through the objective and controls pages, and produced a complete
+match scene with the four-player HUD, arena, ships, balls, and player ship. Holding Left moved the
+player to the lower-left and holding Right moved it back to the lower-right without a fatal or render
+failure. The recorded 17,682-frame `replays/flow/polar-push-control.pad` replay reproduces the whole
+route on the shipping native renderer, consumes every frame, and exits with zero recompilation miss,
+fatal, watchdog, guest-VSync violation, or dropped render layer.
 
 ### S013 — Remaining modes: missing
 
@@ -105,8 +110,8 @@ the Polar Panic portal or loads a Polar Push match. The run consumes all frames 
 recompilation miss, watchdog, guest-VSync violation, or dropped layer. The remaining owner is the
 portal-selection movement/orientation sequence, not the former arena-entry contact helper.
 
-S008 is partial: Crashball, Battle Mode, and Tournament Mode's first match are live and controllable,
-but the remaining retail mode paths still need end-to-end play coverage.
+S008 is partial: Crashball, Battle Mode, Tournament Mode's first match, and Polar Push are live and
+controllable, but the remaining retail mode paths still need end-to-end play coverage.
 
 S004's prior focus statement follows, for the flow and producer facts it records. Controlled flow is closed through the first playable boundary: the tracked
 3,740-frame `replays/flow/crashball-control.pad` crosses the active menu, selects portal 0, advances
