@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# The native/dynarec product and Android APK cannot be built until psxport's
+# Lightrec runtime is connected. This Linux job verifies repository policy only;
+# it does not claim a packaged product on any host.
+jobs:
+  source-policy:
+    name: Source/launcher policy (Linux host)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install locked uv and Python
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: '0.10.12'
+          python-version: '3.12'
+          enable-cache: false
+      - name: Verify checkout is not shallow
+        run: test "$(git rev-parse --is-shallow-repository)" = false
+      - name: Install locked Python environment
+        run: uv sync --locked
+      - name: Run asset-free launcher, provisioning, and source tests
+        run: uv run --frozen python -m unittest tests/test_bootstrap.py tests/test_provision.py tests/test_source_policy.py

@@ -35,6 +35,7 @@ fallback, or oracle.
 | S015 | All 27 native overrides install by runtime image identity and all 15 original-body calls execute through the dynarec | partial | S003 | G001 |
 | S016 | Representative interactive gameplay passes on the native/dynarec product | missing | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
 | S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
+| S018 | Hosted CI truthfully covers applicable Linux, Windows, macOS, and Android product boundaries | partial | S003 | G001 |
 
 The verified S009-S012 entries describe durable reached behavior and replay inputs, not dynamic-engine
 completion. They become dynarec conformance evidence only after those scenarios run through the hybrid
@@ -159,6 +160,23 @@ Evidence: the tracked offline emitter integration, seed file, generated registry
 static-only verifiers are deleted. The ignored generated corpus, prior static build tree, and retained
 static product binaries are absent. `tools/source_policy.py` rejects the old files, generated directory,
 static dispatch markers, and any change to the 27-registration/15-original-call source boundary.
+
+### S018 — Platform CI coverage
+
+Partial capability: `.github/workflows/ci.yml` runs the asset-free launcher, provisioning, and source
+policy tests on one Linux host with full history, read-only permissions, pinned actions, and an
+explicit timeout. This is repository-policy coverage, not evidence for a packaged Linux product.
+
+| Platform | Applicability | Current CI evidence and exact gap |
+| --- | --- | --- |
+| Linux x86-64 | applicable desktop target | Source/launcher policy is covered; CI does not yet configure, compile, lint, test, or package the native/dynarec product because S003 is missing. |
+| Windows x86-64 | applicable portable-PC target | Missing: no supported Windows native build, runtime test, first-run setup, or package boundary exists. |
+| macOS arm64 | applicable portable-PC target | Missing: no Apple-Silicon native build, runtime test, first-run setup, or application package exists. |
+| Android arm64 | applicable mobile target | Android metadata and setup sources exist, but the Lightrec native runtime, shared `android-port` build path, Gradle/NDK APK build, and install/runtime test are missing. |
+
+Gap: the former green Android metadata/selftest job was removed because it did not build or install an
+APK. Add Android and desktop jobs only when they drive the actual redistributable platform boundary
+without game assets.
 
 ## Dynamic migration acceptance
 
