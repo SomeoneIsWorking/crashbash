@@ -5,18 +5,14 @@
 #include "crashbash_guest.h"
 #include "game.h"
 #include "guest_abi.h"
+#include "guest_execution.h"
 #include "measured_guest_call.h"
 #include "native_model_producer.h"
 #include "native_sprite_quad_producer.h"
-#include "override_registry.h"
 #include "sprite_render_list.h"
 
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -215,13 +211,9 @@ void displayFrameOwned(Core *core) {
 
 } // namespace
 
-void registerDisplayFrameOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      guest::kDisplayFrame, "CrashBash::DisplayFrame", displayFrameOwned, gen_func_800272AC, shard_set_override);
-#else
-  lucent::debug("crashbash-frame", "display-frame override registration deferred: no generated substrate");
-#endif
+void registerDisplayFrameOverride(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kDisplayFrame, "CrashBash::DisplayFrame", displayFrameOwned);
 }
 
 } // namespace crashbash

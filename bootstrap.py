@@ -337,7 +337,6 @@ def prepare_product(
             str(paths.build),
             "--target",
             "discdump",
-            "crt0_extract",
             "-j",
             jobs,
         ],
@@ -353,18 +352,6 @@ def prepare_product(
     if disc is not None:
         provision.append(str(disc))
     runner(provision, environment)
-    runner(
-        [
-            sys.executable,
-            "-B",
-            "tools/recomp_bootstrap.py",
-            "--ensure",
-            "--crt0-extract",
-            str(paths.build / "psxport_build" / "tools" / "crt0_extract"),
-        ],
-        environment,
-    )
-    runner(configure_arguments(paths.build), environment)
     runner(
         [
             "cmake",

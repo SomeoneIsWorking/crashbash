@@ -2,9 +2,9 @@
 
 #include "config_var.h"
 #include "core.h"
+#include "guest_execution.h"
 #include "model_face_coverage.h"
 #include "native_projection.h"
-#include "override_registry.h"
 
 #include <array>
 #include <charconv>
@@ -13,10 +13,6 @@
 #include <lucent/log.h>
 #include <string_view>
 #include <vector>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash::render {
 namespace {
@@ -45,14 +41,13 @@ bool separator(char value) {
   return value == ',' || value == ' ' || value == '\t' || value == '\n';
 }
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
 void packetGeometryFill(Core *core) {
   ModelPacketFillObservation observation{
       .packetBlock = core->r[4],
       .vertexBase = core->r[5],
       .topologyBase = core->r[6],
   };
-  gen_func_800193A8(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kPacketGeometryFill);
   for (const std::uint32_t target : census.targets) {
     if (target < 0x80000000u || target > 0x80200000u - kPacketRecordStride) {
       continue;
@@ -65,8 +60,6 @@ void packetGeometryFill(Core *core) {
   }
   observeModelPacketBlock(std::move(observation));
 }
-#endif
-
 std::array<std::int16_t, 2> unpackSxy(std::uint32_t word) {
   return {
       static_cast<std::int16_t>(word),
@@ -408,14 +401,12 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
   }
 }
 
-void registerModelPacketIdentityDiagnosticOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(kPacketGeometryFill,
-                     "CrashBash::ModelPacketIdentityDiagnostic",
-                     packetGeometryFill,
-                     gen_func_800193A8,
-                     shard_set_override);
-#endif
+void registerModelPacketIdentityDiagnosticOverride(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kPacketGeometryFill,
+                                  "CrashBash::ModelPacketIdentityDiagnostic",
+                                  packetGeometryFill);
 }
 
 } // namespace crashbash::render

@@ -99,7 +99,7 @@ class ProductWorkflowTest(unittest.TestCase):
             prepare.assert_not_called()
             execute.assert_not_called()
 
-    def test_prepare_uses_locked_interpreter_and_required_product_target(self):
+    def test_prepare_uses_locked_python_and_required_dynarec_target(self):
         (ROOT / "scratch").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT / "scratch") as directory:
             temporary = Path(directory)
@@ -136,7 +136,7 @@ class ProductWorkflowTest(unittest.TestCase):
         configure = [
             command for command in commands if command[0] == "cmake" and "-S" in command
         ]
-        self.assertEqual(len(configure), 2)
+        self.assertEqual(len(configure), 1)
         interpreter_setting = f"-DPython3_EXECUTABLE={sys.executable}"
         self.assertTrue(all(interpreter_setting in command for command in configure))
         self.assertTrue(all("-DBUILD_TESTING=OFF" in command for command in configure))
@@ -154,7 +154,7 @@ class ProductWorkflowTest(unittest.TestCase):
         python_commands = [
             command for command in commands if command[0] == sys.executable
         ]
-        self.assertEqual(len(python_commands), 3)
+        self.assertEqual(len(python_commands), 2)
         product_build = [
             command
             for command in commands

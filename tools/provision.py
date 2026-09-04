@@ -229,15 +229,15 @@ def load_identity(path: pathlib.Path) -> Identity:
     )
 
 
-def _load_psexe(psxport: pathlib.Path):
-    module_path = psxport / "tools" / "recomp" / "psexe.py"
+def _load_psx_executable_parser(psxport: pathlib.Path):
+    module_path = psxport / "tools" / "formats" / "psx_exe.py"
     if not module_path.is_file():
         raise Refused(
             f"cannot find psxport PS-X EXE loader at {module_path}; "
             "run tools/psxport_sync.py --auto or set PSXPORT_DIR"
         )
     spec = importlib.util.spec_from_file_location(
-        "crashbash_psxport_psexe", module_path
+        "crashbash_psxport_psx_exe", module_path
     )
     if spec is None or spec.loader is None:
         raise Refused(f"cannot load PS-X EXE parser from {module_path}")
@@ -268,7 +268,7 @@ def verify_executable(
 ) -> int:
     try:
         data = path.read_bytes()
-        image = _load_psexe(psxport).load(str(path))
+        image = _load_psx_executable_parser(psxport).load(path)
     except OSError as exc:
         raise Refused(f"cannot read extracted {identity.boot_path}: {exc}") from exc
     except ValueError as exc:
@@ -483,9 +483,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"[provision] verified output: {args.output.resolve()}")
         for stem in loaded_module.MODULES:
             print(f"[provision] verified module: {args.overlays.resolve() / f'{stem}.BIN'}")
-        print(
-            "[provision] scope: input identity only; no recompilation or boot is claimed"
-        )
+        print("[provision] scope: input identity only; no gameplay execution is claimed")
         return 0
     except Mismatch as exc:
         print(f"MISMATCH: {exc}", file=sys.stderr)

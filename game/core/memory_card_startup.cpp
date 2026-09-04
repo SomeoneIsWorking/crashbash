@@ -2,15 +2,11 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "guest_execution.h"
 #include "measured_guest_call.h"
-#include "override_registry.h"
 
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -38,7 +34,7 @@ void memoryCardStartupOwned(Core *core) {
   core->mem_w32(core->r[29] + 20u, core->r[17]);
   core->r[31] = 0x800486F8u;
   rec_guest_instruction_ticks(core, 7u);
-  rec_dispatch(core, kChangeClearPad);
+  runtime::dispatchGuest(*core, kChangeClearPad);
 
   core->r[4] = 0u;
   rec_guest_instruction_ticks(core, 2u);
@@ -71,16 +67,12 @@ void memoryCardStartupOwned(Core *core) {
 
 } // namespace
 
-void registerMemoryCardStartupOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(guest::kMemoryCardStartup,
-                     "CrashBash::MemoryCardStartup",
-                     memoryCardStartupOwned,
-                     gen_func_800486DC,
-                     shard_set_override);
-#else
-  lucent::debug("crashbash-frame", "memory-card startup override registration deferred: no generated substrate");
-#endif
+void registerMemoryCardStartupOverride(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  guest::kMemoryCardStartup,
+                                  "CrashBash::MemoryCardStartup",
+                                  memoryCardStartupOwned);
 }
 
 } // namespace crashbash

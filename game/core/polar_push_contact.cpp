@@ -2,18 +2,14 @@
 
 #include "core.h"
 #include "game.h"
+#include "guest_execution.h"
 #include "measured_guest_call.h"
-#include "override_registry.h"
 
 #include <array>
 #include <bit>
 #include <cstdint>
 #include <cstdlib>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "ov_dat22510_decls.h"
-#endif
 
 namespace crashbash::polar {
 namespace {
@@ -484,16 +480,12 @@ const EffectRecipe &effectRecipe(std::uint32_t ordinal) {
   return kRecipes[ordinal];
 }
 
-void registerPolarPushContactOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(kContactUpdate,
-                     "CrashBash::PolarPushArenaContactUpdate",
-                     polarPushArenaContactUpdate,
-                     ov_dat22510_gen_800C0888,
-                     ov_dat22510_set_override);
-#else
-  lucent::debug("crashbash-polar", "Polar Push contact override registration deferred: no generated substrate");
-#endif
+void registerPolarPushContactOverride(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Dat22510,
+                                  kContactUpdate,
+                                  "CrashBash::PolarPushArenaContactUpdate",
+                                  polarPushArenaContactUpdate);
 }
 
 } // namespace crashbash::polar

@@ -3,6 +3,7 @@
 #include "core.h"
 #include "crashbash_guest.h"
 #include "game.h"
+#include "guest_execution.h"
 #include "measured_guest_call.h"
 #include "model_face_pixel_diagnostic.h"
 #include "model_material_diagnostic.h"
@@ -58,7 +59,7 @@ void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields
   for (std::uint32_t field = 0; field < fields; ++field) {
     const std::uint32_t before = core.mem_r32(guest::kVblankCounter);
     const R3000 interrupted = static_cast<const R3000 &>(core);
-    rec_dispatch(&core, guest::kVblankRoot);
+    runtime::dispatchGuest(core, guest::kVblankRoot);
     static_cast<R3000 &>(core) = interrupted;
     const std::uint32_t after = core.mem_r32(guest::kVblankCounter);
     if (after != before + 1u) {

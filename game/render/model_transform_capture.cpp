@@ -1,16 +1,12 @@
 #include "model_transform_capture.h"
 
 #include "core.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <limits>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash::render {
 namespace {
@@ -74,12 +70,11 @@ ModelRotation readRotation(Core &core, std::uint32_t address) {
   return rotation;
 }
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
 void modelTransformComposer(Core *core) {
   ++census.attempts;
   const std::uint32_t object = core->r[4];
   const std::uint32_t output = core->mem_r32(core->r[29] + 0x10u);
-  gen_func_8001965C(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kModelTransformComposer);
 
   census.lastOutput = output;
   if (pending.core != core || pending.object != object) {
@@ -137,7 +132,7 @@ void alternateModelTransformComposer(Core *core) {
   ++census.attempts;
   const std::uint32_t object = core->r[4];
   const std::uint32_t callFlags = core->r[6];
-  gen_func_8001D894(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kAlternateModelTransformComposer);
 
   if (pending.core != core || pending.object != object) {
     ++census.pendingMismatch;
@@ -185,8 +180,6 @@ void alternateModelTransformComposer(Core *core) {
   pending.transform = transform;
   census.captured += transform.valid ? 1u : 0u;
 }
-#endif
-
 } // namespace
 
 ModelRotation composeModelRotations(const ModelRotation &left, const ModelRotation &right) {
@@ -244,19 +237,17 @@ const ModelTransformCaptureCensus &modelTransformCaptureCensus() {
   return census;
 }
 
-void registerModelTransformCaptureOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(kModelTransformComposer,
-                     "CrashBash::ModelTransformCapture",
-                     modelTransformComposer,
-                     gen_func_8001965C,
-                     shard_set_override);
-  overrides::install(kAlternateModelTransformComposer,
-                     "CrashBash::AlternateModelTransformCapture",
-                     alternateModelTransformComposer,
-                     gen_func_8001D894,
-                     shard_set_override);
-#endif
+void registerModelTransformCaptureOverride(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kModelTransformComposer,
+                                  "CrashBash::ModelTransformCapture",
+                                  modelTransformComposer);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kAlternateModelTransformComposer,
+                                  "CrashBash::AlternateModelTransformCapture",
+                                  alternateModelTransformComposer);
 }
 
 } // namespace crashbash::render

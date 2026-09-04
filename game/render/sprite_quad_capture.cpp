@@ -3,16 +3,12 @@
 #include "core.h"
 #include "crashbash_frame_driver.h"
 #include "game.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 #include "sprite_quad_decode.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash::render {
 namespace {
@@ -28,7 +24,6 @@ constexpr std::uint32_t kSpriteRenderList = 0x800569D8u;
 constexpr std::uint32_t kScreenDepthBias = 0x800569DCu;
 constexpr std::uint32_t kScreenDepthLimit = 0x800569DEu;
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
 SpriteQuadDescriptor readDescriptor(Core &core, std::uint32_t address) {
   return SpriteQuadDescriptor{
       .width = core.mem_r16(address + 0x08u),
@@ -83,7 +78,7 @@ void spriteQuadCapture(Core *core) {
 
   // The super remains the guest-behavior oracle and owns the function's return value, allocation,
   // packet construction, and OT insertion. Native rendering consumes only the pre-super record above.
-  gen_func_8002992C(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kSpriteQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
 
@@ -100,7 +95,7 @@ void flatSpriteQuadCapture(Core *core) {
   };
   const std::optional<SpriteQuadDraw> draw = captureSpriteQuad(*core, call);
 
-  gen_func_80029D28(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kFlatSpriteQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
 
@@ -139,30 +134,24 @@ void screenColorQuadCapture(Core *core) {
     }
   }
 
-  gen_func_8001A0D8(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kScreenColorQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
-#endif
-
 } // namespace
 
-void registerSpriteQuadCaptureOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      kSpriteQuadSubmit, "CrashBash::SpriteQuadCapture", spriteQuadCapture, gen_func_8002992C, shard_set_override);
-  overrides::install(kFlatSpriteQuadSubmit,
-                     "CrashBash::FlatSpriteQuadCapture",
-                     flatSpriteQuadCapture,
-                     gen_func_80029D28,
-                     shard_set_override);
-  overrides::install(kScreenColorQuadSubmit,
-                     "CrashBash::ScreenColorQuadCapture",
-                     screenColorQuadCapture,
-                     gen_func_8001A0D8,
-                     shard_set_override);
-#else
-  lucent::debug("crashbash-render", "sprite-quad capture override deferred: no generated substrate");
-#endif
+void registerSpriteQuadCaptureOverride(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, kSpriteQuadSubmit, "CrashBash::SpriteQuadCapture", spriteQuadCapture);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kFlatSpriteQuadSubmit,
+                                  "CrashBash::FlatSpriteQuadCapture",
+                                  flatSpriteQuadCapture);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kScreenColorQuadSubmit,
+                                  "CrashBash::ScreenColorQuadCapture",
+                                  screenColorQuadCapture);
 }
 
 } // namespace crashbash::render

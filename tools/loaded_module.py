@@ -17,14 +17,14 @@ DAT28136_MANIFEST = ROOT / "titles" / "crashbash" / "dat28136_module.json"
 DAT28382_MANIFEST = ROOT / "titles" / "crashbash" / "dat28382_module.json"
 DAT22510_MANIFEST = ROOT / "titles" / "crashbash" / "dat22510_module.json"
 
-# Every measured code module the port loads out of CRASHBSH.DAT, keyed by the overlay stem the
-# recompiler emits and the runtime router routes by. Provisioning and the recompiler both read this
-# one registry, so a newly measured module is added here and nowhere else.
+# Every measured code module the port loads out of CRASHBSH.DAT, keyed by the stable image name the
+# runtime uses for identity, override scope, and cache invalidation. Provisioning and the runtime
+# adapter both read this one registry, so a newly measured module is added here and nowhere else.
 #
 # MENU and the DAT-prefixed images are ALTERNATIVES in one nested slot at 0x800B32B4, never
 # co-resident; the router tells them apart by the content signature of guest RAM at the base. DAT
-# stems are named by their measured disc LBA rather than inferred roles because the stem is baked
-# into generated identifiers. For example, DAT28272's dispatched code at 0x800C3434 registers a
+# stems are named by their measured disc LBA rather than inferred roles. For example, DAT28272's
+# dispatched code at 0x800C3434 registers a
 # behavior vtable and carries character-animation names, while DAT28136's 0x800B4E1C registers a
 # different table after Cross; neither observation establishes a durable scene/role name.
 MODULES: dict[str, pathlib.Path] = {

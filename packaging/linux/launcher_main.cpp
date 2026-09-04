@@ -4,7 +4,6 @@
 #include <atomic>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -12,6 +11,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_dialog.h>
 #include <SDL3/SDL_messagebox.h>
+#include <lucent/log.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -41,9 +41,8 @@ void SDLCALL fileSelected(void *userdata, const char *const *filelist, int) {
 }
 
 void showError(const std::string &message) {
-  if (!SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Crash Bash Setup", message.c_str(), nullptr)) {
-    std::cerr << "Crash Bash Setup: " << message << '\n';
-  }
+  lucent::error("crashbash-setup", "{}", message);
+  SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Crash Bash Setup", message.c_str(), nullptr);
 }
 
 bool chooseBrowse() {
@@ -138,10 +137,10 @@ int selftest(const AppLayout &layout, const MediaIdentity &identity) {
   checks += identity.executableName == "SCUS_945.70" ? 1 : 0;
   checks += identity.executableSize > 0 && identity.dataSize > identity.executableSize ? 1 : 0;
   if (checks != 6) {
-    std::cerr << "AppImage launcher selftest: " << checks << "/6 checks passed\n";
+    lucent::error("crashbash-setup", "AppImage launcher selftest: {}/6 checks passed", checks);
     return 1;
   }
-  std::cout << "AppImage launcher selftest: 6/6 checks passed\n";
+  lucent::info("crashbash-setup", "AppImage launcher selftest: 6/6 checks passed");
   return 0;
 }
 
@@ -153,12 +152,12 @@ int main(int argc, char **argv) {
   std::string error;
   const auto layout = resolveAppLayout(error);
   if (!layout.has_value()) {
-    std::cerr << "Crash Bash Setup: " << error << '\n';
+    lucent::error("crashbash-setup", "{}", error);
     return 2;
   }
   const auto identity = loadMediaIdentity(layout->identity, error);
   if (!identity.has_value()) {
-    std::cerr << "Crash Bash Setup: " << error << '\n';
+    lucent::error("crashbash-setup", "{}", error);
     return 2;
   }
   if (argc == 2 && std::string_view(argv[1]) == "--selftest") {
@@ -173,10 +172,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && std::string_view(argv[1]) == "--provision") {
     const std::filesystem::path selected = std::filesystem::absolute(argv[2]);
     if (!provisionSelection(selected, *layout, *paths, *identity, error)) {
-      std::cerr << "Crash Bash Setup: " << error << '\n';
+      lucent::error("crashbash-setup", "{}", error);
       return 1;
     }
-    std::cout << "Crash Bash Setup: verified and installed " << selected << '\n';
+    lucent::info("crashbash-setup", "verified and installed {}", selected.string());
     return 0;
   }
 
@@ -188,7 +187,7 @@ int main(int argc, char **argv) {
   }
 
   if (!SDL_Init(SDL_INIT_VIDEO)) {
-    std::cerr << "Crash Bash Setup: cannot initialise the desktop UI: " << SDL_GetError() << '\n';
+    lucent::error("crashbash-setup", "cannot initialise the desktop UI: {}", SDL_GetError());
     return 2;
   }
   while (chooseBrowse()) {

@@ -1,16 +1,14 @@
 # Retail render-anchor inventory
 
-`tools/inventory_render_anchors.py` scans the generated resident, BOOT, and MENU C shards without
-modifying them. It calls a function a **projection anchor** only when the same generated body executes
-a `gte_op_at` instruction and consumes projected screen/depth output through `gte_store_xy` or GTE
-data registers 17..19. It separately inventories writes to GTE pose/projection control registers
-0..7 and 24..26. These are static RE entry points, not native producers and not proof of a visible
-submission.
+This document preserves the address-level results of the retired generated-source analyzer. The
+analyzer and its emitted inputs were deleted during the break-first dynarec migration; they are not a
+current toolchain or oracle. The recorded projection anchors combined a GTE operation with projected
+screen/depth consumption, while the camera-control set recorded writes to GTE control registers 0..7
+and 24..26. These are RE entry points, not native producers and not proof of a visible submission.
 
 ## Exact provenance answers
 
-The analyzer refuses a generated cache whose input hash, output hash, recompiler version, parsed
-function denominator, or selected psxport tree disagrees. It produced these two distinct answers:
+The former analyzer recorded provenance for two distinct answers:
 
 | psxport | Recompiler | Generated functions | Projection anchors | Camera-control anchors |
 |---|---|---:|---:|---:|
@@ -60,14 +58,5 @@ active gameplay camera or whether any one is merely a PSYQ-style matrix helper.
   disabled, followed by a midpoint render at alpha 0.5 that does not mutate guest RAM. Interpolating
   projected screen coordinates or guest GTE matrices is not accepted.
 
-## Reproduction
-
-```sh
-uv run --frozen python tools/inventory_render_anchors.py --selftest
-uv run --frozen python tools/inventory_render_anchors.py
-```
-
-The 12/12 selftest exercises a positive projection/control function, its direct predecessor, a
-GTE-only negative with no projected output, a memory-write-only negative, an accepted matching
-provenance tuple, a stale selected-recompiler refusal, and a parsed-denominator refusal. A real run
-also recomputes the shipping recomp-bootstrap input/output hashes before returning JSON.
+New attribution must be reproduced from the authenticated binary or observed through the dynarec;
+the deleted emitter path must not be restored to reproduce this inventory.

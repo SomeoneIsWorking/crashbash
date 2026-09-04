@@ -4,7 +4,7 @@
 #include "crashbash_guest.h"
 #include "disc.h"
 #include "game.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <algorithm>
 #include <array>
@@ -12,10 +12,6 @@
 #include <cstdlib>
 #include <lucent/log.h>
 #include <string_view>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -92,16 +88,12 @@ void cdLicenseStartupOwned(Core *core) {
 
 } // namespace
 
-void registerCdLicenseStartupOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(guest::kCdLicenseStartup,
-                     "CrashBash::CdLicenseStartup",
-                     cdLicenseStartupOwned,
-                     gen_func_8002D4F4,
-                     shard_set_override);
-#else
-  lucent::debug("crashbash-cd", "CD license-startup override registration deferred: no generated substrate");
-#endif
+void registerCdLicenseStartupOverride(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  guest::kCdLicenseStartup,
+                                  "CrashBash::CdLicenseStartup",
+                                  cdLicenseStartupOwned);
 }
 
 } // namespace crashbash

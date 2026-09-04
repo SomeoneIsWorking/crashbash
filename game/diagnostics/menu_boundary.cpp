@@ -1,17 +1,12 @@
 #include "menu_boundary.h"
 
 #include "core.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <cstdint>
 #include <mutex>
 
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "ov_dat28136_decls.h"
-#include "ov_menu_decls.h"
-#endif
 
 namespace crashbash::diagnostics {
 namespace {
@@ -28,13 +23,12 @@ constexpr std::uint32_t kDat28136Registration = 0x800B4E1Cu;
 constexpr std::uint32_t kDat28136Update = 0x800B4694u;
 constexpr std::uint32_t kAppUpdateCallback = 0x8009F8B4u;
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
 void observeMenuEntry(Core *core) {
   static std::once_flag marker;
   std::call_once(marker, [core] {
     lucent::info("crashbash-boundary", "MENU entry addr={:08X} ra={:08X}", kMenuEntry, core->r[31]);
   });
-  ov_menu_gen_800B5244(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Menu, kMenuEntry);
 }
 
 void observeMenuUpdate(Core *core) {
@@ -46,7 +40,7 @@ void observeMenuUpdate(Core *core) {
                 core->mem_r32(kPendingManager),
                 core->mem_r32(kStateIndex),
                 core->mem_r32(kSelection));
-  ov_menu_gen_800B3CA8(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Menu, kMenuUpdate);
 }
 
 void observeMenuAccept(Core *core) {
@@ -54,7 +48,7 @@ void observeMenuAccept(Core *core) {
   const std::uint32_t current = core->mem_r32(kCurrentManager);
   const std::uint32_t pendingBefore = core->mem_r32(kPendingManager);
   const std::uint32_t selection = core->mem_r32(kSelection);
-  ov_menu_gen_800B5360(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Menu, kMenuAccept);
   lucent::info("crashbash-boundary",
                "MENU accept edge={:08X} current={:08X} pending={:08X}->{:08X} selection={:08X}",
                edge,
@@ -67,7 +61,7 @@ void observeMenuAccept(Core *core) {
 void observeDat28136Registration(Core *core) {
   const std::uint32_t returnAddress = core->r[31];
   const std::uint32_t callbackBefore = core->mem_r32(kAppUpdateCallback);
-  ov_dat28136_gen_800B4E1C(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Dat28136, kDat28136Registration);
   lucent::info("crashbash-boundary",
                "DAT28136 registration addr={:08X} ra={:08X} callback={:08X}->{:08X}",
                kDat28136Registration,
@@ -85,33 +79,28 @@ void observeDat28136Update(Core *core) {
                  core->r[31],
                  core->mem_r32(kAppUpdateCallback));
   });
-  ov_dat28136_gen_800B4694(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Dat28136, kDat28136Update);
 }
-#endif
 
 } // namespace
 
-void registerMenuBoundary() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      kMenuEntry, "CrashBashDiagnostics::menuEntry", observeMenuEntry, ov_menu_gen_800B5244, ov_menu_set_override);
-  overrides::install(
-      kMenuUpdate, "CrashBashDiagnostics::menuUpdate", observeMenuUpdate, ov_menu_gen_800B3CA8, ov_menu_set_override);
-  overrides::install(
-      kMenuAccept, "CrashBashDiagnostics::menuAccept", observeMenuAccept, ov_menu_gen_800B5360, ov_menu_set_override);
-  overrides::install(kDat28136Registration,
-                     "CrashBashDiagnostics::dat28136Registration",
-                     observeDat28136Registration,
-                     ov_dat28136_gen_800B4E1C,
-                     ov_dat28136_set_override);
-  overrides::install(kDat28136Update,
-                     "CrashBashDiagnostics::dat28136Update",
-                     observeDat28136Update,
-                     ov_dat28136_gen_800B4694,
-                     ov_dat28136_set_override);
-#else
-  lucent::debug("crashbash-boundary", "MENU boundary registration deferred: no generated substrate");
-#endif
+void registerMenuBoundary(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Menu, kMenuEntry, "CrashBashDiagnostics::menuEntry", observeMenuEntry);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Menu, kMenuUpdate, "CrashBashDiagnostics::menuUpdate", observeMenuUpdate);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Menu, kMenuAccept, "CrashBashDiagnostics::menuAccept", observeMenuAccept);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Dat28136,
+                                  kDat28136Registration,
+                                  "CrashBashDiagnostics::dat28136Registration",
+                                  observeDat28136Registration);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Dat28136,
+                                  kDat28136Update,
+                                  "CrashBashDiagnostics::dat28136Update",
+                                  observeDat28136Update);
 }
 
 } // namespace crashbash::diagnostics

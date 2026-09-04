@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash {
 
-void registerGpuTimeoutOverrides();
+void registerGpuTimeoutOverrides(Core &core);
 
 } // namespace crashbash

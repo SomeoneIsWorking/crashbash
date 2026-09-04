@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+class Core;
+
 namespace crashbash::render {
 
 struct ModelPacketPayload {
@@ -78,6 +80,6 @@ void beginModelPacketIdentityDraw();
 void observeModelPacketBlock(ModelPacketFillObservation observation);
 void finishModelPacketIdentityDraw(const ModelDraw &draw);
 void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame);
-void registerModelPacketIdentityDiagnosticOverride();
+void registerModelPacketIdentityDiagnosticOverride(Core &core);
 
 } // namespace crashbash::render

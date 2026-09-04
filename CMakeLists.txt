@@ -35,18 +35,13 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/cd_file_read.cpp
   game/core/cd_license_startup.cpp
   game/core/cd_startup.cpp
-  game/core/crashbash_application.cpp
   game/core/crashbash_boot.cpp
   game/core/crashbash_frame_driver.cpp
-  game/core/crashbash_runtime.cpp
   game/core/display_frame.cpp
   game/core/gpu_timeout.cpp
   game/core/memory_card_startup.cpp
+  game/core/native_owner_set.cpp
   game/core/polar_push_contact.cpp
-  game/core/game_config.cpp
-  game/core/game_hooks.cpp
-  game/core/main.cpp
-  game/core/recomp_register.cpp
   game/diagnostics/menu_boundary.cpp
   game/input/crashbash_touch_controls.cpp
   game/render/model_face_coverage.cpp
@@ -98,32 +93,16 @@ target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics gam
 target_link_libraries(crashbash_seam PRIVATE psxport)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
-  include("${CMAKE_CURRENT_SOURCE_DIR}/generated/rec_sources.cmake")
-  list(TRANSFORM GEN_REC_SRCS PREPEND generated/)
-  set_source_files_properties(
-    ${GEN_REC_SRCS}
-    PROPERTIES
-      LANGUAGE CXX
-      COMPILE_OPTIONS "-w;-O1;-foptimize-sibling-calls;-fno-strict-aliasing;-fwrapv"
-  )
-  add_executable(crashbash_port ${CRASHBASH_SEAM_SOURCES} ${GEN_REC_SRCS})
-  target_compile_definitions(crashbash_port PRIVATE CRASHBASH_HAVE_SUBSTRATE=1)
-  target_include_directories(crashbash_port PRIVATE game/core game/diagnostics game/input game/render generated)
-  target_compile_options(crashbash_port PRIVATE -O2 -g)
-  target_link_libraries(crashbash_port PRIVATE psxport)
-  add_dependencies(crashbash_port gen_gpu_shaders)
-  set_target_properties(
-    crashbash_port
-    PROPERTIES
-      CXX_STANDARD 20
-      CXX_STANDARD_REQUIRED ON
-      ENABLE_EXPORTS ON
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build/bin"
-  )
-else()
-  message(STATUS "crashbash_port: generated substrate absent; run tools/recomp_bootstrap.py --ensure")
-endif()
+# Break-first migration: the generated-code product is intentionally gone. Keep one named failure
+# until psxport connects Lightrec and exposes loaded-image lifecycle binding for the title adapter.
+add_custom_target(
+  crashbash_port
+  COMMAND
+    "${CMAKE_COMMAND}" -E echo
+    "Crash Bash gameplay target unavailable: psxport Lightrec backend and loaded-image lifecycle are not integrated"
+  COMMAND "${CMAKE_COMMAND}" -E false
+  VERBATIM
+)
 if(BUILD_TESTING)
   add_executable(
     crashbash_touch_controls_test
@@ -141,8 +120,8 @@ if(BUILD_TESTING)
     tests/test_scene_snapshot.cpp
     game/render/scene_snapshot.cpp
   )
-  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render "${PSXPORT_DIR}/runtime/recomp"
-                             "${PSXPORT_DIR}/vendor/lucent/include")
+  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render)
+  target_link_libraries(crashbash_scene_snapshot_test PRIVATE psxport)
   set_target_properties(
     crashbash_scene_snapshot_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
@@ -174,18 +153,6 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_render_capabilities COMMAND crashbash_render_capabilities_test)
-  add_executable(
-    crashbash_guest_vram_policy_test
-    tests/test_guest_vram_policy.cpp
-    game/core/game_config.cpp
-  )
-  target_include_directories(crashbash_guest_vram_policy_test PRIVATE game/core)
-  target_link_libraries(crashbash_guest_vram_policy_test PRIVATE psxport)
-  set_target_properties(
-    crashbash_guest_vram_policy_test
-    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
-  )
-  add_test(NAME crashbash_guest_vram_policy COMMAND crashbash_guest_vram_policy_test)
   add_executable(
     crashbash_model_face_coverage_test
     tests/test_model_face_coverage.cpp
@@ -315,20 +282,14 @@ if(BUILD_TESTING)
   )
   add_test(NAME crashbash_polar_push_contact COMMAND crashbash_polar_push_contact_test)
   add_test(
-    NAME crashbash_boot_boundary_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_boot.py" --selftest
-  )
-  add_test(
-    NAME crashbash_menu_accept_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_menu_accept.py" --selftest
-  )
-  add_test(
     NAME crashbash_native_ownership_selftest
     COMMAND
-      "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_native_ownership.py" --selftest
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_source_policy.py"
+  )
+  add_test(
+    NAME crashbash_native_ownership
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_native_ownership.py"
   )
   add_test(
     NAME crashbash_cpp_policy
@@ -348,12 +309,6 @@ if(BUILD_TESTING)
       --check --build-dir "${CMAKE_BINARY_DIR}"
   )
   add_test(
-    NAME crashbash_recomp_bootstrap_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/recomp_bootstrap.py"
-      --selftest --crt0-extract $<TARGET_FILE:crt0_extract>
-  )
-  add_test(
     NAME crashbash_oracle_irq_compare_selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
@@ -370,23 +325,5 @@ if(BUILD_TESTING)
     COMMAND
       "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_command_response_timing.py" --selftest
-  )
-  add_test(
-    NAME crashbash_cdc_phase_progress_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_cdc_phase_progress.py" --selftest
-  )
-  add_test(
-    NAME crashbash_render_anchor_inventory_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/tools/inventory_render_anchors.py" --selftest
-  )
-  add_test(
-    NAME crashbash_render_anchor_reach_selftest
-    COMMAND
-      "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_render_anchor_reach.py" --selftest
   )
 endif()

@@ -1,9 +1,9 @@
-#include "crashbash_runtime.h"
+#include "title_adapter.h"
 
 #include "testutil.h"
 
 static void test_crash_bash_factory_selects_authored_face_order() {
-  const RenderCapabilities capabilities = crashbash::CrashBashRuntime::titleRenderCapabilities();
+  const RenderCapabilities capabilities = crashbash::TitleAdapter::titleRenderCapabilities();
   CHECK_EQ(capabilities.defaultFaceOrder, FACE_ORDER_AUTHORED);
   CHECK(capabilities.nativeRenderPath);
   CHECK(capabilities.temporalInterpolation);

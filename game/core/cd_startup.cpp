@@ -4,13 +4,9 @@
 #include "crashbash_guest.h"
 #include "disc.h"
 #include "game.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -28,24 +24,17 @@ void cdInitHandshakeOwned(Core *core) {
   // Retail 0x80034B8C enters Sony libcd's controller/IRQ initialization and returns one only after
   // the controller is ready. The port has no emulated CD controller: all configured commands,
   // synchronization and ISO lookup complete synchronously on the host. Report that real native
-  // readiness to its generated caller, which still installs Crash Bash's callback pointers.
+  // readiness to its guest caller, which still installs Crash Bash's callback pointers.
   core->r[2] = 1u;
 }
 
 } // namespace
 
-void registerCdStartupOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      guest::kCdDriveReady, "CrashBash::CdDriveReady", cdDriveReadyOwned, gen_func_800349AC, shard_set_override);
-  overrides::install(guest::kCdInitHandshake,
-                     "CrashBash::CdInitHandshake",
-                     cdInitHandshakeOwned,
-                     gen_func_80034B8C,
-                     shard_set_override);
-#else
-  lucent::debug("crashbash-frame", "CD startup override registration deferred: no generated substrate");
-#endif
+void registerCdStartupOverride(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kCdDriveReady, "CrashBash::CdDriveReady", cdDriveReadyOwned);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kCdInitHandshake, "CrashBash::CdInitHandshake", cdInitHandshakeOwned);
 }
 
 } // namespace crashbash

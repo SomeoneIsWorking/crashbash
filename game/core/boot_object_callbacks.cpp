@@ -3,15 +3,11 @@
 #include "core.h"
 #include "crashbash_guest.h"
 #include "game.h"
+#include "guest_execution.h"
 #include "measured_guest_call.h"
-#include "override_registry.h"
 
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "ov_boot_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -453,18 +449,11 @@ void bootObjectUpdateOwned(Core *core) {
 
 } // namespace
 
-void registerBootObjectCallbackOverrides() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(kAnimateChannels,
-                     "CrashBash::BootAnimateChannels",
-                     bootAnimateChannelsOwned,
-                     ov_boot_gen_8008ADA4,
-                     ov_boot_set_override);
-  overrides::install(
-      kObjectUpdate, "CrashBash::BootObjectUpdate", bootObjectUpdateOwned, ov_boot_gen_8008BB48, ov_boot_set_override);
-#else
-  lucent::debug("crashbash-boot", "BOOT object callback overrides deferred: no generated substrate");
-#endif
+void registerBootObjectCallbackOverrides(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Boot, kAnimateChannels, "CrashBash::BootAnimateChannels", bootAnimateChannelsOwned);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Boot, kObjectUpdate, "CrashBash::BootObjectUpdate", bootObjectUpdateOwned);
 }
 
 } // namespace crashbash

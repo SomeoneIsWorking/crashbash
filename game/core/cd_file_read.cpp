@@ -4,15 +4,11 @@
 #include "crashbash_guest.h"
 #include "disc.h"
 #include "game.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -55,13 +51,9 @@ void cdFileReadOwned(Core *core) {
 
 } // namespace
 
-void registerCdFileReadOverride() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      guest::kCdFileRead, "CrashBash::CdFileRead", cdFileReadOwned, gen_func_80027790, shard_set_override);
-#else
-  lucent::debug("crashbash-cd", "CD file-read override registration deferred: no generated substrate");
-#endif
+void registerCdFileReadOverride(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kCdFileRead, "CrashBash::CdFileRead", cdFileReadOwned);
 }
 
 } // namespace crashbash

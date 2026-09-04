@@ -2,14 +2,10 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
-#include "override_registry.h"
+#include "guest_execution.h"
 
 #include <cstdint>
 #include <lucent/log.h>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash {
 namespace {
@@ -59,7 +55,7 @@ void gpuTransferOwned(Core *core) {
   core->r[31] = 0x8003168Cu;
   core->r[5] = core->r[16];
   rec_guest_instruction_ticks(core, 12u);
-  rec_dispatch(core, 0x8002EDD0u);
+  runtime::dispatchGuest(*core, 0x8002EDD0u);
 
   // Retail now samples VSync(-1) and polls GPU/DMA readiness. Native submission is synchronous, so
   // the finite owner records the idle timeout state and continues at the successful-ready path.
@@ -69,7 +65,7 @@ void gpuTransferOwned(Core *core) {
   core->r[31] = 0x8003171Cu;
   core->r[4] = 2u;
   rec_guest_instruction_ticks(core, 4u);
-  rec_dispatch(core, 0x8003194Cu);
+  runtime::dispatchGuest(*core, 0x8003194Cu);
   const std::int16_t height = static_cast<std::int16_t>(core->mem_r16(core->r[16] + 4u));
   core->r[2] = 0xFFFFFFFFu;
   rec_guest_instruction_ticks(core, 4u);
@@ -103,7 +99,7 @@ void gpuTransferOwned(Core *core) {
   core->r[31] = 0x80031784u;
   core->r[4] -= 8u;
   rec_guest_instruction_ticks(core, 16u);
-  rec_dispatch(core, core->r[2]);
+  runtime::dispatchGuest(*core, core->r[2]);
   core->r[2] = 0u;
   rec_guest_instruction_ticks(core, 1u);
   finishGpuTransfer(core);
@@ -111,20 +107,13 @@ void gpuTransferOwned(Core *core) {
 
 } // namespace
 
-void registerGpuTimeoutOverrides() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(
-      guest::kGpuTimeoutArm, "CrashBash::GpuTimeoutArm", gpuTimeoutArmOwned, gen_func_8003126C, shard_set_override);
-  overrides::install(guest::kGpuTimeoutCheck,
-                     "CrashBash::GpuTimeoutCheck",
-                     gpuTimeoutCheckOwned,
-                     gen_func_800312A0,
-                     shard_set_override);
-  overrides::install(
-      guest::kGpuTransfer, "CrashBash::GpuTransfer", gpuTransferOwned, gen_func_8003165C, shard_set_override);
-#else
-  lucent::debug("crashbash-frame", "GPU timeout override registration deferred: no generated substrate");
-#endif
+void registerGpuTimeoutOverrides(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kGpuTimeoutArm, "CrashBash::GpuTimeoutArm", gpuTimeoutArmOwned);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kGpuTimeoutCheck, "CrashBash::GpuTimeoutCheck", gpuTimeoutCheckOwned);
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kGpuTransfer, "CrashBash::GpuTransfer", gpuTransferOwned);
 }
 
 } // namespace crashbash

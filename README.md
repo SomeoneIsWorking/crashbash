@@ -1,115 +1,65 @@
 # Crash Bash
 
-PC-native PlayStation port of Crash Bash, built on
-[psxport](https://github.com/SomeoneIsWorking/psxport).
+Crash Bash is being migrated to one native/Lightrec hybrid over the authenticated USA PlayStation
+release. The title retains its cohesive native boot, device, rendering, input, widescreen, and
+interpolation owners. Every other guest path will execute through psxport's per-`Core` Lightrec
+runtime.
 
-The port source is distributed under GPL-3.0-or-later; see `COPYING`. Original Crash Bash game
-content is not included and must be supplied by the player.
+The old offline translator integration, generated guest corpus, static dispatcher/registry, seed
+configuration, static-only verifiers, build tree, and static product binaries were deleted before
+dynarec implementation. They are not a bridge, fallback, or oracle.
 
-Current status: the North American executable plus BOOT and six measured nested modules are
-reproducibly provisioned and emitted into a 2,956-function substrate. The tracked
-`replays/flow/crashball-control.pad` reaches and controls a live Crashball match; the tracked
-`replays/flow/battle-crate-crush-control.pad` reaches and controls a live Crate Crush match through
-its title-owned objective, controls, and special-items pages; and the tracked
-`replays/flow/tournament-crate-crush-control.pad` reaches and controls Tournament Mode's first
-Crate Crush match. All three shipping-native paths complete without a guest-VSync violation, timeout,
-watchdog, recompilation miss, or fatal. Native producers render the arenas, players, HUD, briefing
-layers, crates, balls, and items from title-owned state. Gameplay uses a centred wide camera; an
-authored briefing remains a complete centred 4:3 composition. `PSXPORT_FPS60=1` presents interpolated
-midpoints from immutable scene snapshots. Broader game-mode coverage and full native parity remain in
-progress.
+The gameplay target is intentionally unavailable while psxport's Lightrec backend and loaded-image
+lifecycle binding are incomplete. `CMakeLists.txt` refuses `crashbash_port` with that exact boundary.
+The surviving native code now has one declared adapter in `game/core/guest_execution.h`:
 
-## Run the current product
+- 27 native override registrations are keyed by logical authenticated image and guest address.
+- 15 former generated-body calls use a scoped `callOriginal` operation.
+- ordinary native-to-guest calls use one runtime dispatch operation.
 
-`./run.sh` is the fresh-clone and default product path. With no arguments it resolves media through
-the normal environment / `.env` / drop-in policy, builds `crashbash_port`, and opens the current
-player. An optional USA CHD path may be supplied explicitly:
+The adapter will bind these operations to psxport's generation-aware Lightrec override registry,
+original-call suppression, and code-cache invalidation. It must not contain or select an interpreter.
+
+## Player input and provisioning
+
+The intended default remains `./run.sh`, with an optional explicit USA CHD:
 
 ```sh
 ./run.sh
 ./run.sh "/path/to/Crash Bash (USA).chd"
 ```
 
-The only Python prerequisite is `uv`. The launcher enters the checked-in `uv.lock`, passes that exact
-Python interpreter to CMake and every project tool, and does not require Ghidra. It honors `CC` and
-`CXX` when set; otherwise CMake selects the available C and C++ compilers. The player path does not
-whitelist or blacklist compiler identities.
+The launcher currently provisions the authenticated executable and modules, then stops at the
+explicit missing Lightrec adapter target. It never emits or compiles guest source. Disc resolution is
+explicit argument, `PSXPORT_CRASHBASH_DISC`, `PSXPORT_DISC`, the same keys in `.env`, then one
+root-level `.chd`. Original game content remains untracked.
 
-Native prerequisites can be checked without syncing, provisioning, building, or launching:
+`run.sh` is only a stable root handoff to `uv run --frozen python bootstrap.py`. Python owns
+dependency discovery, provisioning, build policy, and launch behavior; it passes the locked
+interpreter through to project tools.
 
-```sh
-./run.sh --check
-```
+## Verification during the broken-first phase
 
-Missing dependencies are refused with an exact `sudo dnf install ...`, `sudo apt install ...`, or
-`brew install ...` command selected for the host. Run `./run.sh --prepare-only [disc.chd]` to complete
-the same provisioning and product build without opening a window. Neither non-launching mode runs
-CTest.
-
-`run.sh` is deliberately only a stable repository-root handoff to
-`uv run --frozen python bootstrap.py`; dependency discovery, sync, provisioning, build policy, and
-launch behavior have one owner in `bootstrap.py`. The player uses the isolated
-`build/player` tree with `BUILD_TESTING=OFF` and builds only `crashbash_port`. Compiler output,
-package caches, and release artifacts share the top-level `build/` owner; `scratch/` is reserved for
-disposable runtime captures, logs, and extracted restricted inputs.
-
-## Build and verify explicitly
+These checks do not build or run the removed product:
 
 ```sh
-LOCKED_PYTHON="$(uv run --frozen python -c 'import sys; print(sys.executable)')"
-uv run --frozen python tools/psxport_sync.py --auto
-CC=clang CXX=clang++ cmake --fresh -S . -B build/maintainer \
-  -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
-cmake --build build/maintainer --target discdump crt0_extract -j16
-uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
-uv run --frozen python tools/recomp_bootstrap.py --ensure \
-  --crt0-extract build/maintainer/psxport_build/tools/crt0_extract
-CC=clang CXX=clang++ cmake -S . -B build/maintainer \
-  -DPython3_EXECUTABLE="$LOCKED_PYTHON" -DPython3_FIND_VIRTUALENV=ONLY
-cmake --build build/maintainer --target crashbash_port -j16
-PSXPORT_CRASHBASH_DISC="/path/to/Crash Bash (USA).chd" \
-  ctest --test-dir build/maintainer --output-on-failure
-uv run --frozen python -m unittest discover -s tests -p 'test_*.py'
+uv run --frozen python tools/verify_native_ownership.py
+uv run --frozen python tests/test_source_policy.py
+uv run --frozen python tests/test_provision.py
 ```
 
-The normal CTest suite includes real and forced-negative recompilation/boot-boundary checks, a
-forced-negative oracle/port interrupt-order comparator, a command-response-order diagnostic, and the
-positive CDC phase-progress verifier selftest. The shared checker applies this repository's tracked `clang-format` and
-`clang-tidy` policy and the 1,200-line ownership cap to all five first-party translation units without
-linting `external/psxport` or generated code.
+The source-policy check reports the complete 27-registration and 15-original-call denominators and
+rejects generated directories, old dispatch surfaces, or retired tools. Historical emulator/binary
+evidence and the bounded replays under `replays/flow/` remain the acceptance scenarios for later
+dynarec requalification.
 
-The positive-progress verifier can audit a recorded trace without launching, or run the already-built
-headless product directly. Its runtime path terminates only its exact child PID after reaching LBA
-17655; a timeout is a refusal, never success:
+## Product completion
 
-```sh
-uv run --frozen python tools/verify_cdc_phase_progress.py --selftest
-uv run --frozen python tools/verify_cdc_phase_progress.py --trace scratch/logs/crashbash-cdc-phases-once.log
-uv run --frozen python tools/verify_cdc_phase_progress.py
-```
+After the shared executor lands, the port must prove nonzero translated execution, correct
+loaded-image invalidation, bounded VSync/interrupt/exception exits, image-scoped overrides, and an
+interpreter-free gameplay link. Boot, logos, menus, FMV, and a first frame are implementation
+checkpoints only. Completion requires representative controllable gameplay with correct rendering,
+audio, timing, devices, and frame-time evidence, followed by broader retail-mode coverage.
 
-## Provision the selected retail inputs
-
-Build `discdump` with Clang, then run the title-local provisioner:
-
-```sh
-cmake --build build/maintainer --target discdump -j16
-uv run --frozen python tools/provision.py "/path/to/Crash Bash (USA).chd"
-```
-
-With no argument, disc resolution is `PSXPORT_CRASHBASH_DISC`, then `PSXPORT_DISC`, the same keys in
-`.env`, then one `*.chd` drop-in at the repository root. A configured missing path or multiple drop-ins
-refuse instead of silently choosing different media. The tool extracts into a scoped temporary
-directory, checks the `SYSTEM.CNF` boot target and all 11 tracked executable identity/header facts, and
-only then atomically publishes `scratch/bin/crashbash/SCUS_945.70`.
-
-The same transaction extracts `CRASHBSH/CRASHBSH.DAT` once, verifies its complete 73,220,096-byte
-identity, then verifies and publishes BOOT and MENU payloads under
-`scratch/bin/crashbash/overlays/`. Their tracked manifests bind disc LBA, DAT offset, payload hash,
-RAM range, and observed entry pointer; a mismatch publishes none of the executable or module inputs.
-
-Disc images, extracted executables, and `generated/` are never committed. The measured identity
-remains in `titles/crashbash/executable.json`; module identities remain in
-`titles/crashbash/boot_module.json` and `titles/crashbash/menu_module.json`.
-`tools/recomp_bootstrap.py` independently rechecks all three inputs, their emitted interfaces/ranges,
-and every shipping CRT0 legacy program-fact binding.
+See `docs/project-goals.md`, `docs/project-state.md`, `docs/codemap.md`, and
+`docs/re-frontier.md` for the canonical goal, state, ownership, and evidence boundaries.

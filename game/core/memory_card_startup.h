@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash {
 
-void registerMemoryCardStartupOverride();
+void registerMemoryCardStartupOverride(Core &core);
 
 } // namespace crashbash

@@ -1,8 +1,8 @@
 # RE frontier
 
 This is the ordered evidence chain from the authenticated retail images to the native/dynarec product.
-The static product is not regenerated, built, or run during the migration. Existing static files are
-removed only after the representative-gameplay gate; they are never a fallback or comparison oracle.
+The static product was deleted before dynarec implementation. It is not regenerated, built, run,
+retained as a fallback, or used as a comparison oracle.
 
 USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
 looks correct."
@@ -11,6 +11,19 @@ Running behavior and visible correctness establish the product frontier. Pixel a
 remain diagnostics for finding causes, not completion conditions.
 
 ## Runtime migration
+
+### runtime.retire-static — Remove the old execution path before replacement work
+
+- status: re-verified
+- deps:
+- evidence: The tracked emitter integration, seed file, generated-registry installer, and static-only
+  verifiers are deleted. The ignored generated corpus, static build tree, and static product binaries
+  are absent. The source-policy tests reject their return.
+- where: `CMakeLists.txt`, `tools/source_policy.py`, `tools/verify_native_ownership.py`,
+  `tests/test_source_policy.py`
+- gap:
+- notes: CMake names the single missing psxport Lightrec adapter boundary. There is no compatibility
+  product, selector, or fallback.
 
 ### runtime.target — Authenticate the retail target
 
@@ -77,8 +90,8 @@ remain diagnostics for finding causes, not completion conditions.
   DAT28136, registers `0x800B4E1C`, replaces callback `0x80093038` with `0x800B4694`, and executes
   the update. The independent oracle records ResetCallback/setjmp resume
   `0x80031A80 -> 0x8003ACEC -> 0x80031AE8` and IRQ2 `0x8003F5F0 -> 0x8003E14C`.
-- where: `docs/findings/vsync-owner-map.md`, `docs/issues/`, `tools/verify_boot.py`,
-  `tools/verify_menu_accept.py`
+- where: `docs/findings/vsync-owner-map.md`, `docs/issues/`, retained `replays/flow/` scenarios,
+  future dynarec runtime diagnostics
 - gap: Reach the same loaded-image and menu frontier through nonzero Lightrec execution, with all
   reached native owners active, bounded executor exits, correct invalidation, and no guest-VSync
   violation or wrong-image dispatch.
@@ -98,18 +111,6 @@ remain diagnostics for finding causes, not completion conditions.
   on each released host architecture.
 - notes: The interpreter in a separately built test target, including diagnostics, may diagnose a first
   divergence; it is not linked into or selectable by this product.
-
-### runtime.retire-static — Delete the static execution path
-
-- status: todo
-- deps: runtime.gameplay
-- evidence:
-- where: product build/provisioning/launch surfaces and static-only artifacts
-- gap: After representative gameplay passes, delete the offline translator, generated corpus, static
-  dispatcher, seed-only metadata, generated-symbol checks, and stale methodology together. Prove a
-  fresh checkout provisions, builds, and launches directly from the authenticated user image.
-- notes: Do not build or run the old path while waiting for this gate. Deletion must leave no legacy
-  mode, fallback, selector, or tombstone.
 
 ## Preserved retail and native boundaries
 

@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash {
 
-void registerCdFileReadOverride();
+void registerCdFileReadOverride(Core &core);
 
 } // namespace crashbash

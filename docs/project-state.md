@@ -11,8 +11,8 @@ revision, widens the camera, and adds 60 Hz interpolated presentation without ac
 ## Current focus
 
 **S003** — Consume psxport's per-`Core`, pinned-Lightrec executor and prove that the gameplay product
-contains no interpreter. Do not regenerate, build, or run the static product during this migration.
-The retained static files are not a product, fallback, or oracle.
+contains no interpreter. The former static product has already been deleted and is not a bridge,
+fallback, or oracle.
 
 ## Capability inventory
 
@@ -32,12 +32,13 @@ The retained static files are not a product, fallback, or oracle.
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S013 | The remaining retail modes are reachable and playable | missing | S008 | G001 |
 | S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S003 | G001 |
-| S015 | All 27 native overrides install by runtime image identity and all 15 original-body calls execute through the dynarec | missing | S003 | G001 |
-| S016 | Representative interactive gameplay passes on the native/dynarec product, after which every static product path is deleted | missing | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
+| S015 | All 27 native overrides install by runtime image identity and all 15 original-body calls execute through the dynarec | partial | S003 | G001 |
+| S016 | Representative interactive gameplay passes on the native/dynarec product | missing | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
+| S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
 
 The verified S009-S012 entries describe durable reached behavior and replay inputs, not dynamic-engine
-completion. They become deletion evidence only after those scenarios run through the hybrid gameplay
-product with nonzero Lightrec execution and the no-interpreter product audit.
+completion. They become dynarec conformance evidence only after those scenarios run through the hybrid
+gameplay product with nonzero Lightrec execution and the no-interpreter product audit.
 
 ## Capability details
 
@@ -138,16 +139,26 @@ gameplay.
 
 ### S015 — Runtime overrides and original calls
 
-Missing capability: Preserve all 27 current native override installations under complete runtime image
-identity and replace all 15 generated-body call sites with psxport's scoped Lightrec original-call
-operation, including enabled, disabled, recursion, ABI/state, and invalidation evidence.
+Evidence: the surviving title sources contain 27 registrations through the single image-qualified
+`runtime::registerNativeOverride` boundary and all 15 former generated-body calls now enter the single
+scoped `runtime::callOriginal` boundary. `tools/verify_native_ownership.py` reports both denominators
+and its test suite proves forbidden old paths are detected.
 
-### S016 — Representative gameplay and static retirement
+Gap: psxport must connect Lightrec and expose loaded-image lifecycle binding; then implement the thin
+adapter over its per-Core API and prove registration, enabled/disabled behavior, recursion suppression,
+ABI/state, and cache invalidation at runtime.
+
+### S016 — Representative gameplay
 
 Missing capability: Pass representative interactive gameplay with correct rendering, input, audio,
-timing, devices, and per-host frame time on the interpreter-free native/dynarec product; only then
-delete the offline translator, generated corpus, static dispatcher, seed-only metadata, and static-only
-checks without leaving a compatibility path.
+timing, devices, and per-host frame time on the interpreter-free native/dynarec product.
+
+### S017 — Break-first static-path removal
+
+Evidence: the tracked offline emitter integration, seed file, generated registry installer, and
+static-only verifiers are deleted. The ignored generated corpus, prior static build tree, and retained
+static product binaries are absent. `tools/source_policy.py` rejects the old files, generated directory,
+static dispatch markers, and any change to the 27-registration/15-original-call source boundary.
 
 ## Dynamic migration acceptance
 
@@ -168,11 +179,10 @@ The first Crash Bash dynamic milestone must prove all of the following together:
   Crate Crush, and Polar Push scenarios reach their recorded boundaries without a guest-VSync
   violation, wrong-image dispatch, or missing native owner.
 
-Boot, logos, menus, and a first frame are checkpoints only. S016 additionally requires representative
-interactive gameplay with observable movement, correct rendering, audio/timing coverage, and declared
-frame-time evidence on each released host architecture. Only then are the generator, generated corpus,
-static dispatcher, seed-only metadata, and static-only verification deleted. No static build or run is
-used to obtain the new evidence; comparison comes from the independent emulator, binary analysis, or a
+Boot, logos, menus, and a first frame are checkpoints only. S016 requires representative interactive
+gameplay with observable movement, correct rendering, audio/timing coverage, and declared frame-time
+evidence on each released host architecture. The static execution path is already absent and cannot be
+used to obtain new evidence; comparison comes from the independent emulator, binary analysis, or a
 separately built test target.
 
 ## Retained verified title facts

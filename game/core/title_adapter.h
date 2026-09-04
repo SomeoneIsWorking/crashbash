@@ -1,26 +1,25 @@
 #pragma once
 
-#include "game_iface.h"
+#include "game_runtime.h"
 
 #include <memory>
 
 namespace crashbash {
 
-// Process-lifetime owner of Crash Bash's framework-facing behavior. The legacy base is bounded
-// compatibility debt: generic psxport algorithms still read the title's measured program facts.
-class CrashBashRuntime final : public LegacyGameRuntimeAdapter {
+// Typed psxport composition boundary. Its implementation is deliberately absent until Lightrec and
+// loaded-image lifecycle binding are available; the build must not substitute the legacy adapter.
+class TitleAdapter final : public GameRuntime {
 public:
-  CrashBashRuntime();
-
   static constexpr RenderCapabilities titleRenderCapabilities() {
     return RenderCapabilities::interpolatedNative(FACE_ORDER_AUTHORED);
   }
 
-  RenderCapabilities renderCapabilities() const override {
-    return titleRenderCapabilities();
-  }
+  void *createContext(Core &core) override;
+  void destroyContext(void *context) override;
   void registerOverrides(Game &game) override;
   void bootInit(Core &core) override;
+  RenderCapabilities renderCapabilities() const override;
+  bool guestVramIsPicture(const Game &game) const override;
   std::unique_ptr<TemporalFramePresentation> createTemporalFramePresentation(Game &game) override;
   std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
 };

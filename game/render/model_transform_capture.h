@@ -26,7 +26,7 @@ struct ModelTransformCaptureCensus {
   std::uint32_t lastProjection = 0;
 };
 
-void registerModelTransformCaptureOverride();
+void registerModelTransformCaptureOverride(Core &core);
 void resetModelTransformCapture(Core &core, std::uint32_t object);
 bool takeModelTransformCapture(Core &core, std::uint32_t object, ModelTransform &out);
 const ModelTransformCaptureCensus &modelTransformCaptureCensus();

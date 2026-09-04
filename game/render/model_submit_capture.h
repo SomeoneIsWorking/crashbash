@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash::render {
 
-void registerModelSubmitCaptureOverrides();
+void registerModelSubmitCaptureOverrides(Core &core);
 
 } // namespace crashbash::render

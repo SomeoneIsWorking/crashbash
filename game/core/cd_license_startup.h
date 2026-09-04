@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash {
 
-void registerCdLicenseStartupOverride();
+void registerCdLicenseStartupOverride(Core &core);
 
 } // namespace crashbash

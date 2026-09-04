@@ -1,10 +1,11 @@
 # Crash Bash — selected target
 
 The selected target is the North American retail disc (`SCUS-94570`, NTSC-U). Its identity and boot
-image measurements now drive the shipped game seam and reproducible generated substrate. The port
-reaches guest main and the measured IRQ callback, executes BOOT plus four measured alternatives in
-the nested `0x800B32B4` slot, and follows a real Cross press into DAT28136 without a recomp miss or
-guest-VSync violation.
+image measurements define the authenticated inputs for the runtime guest executor. Before the old
+execution path was removed, recorded runs reached guest main and the measured IRQ callback, executed
+BOOT plus four measured alternatives in the nested `0x800B32B4` slot, and followed a real Cross press
+into DAT28136 without an unresolved guest target or guest-VSync violation. Those observations remain
+evidence; they are not a claim that the currently incomplete Lightrec product can run gameplay.
 
 `SYSTEM.CNF` names `cdrom:\SCUS_945.70;1`. The executable independently contains both the
 `Sony Computer Entertainment Inc. for North America area` and `BASCUS-94570` markers. The disc also

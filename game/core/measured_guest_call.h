@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+#include "guest_execution.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +22,7 @@ std::uint32_t measuredGuestCall(
   }
   core.r[31] = returnAddress;
   rec_guest_instruction_ticks(&core, instructionTicks);
-  rec_dispatch(&core, target);
+  runtime::dispatchGuest(core, target);
   return core.r[2];
 }
 

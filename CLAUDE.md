@@ -21,9 +21,9 @@ An interpreter may exist only in a separately built test target, including diagn
 gameplay link, configuration selector, and fallback paths.
 
 Do not regenerate, build, or run the static product. Do not add a replacement offline translator,
-generated guest corpus, static dispatch table, or precompiled title substrate. Existing static files
-remain only until the native/dynarec product passes representative interactive gameplay; then remove
-the complete static path without a compatibility mode or tombstone.
+generated guest corpus, static dispatch table, or precompiled title substrate. The complete static
+path has already been deleted before dynarec implementation and must remain absent without a
+compatibility mode or tombstone.
 
 Migration must preserve all 27 current native override installations. Replace all 15 calls from native
 owners to generated guest bodies with psxport's scoped runtime original-call operation, which bypasses
@@ -44,13 +44,12 @@ looks correct."
 The completion bar is representative gameplay that works and looks correct. Frame comparison, an
 independent emulator, and the separately built test target, including diagnostics, may locate a divergence;
 they do not define presentation completion. Boot, logos, menus, attract loops, and one frame are not
-representative gameplay and cannot authorize removal of the static path.
+representative gameplay and cannot establish product completion.
 
-The host structure is project-owned and split by cohesive responsibility. `game/core/main.cpp`
-composes process startup only; `CrashBashRuntime` owns framework-facing title behavior; boot, frame,
-device, diagnostics, and render responsibilities remain in their dedicated modules with narrow
-interfaces. Do not grow the entry point, runtime class, compatibility tables, or runtime integration
-adapter into monoliths.
+The host structure is project-owned and split by cohesive responsibility. The old host composition
+was removed with its legacy runtime adapter. `game/core/title_adapter.h` names the unimplemented typed
+psxport boundary; boot, frame, device, diagnostics, and render responsibilities remain in dedicated
+modules with narrow interfaces. Do not grow the future entry point or runtime adapter into a monolith.
 
 The player entry point remains `./run.sh`, a slim repository-root handoff to the frozen uv environment
 and `bootstrap.py`. Its eventual zero-argument path must authenticate the user's game image, build, and

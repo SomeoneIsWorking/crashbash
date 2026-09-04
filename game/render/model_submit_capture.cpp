@@ -2,21 +2,17 @@
 
 #include "core.h"
 #include "crashbash_frame_driver.h"
+#include "guest_execution.h"
 #include "model_material_diagnostic.h"
 #include "model_packet_identity_diagnostic.h"
 #include "model_recipe_capture.h"
 #include "model_transform_capture.h"
 #include "model_transform_input_diagnostic.h"
-#include "override_registry.h"
 #include "scene_snapshot.h"
 
 #include <cstdint>
 #include <lucent/log.h>
 #include <utility>
-
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-#include "rec_decls.h"
-#endif
 
 namespace crashbash::render {
 namespace {
@@ -28,7 +24,6 @@ constexpr std::uint32_t kDepthLimit = 0x800569DEu;
 constexpr std::uint32_t kGlobalFarColor = 0x80056868u;
 constexpr std::uint32_t kGlobalDepthCueFactor = 0x800569ACu;
 
-#ifdef CRASHBASH_HAVE_SUBSTRATE
 ModelDraw decodeDraw(Core &core,
                      ModelSubmitter submitter,
                      std::uint32_t object,
@@ -99,7 +94,7 @@ void standardModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Standard, core->r[4], core->r[5], core->r[5] + 0x14u, core->r[6]);
   resetModelTransformCapture(*core, draw.object);
   beginModelPacketIdentityDraw();
-  gen_func_80019F1C(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kStandardModelSubmit);
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
   }
@@ -110,32 +105,26 @@ void alternateModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Alternate, core->r[4], 0u, 0u, 0u);
   resetModelTransformCapture(*core, draw.object);
   beginModelPacketIdentityDraw();
-  gen_func_8001DD50(core);
+  runtime::callOriginal(*core, runtime::GuestImage::Resident, kAlternateModelSubmit);
   if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
     observeInstalledModelTransformInputs(draw.transform, draw.submitter);
   }
   recordIfRenderable(*core, std::move(draw));
 }
-#endif
-
 } // namespace
 
-void registerModelSubmitCaptureOverrides() {
-#ifdef CRASHBASH_HAVE_SUBSTRATE
-  overrides::install(kStandardModelSubmit,
-                     "CrashBash::StandardModelSubmitCapture",
-                     standardModelSubmit,
-                     gen_func_80019F1C,
-                     shard_set_override);
-  overrides::install(kAlternateModelSubmit,
-                     "CrashBash::AlternateModelSubmitCapture",
-                     alternateModelSubmit,
-                     gen_func_8001DD50,
-                     shard_set_override);
-  registerModelPacketIdentityDiagnosticOverride();
-#else
-  lucent::debug("crashbash-render", "model submit capture overrides deferred: no generated substrate");
-#endif
+void registerModelSubmitCaptureOverrides(Core &core) {
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kStandardModelSubmit,
+                                  "CrashBash::StandardModelSubmitCapture",
+                                  standardModelSubmit);
+  runtime::registerNativeOverride(core,
+                                  runtime::GuestImage::Resident,
+                                  kAlternateModelSubmit,
+                                  "CrashBash::AlternateModelSubmitCapture",
+                                  alternateModelSubmit);
+  registerModelPacketIdentityDiagnosticOverride(core);
 }
 
 } // namespace crashbash::render

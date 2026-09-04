@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 
+class Core;
+
 namespace crashbash::polar {
 
 struct EffectRecipe {
@@ -23,6 +25,6 @@ std::int32_t contactThreshold(std::uint16_t configurationValue);
 bool crossesContactThreshold(std::uint16_t configurationValue, std::int32_t motionSpeed, std::int16_t motionLimit);
 const EffectRecipe &effectRecipe(std::uint32_t ordinal);
 
-void registerPolarPushContactOverride();
+void registerPolarPushContactOverride(Core &core);
 
 } // namespace crashbash::polar

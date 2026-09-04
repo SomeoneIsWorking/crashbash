@@ -1,7 +1,9 @@
 #pragma once
 
+class Core;
+
 namespace crashbash::render {
 
-void registerSpriteQuadCaptureOverride();
+void registerSpriteQuadCaptureOverride(Core &core);
 
 } // namespace crashbash::render

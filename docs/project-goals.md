@@ -33,8 +33,8 @@ Success conditions:
 - The existing 27 native override installations remain active. All 15 calls from native owners to a
   generated guest body are replaced by psxport's scoped runtime original-call operation, which bypasses
   only the current override and executes the authenticated guest body through Lightrec.
-- The hybrid product re-establishes the current interactive-gameplay frontier before the static
-  generator, generated corpus, dispatcher, seeds, and static-only checks are deleted.
+- The static generator, generated corpus, dispatcher, seeds, and static-only checks are absent before
+  dynarec implementation begins and cannot be restored as a bridge.
 - Independent emulator, binary, or evidence from a separately built test target, including diagnostics,
   remains available to locate
   the first divergence without retaining the static product as an oracle.
@@ -43,7 +43,7 @@ Constraints and non-goals: copyrighted disc and module bytes remain untracked; b
 or a single rendered frame is not representative-gameplay conformance; an interpreter-backed gameplay
 mode or a compatibility static product is not shipped.
 
-Contributing state items: S001-S004, S007-S016.
+Contributing state items: S001-S004, S007-S017.
 
 ## G002 — Native widescreen presentation
 
