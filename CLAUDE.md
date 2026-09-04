@@ -1,47 +1,58 @@
 # Crash Bash port
 
-Read `external/psxport/CLAUDE.md` and `external/psxport/docs/workspace/PROTOCOL.md` before work.
-Generated code is sacrosanct. Never commit discs, extracted executables, `generated/`, `.env`, or
-machine-specific paths. Run artifacts go under `scratch/`, never `/tmp`.
+Read `external/psxport/CLAUDE.md`, `external/psxport/docs/workspace/PROTOCOL.md`, and the canonical
+native/dynarec migration plan at `../../shared/jit-common/docs/migration.md` before work. The local
+goals, state, ownership map, and RE frontier are `docs/project-goals.md`, `docs/project-state.md`,
+`docs/codemap.md`, and `docs/re-frontier.md`.
 
-**`external/psxport` is NOT a git submodule** (2026-08-16): it is a symlink to the workspace's shared
-framework clone when one exists, or a private clone at this repo's `psxport.pin` on a fresh machine.
-`tools/psxport_sync.py --auto` establishes whichever applies; `psxport_sync.py --bump` records the
-framework commit this game is built and VERIFIED against, and `--check` fails when the built framework
-is not the recorded pin. Framework edits happen in the shared clone (`$PSX/psxport`), never here.
+Never commit discs, extracted executables, `.env`, or machine-specific paths. Run artifacts go under
+`scratch/`, never `/tmp`; build output goes under `build/`.
 
-All picture work is RE-driven. Widescreen and interpolation require PC-native graphics producers
-reading game state; do not reconstruct pictures from GTE/OT/GP0 output.
+`external/psxport` is not a git submodule. It is a symlink to the workspace's shared framework clone
+when one exists, or a private clone at this repository's `psxport.pin` on a fresh machine.
+`tools/psxport_sync.py --auto` establishes that checkout. Framework changes happen in the shared
+psxport clone, while this title records only a psxport revision that has passed its own product gates.
+
+## Product execution contract
+
+The gameplay product is a native/dynarec hybrid: Crash Bash installs its title-owned native overrides,
+and psxport executes every remaining guest path through its maintained, pinned Lightrec integration.
+An interpreter may exist only in a separately built test target, including diagnostics. It must be absent from the
+gameplay link, configuration selector, and fallback paths.
+
+Do not regenerate, build, or run the static product. Do not add a replacement offline translator,
+generated guest corpus, static dispatch table, or precompiled title substrate. Existing static files
+remain only until the native/dynarec product passes representative interactive gameplay; then remove
+the complete static path without a compatibility mode or tombstone.
+
+Migration must preserve all 27 current native override installations. Replace all 15 calls from native
+owners to generated guest bodies with psxport's scoped runtime original-call operation, which bypasses
+only the current override and executes the authenticated original body through Lightrec. Override and
+translated-block identity must include the loaded image generation because several modules reuse the
+same guest address range.
+
+## Presentation and structure
+
+All picture work is RE-driven. Native rendering reads decoded game-owned camera, object, material, and
+animation state; it never reconstructs the product picture from GTE output, ordering tables, GP0, VRAM,
+or framebuffer pixels. Widescreen is a projection/viewport/scissor change, and interpolation uses
+consecutive immutable native scene snapshots without mutating guest state.
 
 USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
 looks correct."
 
-The bar is a working game that looks correct, not pixel-exact agreement with the PSX reference. This is
-a WORKSPACE-WIDE rule now — `external/psxport/CLAUDE.md` bar 3 is the authority and
-`external/psxport/docs/workspace/PROTOCOL.md` carries it with the incident it came from. Frame
-comparison, the retail oracle, and the differential harness are DIAGNOSTICS for finding the cause of a
-visible defect; they are never the completion condition, and nothing is held open by a residual pixel
-count. Faithfulness of execution is unchanged: simulation, input, timing, audio, and scene semantics
-still come from the real executable and real assets.
+The completion bar is representative gameplay that works and looks correct. Frame comparison, an
+independent emulator, and the separately built test target, including diagnostics, may locate a divergence;
+they do not define presentation completion. Boot, logos, menus, attract loops, and one frame are not
+representative gameplay and cannot authorize removal of the static path.
 
-Drive the game and look at it before believing a picture claim:
+The host structure is project-owned and split by cohesive responsibility. `game/core/main.cpp`
+composes process startup only; `CrashBashRuntime` owns framework-facing title behavior; boot, frame,
+device, diagnostics, and render responsibilities remain in their dedicated modules with narrow
+interfaces. Do not grow the entry point, runtime class, compatibility tables, or runtime integration
+adapter into monoliths.
 
-    python3 external/psxport/tools/port/looks_right.py \
-        --binary build/bin/crashbash_port --frames 3740 --shot-at 3700 \
-        --replay replays/flow/crashball-control.pad
-
-Measured 2026-08-30: reaches PASS, widescreen PASS, fps60 FAIL (3,739 duplicate presents, issue 0025).
-
-The host structure follows Dusklight's current composition/ownership split: `game/core/main.cpp`
-only composes process startup, `CrashBashRuntime` owns framework-facing title behavior through
-inheritance, `game_config.cpp` and `game_hooks.cpp` are bounded compatibility facts for generic
-framework code that still reads `Core::cfg/Core::hooks`, and `recomp_register.cpp` is the sole
-generated adapter. Project automation remains in Python under `tools/`; do not grow the process entry
-point or move game behavior into compatibility tables or the generated adapter.
-
-The player entry point is `./run.sh`, a slim repository-root handoff to the frozen uv environment and
-root `bootstrap.py`. Zero arguments provision, build, and launch `crashbash_port`; `--check` and
-`--prepare-only` are the non-launching paths. The bootstrap passes its exact interpreter into CMake,
-honors `CC`/`CXX` without compiler identity policy, and owns platform-specific dependency refusals.
-Its isolated `build/player` tree has `BUILD_TESTING=OFF`; tests belong only to the separate
-maintainer build.
+The player entry point remains `./run.sh`, a slim repository-root handoff to the frozen uv environment
+and `bootstrap.py`. Its eventual zero-argument path must authenticate the user's game image, build, and
+launch the native/dynarec product without offline translation. Tests, diagnostics, and migration gates
+use separate explicit commands and never hide behind `run.sh`.

@@ -1,81 +1,82 @@
 # Project goals
 
-## The bar is a working game that looks correct
+## Product architecture
+
+Crash Bash is one native/dynarec hybrid product. Title-owned native overrides execute the behavior
+the port deliberately owns; every remaining guest instruction executes on demand through psxport's
+pinned Lightrec integration from the user's authenticated USA game image.
+
+An interpreter may exist only in a separately built test target, including diagnostics. The gameplay product
+must not link it, expose an execution-engine selector for it, or fall back to it. No build,
+provisioning, installation, or launch path may emit or compile a static guest-code corpus.
 
 USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
 looks correct."
 
-Pixel-exact agreement with the PSX reference is NOT a goal and is not a gate for any goal below. The
-deliverable is a game that runs, plays, and looks right. Differential comparison against the retail
-oracle remains a DIAGNOSTIC — the way to find out why something looks wrong or behaves wrong — never a
-completion condition, and no goal is held open by a residual pixel count.
-
-Correctness still means the retail game, not an approximation of it: simulation, input, timing, audio,
-and scene semantics come from the real executable and real assets, and a fabricated picture or a
-title-local shortcut is still not an acceptable substitute. What changed is the evidence bar for
-presentation — visible correctness at gameplay and UI boundaries, judged on the running product.
+Pixel-exact agreement is not a completion gate. The executable, assets, simulation, input, timing,
+audio, and scene semantics remain authoritative; independent comparison is a diagnostic for finding
+causes. Presentation is accepted by driving the running product through representative gameplay and
+checking that it works and looks correct.
 
 ## G001 — A faithful, portable Crash Bash PC port
 
-Crash Bash should run from a user-supplied verified USA disc through the default launcher and retain
+Crash Bash should run from a user-supplied verified USA disc through the default launcher, preserving
 the retail game's observable simulation, input, audio, and presentation behavior.
-
-Why it matters: the project exists to make the retail game natively runnable and maintainable on PC,
-not to replace missing execution with a demo or title-specific shortcut.
 
 Success conditions:
 
-- `./run.sh` provisions restricted inputs outside git, builds the intended product with a supported
-  host compiler, and launches it without maintainer-only RE tools.
-- The complete retail execution spine reaches playable game modes without game-local BIOS, CD,
-  loaded-module, or graphics fallbacks.
-- Every replaced boundary keeps a deterministic comparison against an independent retail oracle
-  available as a diagnostic, so a wrong behavior can be traced to its cause rather than guessed at.
+- `./run.sh` authenticates the user's game input, builds the intended product with a supported host
+  compiler, and launches without maintainer-only RE tools or offline guest translation.
+- psxport dynamically translates every non-native guest path through its pinned Lightrec revision.
+- The gameplay link, configuration, and runtime surfaces contain no interpreter, interpreter selector,
+  or interpreter fallback.
+- The existing 27 native override installations remain active. All 15 calls from native owners to a
+  generated guest body are replaced by psxport's scoped runtime original-call operation, which bypasses
+  only the current override and executes the authenticated guest body through Lightrec.
+- The hybrid product re-establishes the current interactive-gameplay frontier before the static
+  generator, generated corpus, dispatcher, seeds, and static-only checks are deleted.
+- Independent emulator, binary, or evidence from a separately built test target, including diagnostics,
+  remains available to locate
+  the first divergence without retaining the static product as an oracle.
 
-Constraints and non-goals: generated code remains derived and unedited; copyrighted disc/module
-bytes remain untracked; a fabricated boot/gameplay picture or title-local hardware emulation is not
-an acceptable substitute for faithful execution.
+Constraints and non-goals: copyrighted disc and module bytes remain untracked; boot, a logo, a menu,
+or a single rendered frame is not representative-gameplay conformance; an interpreter-backed gameplay
+mode or a compatibility static product is not shipped.
 
-Contributing state items: S001, S002, S003, S004, S007.
+Contributing state items: S001-S004, S007-S016.
 
 ## G002 — Native widescreen presentation
 
 Crash Bash should render from decoded game-owned camera, object, and material state through PC-owned
 graphics producers, with a wider horizontal field of view and unchanged vertical framing.
 
-Why it matters: true widescreen requires ownership of the camera and scene semantics. Stretching the
-retail framebuffer or patching projected guest coordinates does not expose more of the game world.
-
 Success conditions:
 
-- The native 4:3 path looks correct — no missing, misplaced, mis-ordered, or wrongly colored layers
-  at representative gameplay and UI boundaries — before any aspect-ratio divergence is enabled.
-- Wider aspect ratios expand horizontal view without changing simulation, vertical framing, HUD
-  intent, visibility policy, or guest RAM.
-- Native output is judged on the running product; retail state and image comparison locate the cause
-  of a visible defect rather than defining the pass mark.
+- The native 4:3 path looks correct at representative gameplay and UI boundaries before aspect-ratio
+  divergence is accepted.
+- Wider aspect ratios expand horizontal view without changing simulation, vertical framing, HUD intent,
+  visibility policy, or guest RAM.
+- Native output is judged on the running product; retail state and image comparison locate the cause of
+  a visible defect rather than defining the pass mark.
 
 Constraints and non-goals: GTE registers, ordering-table packets, GP0 output, and framebuffer pixels
-may locate RE boundaries but are never accepted as native scene input.
+may locate RE boundaries but are not native scene inputs.
 
-Contributing state items: S004, S005, S007.
+Contributing state items: S004, S005, S007, S016.
 
 ## G003 — Smooth 60 Hz presentation without faster simulation
 
 Crash Bash should present native camera and world motion at 60 Hz by interpolating between consecutive
 retail simulation snapshots while leaving the simulation cadence and results unchanged.
 
-Why it matters: doubling simulation speed changes game behavior; presentation interpolation provides
-smooth motion without rewriting the retail timing model.
-
 Success conditions:
 
 - Disabling interpolation is behaviorally identical to the native 4:3 path.
-- Alpha 0 and alpha 1 reproduce the bounding simulation snapshots, and an alpha-0.5 render produces
-  a verified midpoint without mutating simulation or guest RAM.
+- Alpha 0 and alpha 1 reproduce the bounding simulation snapshots, and an alpha-0.5 render produces a
+  verified midpoint without mutating simulation or guest RAM.
 - Screen-space UI and other non-interpolated layers retain their intended cadence and placement.
 
 Constraints and non-goals: projected screen coordinates, guest GTE matrices, packet streams, and
-framebuffer images are not interpolation inputs; native scene snapshots must own the temporal data.
+framebuffer images are not interpolation inputs; native scene snapshots own the temporal data.
 
-Contributing state items: S004, S006, S007.
+Contributing state items: S004, S006, S007, S016.
