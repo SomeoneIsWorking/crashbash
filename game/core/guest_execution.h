@@ -1,7 +1,12 @@
 #pragma once
 
+#include "native_dispatch.h"
+
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 class Core;
 
@@ -20,9 +25,44 @@ enum class GuestImage {
 
 using NativeOverride = void (*)(Core *);
 
-// The single missing integration boundary while psxport connects its Lightrec backend and exposes
-// loaded-image lifecycle binding. Implementations belong in a thin adapter over the shared per-Core
-// API, never in generated title code or process-global state.
+// Per-Core title context. The loader authenticates bytes and activates their shared ImageCatalog
+// residency before binding here, and unbinds before unloading. This owner never authenticates an
+// address or digest by inference and never creates a second executable-image catalog.
+class GuestExecution final {
+public:
+  explicit GuestExecution(Core &core);
+  ~GuestExecution();
+  GuestExecution(const GuestExecution &) = delete;
+  GuestExecution &operator=(const GuestExecution &) = delete;
+  GuestExecution(GuestExecution &&) = delete;
+  GuestExecution &operator=(GuestExecution &&) = delete;
+
+  void registerOverride(GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function);
+  void bindAuthenticatedImage(GuestImage image, psx::cpu::ImageIdentity identity, GuestAddressRange range);
+  void unbindImage(GuestImage image);
+  std::optional<psx::cpu::NativeKey> activeKey(GuestImage image, std::uint32_t address) const;
+  psx::cpu::ExecutionResult original(GuestImage image, std::uint32_t address, psx::cpu::ExecutionBudget budget);
+
+private:
+  struct Registration {
+    GuestImage image;
+    std::uint32_t address;
+    std::string name;
+    NativeOverride function;
+  };
+  struct Binding {
+    GuestImage image;
+    psx::cpu::ImageIdentity identity;
+    GuestAddressRange range;
+  };
+  void removeRegistrations(const Binding &binding);
+
+  Core &core_;
+  std::vector<Registration> registrations_;
+  std::vector<Binding> bindings_;
+};
+
+// Retained native owners all use this same context and shared dispatcher.
 void registerNativeOverride(
     Core &core, GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function);
 

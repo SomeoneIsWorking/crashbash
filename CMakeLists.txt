@@ -38,6 +38,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/crashbash_boot.cpp
   game/core/crashbash_frame_driver.cpp
   game/core/display_frame.cpp
+  game/core/guest_execution.cpp
   game/core/gpu_timeout.cpp
   game/core/memory_card_startup.cpp
   game/core/native_owner_set.cpp
@@ -94,16 +95,21 @@ target_link_libraries(crashbash_seam PRIVATE psxport)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
 # Break-first migration: the generated-code product is intentionally gone. Keep one named failure
-# until psxport connects Lightrec and exposes loaded-image lifecycle binding for the title adapter.
+# until authenticated loaded-image lifecycle and title host composition are integrated.
 add_custom_target(
   crashbash_port
   COMMAND
     "${CMAKE_COMMAND}" -E echo
-    "Crash Bash gameplay target unavailable: psxport Lightrec backend and loaded-image lifecycle are not integrated"
+    "Crash Bash gameplay target unavailable: authenticated loaded-image lifecycle and title host composition are not integrated"
   COMMAND "${CMAKE_COMMAND}" -E false
   VERBATIM
 )
 if(BUILD_TESTING)
+  add_executable(crashbash_guest_execution_test tests/test_guest_execution.cpp game/core/guest_execution.cpp)
+  target_include_directories(crashbash_guest_execution_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_link_libraries(crashbash_guest_execution_test PRIVATE psxport)
+  set_target_properties(crashbash_guest_execution_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_guest_execution COMMAND crashbash_guest_execution_test)
   add_executable(
     crashbash_touch_controls_test
     tests/test_crashbash_touch_controls.cpp

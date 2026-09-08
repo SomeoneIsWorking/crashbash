@@ -145,9 +145,24 @@ Evidence: the surviving title sources contain 27 registrations through the singl
 scoped `runtime::callOriginal` boundary. `tools/verify_native_ownership.py` reports both denominators
 and its test suite proves forbidden old paths are detected.
 
-Gap: psxport must connect Lightrec and expose loaded-image lifecycle binding; then implement the thin
-adapter over its per-Core API and prove registration, enabled/disabled behavior, recursion suppression,
-ABI/state, and cache invalidation at runtime.
+Implementation: `game/core/guest_execution.{h,cpp}` now supplies the per-Core adapter. Native owners
+can register before their module is resident. The authenticated loader supplies the logical image,
+shared catalog identity/generation, and complete physical range; registration publication and original
+calls reject a mismatched residency. Original calls use shared scoped suppression, and replacement or
+unbind removes the old generation's native keys. The context owns no independent guest image catalog.
+
+Focused evidence (2026-09-08): `ctest --test-dir build/migration -R '^crashbash_guest_execution$'
+passed 3 cases / 28 assertions against psxport `bf833b54`, configured with Clang and the frozen uv
+interpreter. The shipping dispatch/original wrappers executed 2 Lightrec blocks / 6 instructions with
+zero fallback. Overlay replacement and wrong-image original calls refused, an invalid replacement
+preserved its prior binding, two Core contexts stayed isolated, and changing the guest body changed
+the native-plus-original result from 17 to 19. Both touched translation units passed clang-tidy and
+format checks; source policy retained the 27-registration / 15-original-call denominators.
+
+Gap: implement `TitleAdapter` and authenticated loaded-image lifecycle composition, migrate the retained
+native instruction-accounting calls to the current shared API, then qualify all 27 installations and
+15 original calls on the real Crash Bash loaded-image and gameplay routes. The product target still
+refuses until that composition exists; synthetic adapter coverage is not retail gameplay evidence.
 
 ### S016 — Representative gameplay
 

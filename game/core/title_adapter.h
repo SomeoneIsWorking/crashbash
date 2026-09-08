@@ -6,8 +6,8 @@
 
 namespace crashbash {
 
-// Typed psxport composition boundary. Its implementation is deliberately absent until Lightrec and
-// loaded-image lifecycle binding are available; the build must not substitute the legacy adapter.
+// Typed psxport composition boundary. Compose the GuestExecution context with authenticated
+// loaded-image lifecycle and the retained native frame/presentation owners.
 class TitleAdapter final : public GameRuntime {
 public:
   static constexpr RenderCapabilities titleRenderCapabilities() {
