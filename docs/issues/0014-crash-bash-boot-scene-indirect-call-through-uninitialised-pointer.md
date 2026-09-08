@@ -62,14 +62,6 @@ garbage too.
   normal idle poll: `DAT_800655C4` (the card REQUEST variable) is written once to 0 at init and never
   again, and the status word `DAT_80067830` settles to 0. Nothing is waiting on it.
 
-## Fixed on the way here
-
-The first miss on this path was a genuine missing root and met the evidence gate in
-`game/recomp_seeds.json`: `[recomp-MISS 0] no recompiled fn for 0x80012678, caller ra=0x80012428`,
-where the retail instruction at `0x80012420` is `jalr $v0` (invisible to static discovery) and
-`0x80012678` is a real entry (`addiu sp,sp,-0x38`, then `sw s7/ra/s6..s0`). Seeding it took the
-substrate from 2,005 to 2,006 functions and moved the run past that point to the miss above.
-
 ## Root cause
 
 The uninitialised pointer was a SYMPTOM. The port was executing the wrong module's code.
@@ -91,25 +83,14 @@ An earlier hypothesis, that the title's synchronous file-read owner fails to cal
 `overlay_note_load`, was FALSIFIED by comparing both baked signatures against the live RAM dump at
 the failure point: MENU's signature matched, so MENU was correctly identified as resident all along.
 
-## Fix
+## Runtime contract
 
-`tools/recomp/emit.py` (framework): a direct call may no longer be bound statically when the target
-also lies inside a NARROWER overlapping module's range, because at runtime the resident module owns
-those bytes and only the router knows which module that is. The emitter now computes, per module, the
-set of fixed module ranges that overlap it and are narrower than it (`g_shadow`), and routes calls
-into them. Equal-width overlaps are excluded: those are alternative modules sharing one slot, which
-the router already distinguishes by signature and where neither shadows the other. Overlay images are
-now loaded before MAIN is emitted so MAIN gets the same treatment — its declared text runs to
-`0x80079000` while BOOT loads at `0x80078C90`, and two MAIN functions sit in that overlap.
-
-`RECOMP_VERSION` is bumped to `2026-08-27.1` so a stale `generated/` is detected.
-
-## Evidence
-
-After regeneration both call sites emit `rec_dispatch(c, 0x800B5A40u)` instead of the static call, and
-MAIN's calls to `0x80078CA4` / `0x80078DD4` likewise route. The 600-frame run no longer produces any
-`[recomp-MISS]`. Gates: 12/12 CTest, `verify_boot.py --run` PASS, and a clean 200-frame run (exit 0,
-no watchdog, fatal, recomp miss, or guest VSync violation).
+The static product and its direct-call routing fix have been removed. The retained binary evidence
+establishes the replacement contract: every call into an overlapping load range must execute the
+currently authenticated resident generation, and replacing that range must invalidate translations
+and native registrations before reuse. The measured BOOT-to-MENU overlap is a required discriminator
+for Crash Bash's pending authenticated overlay lifecycle. The historical 600-frame repair does not
+qualify that new runtime boundary.
 
 ## What it exposed next
 

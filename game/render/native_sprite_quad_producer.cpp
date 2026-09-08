@@ -28,7 +28,7 @@ const char *producerName(std::uint32_t sourceFunction) {
 }
 
 void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScreenPresentation) {
-  if (core.game == nullptr || core.game->oracle || core.rsub.mode.psxRender()) {
+  if (core.game == nullptr || core.rsub.mode.psxRender()) {
     return;
   }
   const GpuState gpu = core.game->gpu;
@@ -116,8 +116,7 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScree
 } // namespace
 
 void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t renderList) {
-  if (!snapshot.valid || snapshot.spriteQuads.empty() || core.game == nullptr || core.game->oracle ||
-      core.rsub.mode.psxRender()) {
+  if (!snapshot.valid || snapshot.spriteQuads.empty() || core.game == nullptr || core.rsub.mode.psxRender()) {
     return;
   }
 

@@ -16,7 +16,7 @@ DIRECT_STDERR_PATTERN = re.compile(
     r"\b(?:::)?write\s*\(\s*STDERR_FILENO\b)"
 )
 GETENV_PATTERN = re.compile(r"\b(?:std::)?getenv\s*\(")
-FORBIDDEN_SOURCE_MARKERS = (
+STATIC_PRODUCT_MARKERS = (
     "CRASHBASH_HAVE_SUBSTRATE",
     "gen_func_",
     "rec_dispatch(",
@@ -93,7 +93,7 @@ def check_source_policy(root: Path) -> SourcePolicyReport:
     violations = [
         f"{path.relative_to(root)}: {marker}"
         for path, source in texts.items()
-        for marker in FORBIDDEN_SOURCE_MARKERS
+        for marker in STATIC_PRODUCT_MARKERS
         if marker in source
     ]
     if violations:

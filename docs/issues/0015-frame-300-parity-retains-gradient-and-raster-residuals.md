@@ -132,16 +132,16 @@ remains available as a diagnostic for locating a VISIBLE defect. Do not reopen i
 
 ## Where
 
-`external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
-`external/psxport/runtime/recomp/gpu_vk_texture_phase_selftest.cpp`,
-`external/psxport/runtime/recomp/shaders_gpu/tri.frag`,
-`external/psxport/runtime/recomp/shaders_gpu/tri.vert`,
-`external/psxport/runtime/recomp/gpu_vk_untextured_selftest.cpp`,
-`external/psxport/runtime/recomp/gpu_vk_modulation_selftest.cpp`,
-`external/psxport/runtime/recomp/gpu_vk_texture_coverage_selftest.cpp`,
-`external/psxport/runtime/recomp/shaders_gpu/tritex.vert`,
-`external/psxport/runtime/recomp/shaders_gpu/psx_uv.glsl`,
-`external/psxport/runtime/recomp/shaders_gpu/tritex.frag`,
-`external/psxport/runtime/recomp/shaders_gpu/trisemi_hw.frag`,
-`external/psxport/runtime/recomp/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
+`external/psxport/runtime/psx/shaders_gpu/psx_uv.glsl`,
+`external/psxport/runtime/psx/gpu_vk_texture_phase_selftest.cpp`,
+`external/psxport/runtime/psx/shaders_gpu/tri.frag`,
+`external/psxport/runtime/psx/shaders_gpu/tri.vert`,
+`external/psxport/runtime/psx/gpu_vk_untextured_selftest.cpp`,
+`external/psxport/runtime/psx/gpu_vk_modulation_selftest.cpp`,
+`external/psxport/runtime/psx/gpu_vk_texture_coverage_selftest.cpp`,
+`external/psxport/runtime/psx/shaders_gpu/tritex.vert`,
+`external/psxport/runtime/psx/shaders_gpu/psx_uv.glsl`,
+`external/psxport/runtime/psx/shaders_gpu/tritex.frag`,
+`external/psxport/runtime/psx/shaders_gpu/trisemi_hw.frag`,
+`external/psxport/runtime/psx/gpu_native.cpp`, `game/render/model_recipe_capture.cpp`,
 `game/render/native_model_producer.cpp`, `game/render/model_packet_identity_diagnostic.cpp`.

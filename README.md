@@ -9,16 +9,12 @@ The old offline translator integration, generated guest corpus, static dispatche
 configuration, static-only verifiers, build tree, and static product binaries were deleted before
 dynarec implementation. They are not a bridge, fallback, or oracle.
 
-The gameplay target is intentionally unavailable while psxport's Lightrec backend and loaded-image
-lifecycle binding are incomplete. `CMakeLists.txt` refuses `crashbash_port` with that exact boundary.
-The surviving native code now has one declared adapter in `game/core/guest_execution.h`:
+The native title adapter now authenticates and loads the resident executable, installs the 27
+image-qualified native owners, and composes the retained frame and interpolation presenters. Its 15
+original-body calls enter psxport's generation-aware dispatcher and scoped original-call boundary.
 
-- 27 native override registrations are keyed by logical authenticated image and guest address.
-- 15 former generated-body calls use a scoped `callOriginal` operation.
-- ordinary native-to-guest calls use one runtime dispatch operation.
-
-The adapter will bind these operations to psxport's generation-aware Lightrec override registry,
-original-call suppression, and code-cache invalidation. It must not contain or select an interpreter.
+The gameplay target remains unavailable until authenticated overlay publication and the player host
+entry are connected. `CMakeLists.txt` names that boundary when `crashbash_port` is requested.
 
 ## Player input and provisioning
 
@@ -30,7 +26,7 @@ The intended default remains `./run.sh`, with an optional explicit USA CHD:
 ```
 
 The launcher currently provisions the authenticated executable and modules, then stops at the
-explicit missing Lightrec adapter target. It never emits or compiles guest source. Disc resolution is
+explicit missing overlay/host-entry target. It never emits or compiles guest source. Disc resolution is
 explicit argument, `PSXPORT_CRASHBASH_DISC`, `PSXPORT_DISC`, the same keys in `.env`, then one
 root-level `.chd`. Original game content remains untracked.
 
@@ -38,26 +34,36 @@ root-level `.chd`. Original game content remains untracked.
 dependency discovery, provisioning, build policy, and launch behavior; it passes the locked
 interpreter through to project tools.
 
-## Verification during the broken-first phase
+## Verification
 
-These checks do not build or run the removed product:
+The canonical asset-free verifier builds the real native title adapter, runs every Crash Bash CTest
+(including formatting, clang-tidy, launcher, provisioning, and source-policy contracts), and checks
+the linked artifact for retired execution paths:
 
 ```sh
-uv run --frozen python tools/verify_native_ownership.py
-uv run --frozen python tests/test_source_policy.py
-uv run --frozen python tests/test_provision.py
+CC=clang CXX=clang++ uv run --frozen python tools/verify.py
 ```
 
-The source-policy check reports the complete 27-registration and 15-original-call denominators and
-rejects generated directories, old dispatch surfaces, or retired tools. Historical emulator/binary
-evidence and the bounded replays under `replays/flow/` remain the acceptance scenarios for later
-dynarec requalification.
+`tools/verify.py` resolves the pinned framework and delegates build/test policy to its shared
+`ConsumerVerifier`. Builds use `build/migration/` and the locked Python interpreter. Linux CI consumes
+the same framework's pinned setup action and runs this command without any game assets.
+
+The source-policy check reports all 27 registrations and 15 original calls and rejects the retired
+translator and dispatch paths. A local real-executable check exercises the same resident loader:
+
+```sh
+PSXPORT_CARD=scratch/title-adapter-test/card.mcr uv run --frozen python -c \
+  'import subprocess; subprocess.run(["build/migration/crashbash_title_adapter_test", "scratch/bin/crashbash/SCUS_945.70"], check=True)'
+```
+
+This authenticates and publishes the resident image; it does not execute retail boot or gameplay.
+Historical emulator/binary evidence and bounded replays under `replays/flow/` remain the scenarios for
+later dynarec gameplay qualification.
 
 ## Product completion
 
-After the shared executor lands, the port must prove nonzero translated execution, correct
-loaded-image invalidation, bounded VSync/interrupt/exception exits, image-scoped overrides, and an
-interpreter-free gameplay link. Boot, logos, menus, FMV, and a first frame are implementation
+The complete port must prove nonzero translated execution, correct
+loaded-image invalidation, bounded VSync/interrupt/exception exits, image-scoped overrides, and a gameplay link without an explicit interpreter mode. Boot, logos, menus, FMV, and a first frame are implementation
 checkpoints only. Completion requires representative controllable gameplay with correct rendering,
 audio, timing, devices, and frame-time evidence, followed by broader retail-mode coverage.
 

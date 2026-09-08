@@ -37,6 +37,10 @@ public:
   GuestExecution(GuestExecution &&) = delete;
   GuestExecution &operator=(GuestExecution &&) = delete;
 
+  std::size_t registeredOverrideCount() const {
+    return registrations_.size();
+  }
+
   void registerOverride(GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function);
   void bindAuthenticatedImage(GuestImage image, psx::cpu::ImageIdentity identity, GuestAddressRange range);
   void unbindImage(GuestImage image);

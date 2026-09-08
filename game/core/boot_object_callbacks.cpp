@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "execution_services.h"
 #include "game.h"
 #include "guest_execution.h"
 #include "measured_guest_call.h"
@@ -39,9 +40,9 @@ constexpr std::uint32_t kObjectUpdate = 0x8008BB48u;
 std::int32_t guestDiv(Core &core, std::int32_t numerator, std::int32_t divisor) {
   cpu_div(&core, static_cast<std::uint32_t>(numerator), static_cast<std::uint32_t>(divisor));
   if (divisor == 0) {
-    rec_break(&core, 7168u);
+    psx::cpu::handleBreak(core, 7168u);
   } else if (divisor == -1 && numerator == INT32_MIN) {
-    rec_break(&core, 6144u);
+    psx::cpu::handleBreak(core, 6144u);
   }
   return static_cast<std::int32_t>(core.lo);
 }
@@ -57,7 +58,7 @@ std::int32_t s32(std::uint32_t value) {
 // `Timing::hSyncCounter()` exactly as display_frame.cpp's owner does — no guest clock is returned
 // and no wait is dispatched. The retail instruction cost of the elided call is still charged.
 std::uint32_t hsyncSample(Core &core, std::uint32_t instructionTicks) {
-  rec_guest_instruction_ticks(&core, instructionTicks);
+  psx::cpu::accountGuestInstructions(core, instructionTicks);
   return core.game->timing.hSyncCounter();
 }
 

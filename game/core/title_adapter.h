@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game_runtime.h"
+#include "psx_exe_image.h"
 
 #include <memory>
 
@@ -13,6 +14,12 @@ public:
   static constexpr RenderCapabilities titleRenderCapabilities() {
     return RenderCapabilities::interpolatedNative(FACE_ORDER_AUTHORED);
   }
+
+  // Authenticating and loading consume one immutable byte span; no path is reopened after hashing.
+  psx::cpu::PsxExeLoadResult loadExecutable(Core &core, std::span<const std::uint8_t> bytes);
+  const GuestProgramImage *guestProgramImage() const override;
+  const PlatformHlePlan *platformHlePlan() const override;
+  const char *discEnvVar() const override;
 
   void *createContext(Core &core) override;
   void destroyContext(void *context) override;

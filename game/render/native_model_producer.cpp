@@ -61,8 +61,8 @@ NativeModelSubmitResult submitFixedModel(Core &core,
                                          const ModelDraw *previous,
                                          float alpha,
                                          const ModelRenderEnvironment &environment) {
-  if (!draw.transform.valid || draw.faces.empty() || core.game == nullptr || core.game->oracle ||
-      core.rsub.mode.psxRender() || !environment.valid) {
+  if (!draw.transform.valid || draw.faces.empty() || core.game == nullptr || core.rsub.mode.psxRender() ||
+      !environment.valid) {
     return {};
   }
   const ModelTransform transform =

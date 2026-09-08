@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-28
 tags: graphics,native-renderer,ordering
-depends: game/render/model_packet_identity_diagnostic.cpp, external/psxport/runtime/recomp/render_queue.cpp#RenderQueue::resolveKeyOrderFaces
+depends: game/render/model_packet_identity_diagnostic.cpp, external/psxport/runtime/psx/render_queue.cpp#RenderQueue::resolveKeyOrderFaces
 ---
 
 ## Claim

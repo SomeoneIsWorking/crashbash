@@ -6,8 +6,8 @@
 
 namespace crashbash::guest {
 
-// Verified SCUS_945.70 guest ownership facts. tools/verify_native_ownership.py compares these
-// shipping values to the retail executable and to the generated call sites that established them.
+// Recovered SCUS_945.70 guest ownership facts. Exact executable identity is authenticated before
+// these addresses are used; the shared CRT0 auditor verifies the boot group against resident bytes.
 inline constexpr GuestAddressRange kVSync{0x800320ECu, 0x800320F0u};
 
 inline constexpr std::uint32_t kGameMain = 0x8002718Cu;

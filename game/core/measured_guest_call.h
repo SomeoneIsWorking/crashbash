@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+#include "execution_services.h"
 #include "guest_execution.h"
 
 #include <cstddef>
@@ -21,7 +22,7 @@ std::uint32_t measuredGuestCall(
     core.r[4 + index] = values[index];
   }
   core.r[31] = returnAddress;
-  rec_guest_instruction_ticks(&core, instructionTicks);
+  psx::cpu::accountGuestInstructions(core, instructionTicks);
   runtime::dispatchGuest(core, target);
   return core.r[2];
 }

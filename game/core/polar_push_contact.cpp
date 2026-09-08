@@ -1,6 +1,7 @@
 #include "polar_push_contact.h"
 
 #include "core.h"
+#include "execution_services.h"
 #include "game.h"
 #include "guest_execution.h"
 #include "measured_guest_call.h"
@@ -142,7 +143,7 @@ std::uint32_t lowProduct(std::int32_t left, std::int32_t right) {
 }
 
 void ticks(Core &core, std::uint32_t count) {
-  rec_guest_instruction_ticks(&core, count);
+  psx::cpu::accountGuestInstructions(core, count);
 }
 
 std::uint32_t deadVsyncSample(Core &core, std::uint32_t stackOffset) {

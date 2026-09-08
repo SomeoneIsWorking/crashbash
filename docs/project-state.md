@@ -10,8 +10,7 @@ revision, widens the camera, and adds 60 Hz interpolated presentation without ac
 
 ## Current focus
 
-**S003** — Consume psxport's per-`Core`, pinned-Lightrec executor and prove that the gameplay product
-contains no interpreter. The former static product has already been deleted and is not a bridge,
+**S003** — Consume psxport's per-`Core`, pinned-Lightrec executor and prove dynarec-first gameplay with explicit bounded fallback accounting. The former static product has already been deleted and is not a bridge,
 fallback, or oracle.
 
 ## Capability inventory
@@ -20,7 +19,7 @@ fallback, or oracle.
 | --- | --- | --- | --- | --- |
 | S001 | The selected USA disc, executable, and measured `CRASHBSH.DAT` modules are reproducibly authenticated and provisioned | verified | — | G001 |
 | S002 | The retail boot and loaded-image sequence have a recorded first-frame and menu frontier to re-establish through the dynarec | partial | S001, S003 | G001 |
-| S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec and contains no interpreter | missing | S001, shared psxport executor | G001 |
+| S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec with bounded, reason-accounted fallback | missing | S001, shared psxport executor | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct across representative content | partial | S002, S015 | G001, G002, G003 |
 | S005 | The native camera supports wider aspect ratios without changing vertical framing | partial | S004 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
@@ -39,7 +38,7 @@ fallback, or oracle.
 
 The verified S009-S012 entries describe durable reached behavior and replay inputs, not dynamic-engine
 completion. They become dynarec conformance evidence only after those scenarios run through the hybrid
-gameplay product with nonzero Lightrec execution and the no-interpreter product audit.
+gameplay product with nonzero Lightrec execution and the dynarec-first product audit.
 
 ## Capability details
 
@@ -56,13 +55,13 @@ DAT28136 registration/update boundary, and later interactive scenarios with the 
 device, and frame owners active.
 
 Gap: Re-establish the complete reached sequence through pinned Lightrec with nonzero dynamic execution,
-image-correct invalidation, bounded exits, and no interpreter in the gameplay product.
+image-correct invalidation, bounded exits, and reason-accounted fallback.
 
 ### S003 — Pinned-Lightrec gameplay executor
 
-Missing capability: Integrate psxport's maintained, pinned Lightrec revision as the sole gameplay
-executor for every non-native guest instruction, with product-link and selector evidence proving the
-interpreter is absent and no fallback exists.
+Missing capability: Integrate psxport's maintained, pinned Lightrec revision as the first execution
+owner for every cold non-native guest block, with product-link and selector evidence excluding an
+interpreter-only product default and counters bounding every JIT-rejected fallback.
 
 ### S004 — Native graphics coverage
 
@@ -159,15 +158,46 @@ preserved its prior binding, two Core contexts stayed isolated, and changing the
 the native-plus-original result from 17 to 19. Both touched translation units passed clang-tidy and
 format checks; source policy retained the 27-registration / 15-original-call denominators.
 
-Gap: implement `TitleAdapter` and authenticated loaded-image lifecycle composition, migrate the retained
-native instruction-accounting calls to the current shared API, then qualify all 27 installations and
-15 original calls on the real Crash Bash loaded-image and gameplay routes. The product target still
-refuses until that composition exists; synthetic adapter coverage is not retail gameplay evidence.
+The direct `TitleAdapter` now composes the per-Core execution context, all native owners, BIOS memory-card
+device publication, native frame driver, and immutable-scene interpolation presenter. Its resident loader
+hashes the entire executable against metadata derived from `titles/crashbash/executable.json`, loads that
+same byte span through shared `loadPsxExeImage`, and binds the returned generation. Failed authentication
+preserves guest state; successful replacement retires the prior resident generation. The retained
+instruction accounting, deferred-work polling, and break handling now call shared execution services.
+The complete retained seam and `crashbash_title_adapter_test` now compile and link with Clang/Ninja;
+an unchanged second build performs zero compilations. Focused clang-tidy passed all 11 touched/new
+translation units, formatting passed 17 C++ files, and source policy reported 84 sources with the
+27-registration / 15-original-call denominators intact. The freshly linked `crashbash_title_adapter`
+CTest passed 3 cases / 28 assertions. Its explicit local real-input run against `SCUS_945.70`, using
+`scratch/title-adapter-test/card.mcr`, passed 4 cases / 43 assertions: complete retail authentication,
+resident native-key publication, corruption refusal preserving the prior residency, and valid reload
+leaving exactly one active image generation. These runs load the resident image without executing
+retail boot or gameplay.
+
+Landing verification (2026-09-08): the canonical verifier configured Clang/Ninja against psxport
+`156c6c58`. The full build exposed module tests that omitted the execution adapter; one reusable
+`crashbash_guest_execution` library now owns it for the seam and those tests, and the full build
+passes. All 25 functional/Python/pin CTests passed. The remaining C++ policy check initially refused
+stale documentation and literal rejection data; focused repairs preserve the binary findings and all
+negative checks. Its completed components pass: 91 formatted/size-checked files, 53 compile-backed
+translation units linted, and whole-tree architecture/execution policy. The shared rejection-data
+scanner passes 34/34 discriminator cases. The title source policy passes 7/7 tests and reports 85
+sources, 27 registrations, and 15 original calls. The linked adapter passes the shared execution-boundary
+check and its checker selftest. After the scanner correction landed in psxport `a5a79652`, canonical
+configure and the dependency check aligned the pin/provenance without recompilation. The formerly
+failing `crashbash_cpp_policy` CTest then passed on two CPUs, completing all 26 title CTests across
+the original run and focused repair. No additional retail gameplay was run.
+
+Gap: connect authenticated overlay publication/replacement and the player host entry, then qualify all
+27 installations and 15 original calls on the real Crash Bash loaded-image and gameplay routes. The
+product target still refuses until that composition exists; synthetic adapter coverage and resident
+loading alone are not retail gameplay evidence. The shared direct-runtime memory-card path also needs
+OS user-data configuration; its current scratch fallback is not a releasable save location.
 
 ### S016 — Representative gameplay
 
 Missing capability: Pass representative interactive gameplay with correct rendering, input, audio,
-timing, devices, and per-host frame time on the interpreter-free native/dynarec product.
+timing, devices, and per-host frame time on the dynarec-first native/dynarec product.
 
 ### S017 — Break-first static-path removal
 
@@ -178,13 +208,16 @@ static dispatch markers, and any change to the 27-registration/15-original-call 
 
 ### S018 — Platform CI coverage
 
-Partial capability: `.github/workflows/ci.yml` runs the asset-free launcher, provisioning, and source
-policy tests on one Linux host with full history, read-only permissions, pinned actions, and an
-explicit timeout. This is repository-policy coverage, not evidence for a packaged Linux product.
+Partial capability: `.github/workflows/ci.yml` configures a Linux x86-64 native adapter job with full
+history, read-only permissions, pinned actions, and an explicit timeout. It resolves `psxport.pin`,
+uses that checkout's shared Linux setup action, and runs `tools/verify.py`. The thin title verifier
+selects the real `crashbash_title_adapter_test` artifact and every `crashbash_` CTest; shared
+`ConsumerVerifier` owns build, style/test execution, and linked execution-boundary checks. Hosted
+execution of this expanded job remains unverified, and it does not establish packaged gameplay.
 
 | Platform | Applicability | Current CI evidence and exact gap |
 | --- | --- | --- |
-| Linux x86-64 | applicable desktop target | Source/launcher policy is covered; CI does not yet configure, compile, lint, test, or package the native/dynarec product because S003 is missing. |
+| Linux x86-64 | applicable desktop target | Native adapter build, complete title tests/style, and execution-boundary inspection are configured through the shared verifier; hosted result and packaged gameplay remain unverified. |
 | Windows x86-64 | applicable portable-PC target | Missing: no supported Windows native build, runtime test, first-run setup, or package boundary exists. |
 | macOS arm64 | applicable portable-PC target | Missing: no Apple-Silicon native build, runtime test, first-run setup, or application package exists. |
 | Android arm64 | applicable mobile target | Android metadata and setup sources exist, but the Lightrec native runtime, shared `android-port` build path, Gradle/NDK APK build, and install/runtime test are missing. |
@@ -199,8 +232,8 @@ The first Crash Bash dynamic milestone must prove all of the following together:
 
 - the exact authenticated resident and loaded images execute through the pinned psxport/Lightrec
   integration with nonzero translated-block execution;
-- product link and configuration inspection proves that no interpreter is linked, selectable, or
-  reachable as a fallback;
+- product link and configuration inspection excludes an interpreter-only default, with every fallback
+  reached only after an explicit JIT rejection and bounded by reason-accounted counters;
 - all 27 native override installations are keyed by complete runtime image identity and address;
 - all 15 former generated-body calls use a scoped original call that suppresses only the current
   override, enters the original guest body through Lightrec, and returns with correct guest state;

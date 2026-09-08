@@ -6,8 +6,9 @@ Crash Bash is one native/dynarec hybrid product. Title-owned native overrides ex
 the port deliberately owns; every remaining guest instruction executes on demand through psxport's
 pinned Lightrec integration from the user's authenticated USA game image.
 
-An interpreter may exist only in a separately built test target, including diagnostics. The gameplay product
-must not link it, expose an execution-engine selector for it, or fall back to it. No build,
+Every cold block is offered to Lightrec first. Bounded fallback is permitted only after an explicit JIT
+compile/fetch failure, reporting the PC, reason, block/instruction counts, and return to JIT dispatch.
+Interpreter-only execution remains a test/diagnostic path. No build,
 provisioning, installation, or launch path may emit or compile a static guest-code corpus.
 
 USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
@@ -28,10 +29,10 @@ Success conditions:
 - `./run.sh` authenticates the user's game input, builds the intended product with a supported host
   compiler, and launches without maintainer-only RE tools or offline guest translation.
 - psxport dynamically translates every non-native guest path through its pinned Lightrec revision.
-- The gameplay link, configuration, and runtime surfaces contain no interpreter, interpreter selector,
-  or interpreter fallback.
+- Gameplay is dynarec-first, with nonzero translated execution and bounded fallback counts by reason.
+  Interpreter-only selection is diagnostic and never the product default.
 - The existing 27 native override installations remain active. All 15 calls from native owners to a
-  generated guest body are replaced by psxport's scoped runtime original-call operation, which bypasses
+  guest implementation use psxport's scoped runtime original-call operation, which bypasses
   only the current override and executes the authenticated guest body through Lightrec.
 - The static generator, generated corpus, dispatcher, seeds, and static-only checks are absent before
   dynarec implementation begins and cannot be restored as a bridge.

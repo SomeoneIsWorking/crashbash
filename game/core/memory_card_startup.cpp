@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "execution_services.h"
 #include "guest_execution.h"
 #include "measured_guest_call.h"
 
@@ -33,18 +34,18 @@ void memoryCardStartupOwned(Core *core) {
   core->mem_w32(core->r[29] + 24u, core->r[31]);
   core->mem_w32(core->r[29] + 20u, core->r[17]);
   core->r[31] = 0x800486F8u;
-  rec_guest_instruction_ticks(core, 7u);
+  psx::cpu::accountGuestInstructions(*core, 7u);
   runtime::dispatchGuest(*core, kChangeClearPad);
 
   core->r[4] = 0u;
-  rec_guest_instruction_ticks(core, 2u);
+  psx::cpu::accountGuestInstructions(*core, 2u);
 
   measuredGuestCall(*core, kEnterCriticalSection, 0x80048708u, 2u);
   core->r[17] = measuredGuestCall(*core, kCardInitialized, 0x80048710u, 2u);
-  rec_guest_instruction_ticks(core, 2u);
+  psx::cpu::accountGuestInstructions(*core, 2u);
   if (core->r[2] == 0u) {
     core->r[16] = 0u;
-    rec_guest_instruction_ticks(core, 1u);
+    psx::cpu::accountGuestInstructions(*core, 1u);
   }
 
   measuredGuestCall(*core, kInitializeCardBios, 0x80048724u, 2u, core->r[16]);
@@ -53,7 +54,7 @@ void memoryCardStartupOwned(Core *core) {
   measuredGuestCall(*core, kInstallCardDevice, 0x8004873Cu, 2u);
   measuredGuestCall(*core, kResetCardState, 0x80048744u, 2u);
   core->r[2] = 1u;
-  rec_guest_instruction_ticks(core, 3u);
+  psx::cpu::accountGuestInstructions(*core, 3u);
   if (core->r[17] == 1u) {
     measuredGuestCall(*core, kExitCriticalSection, 0x80048758u, 2u);
   }
@@ -62,7 +63,7 @@ void memoryCardStartupOwned(Core *core) {
   core->r[17] = core->mem_r32(core->r[29] + 20u);
   core->r[16] = core->mem_r32(core->r[29] + 16u);
   core->r[29] += 32u;
-  rec_guest_instruction_ticks(core, 5u);
+  psx::cpu::accountGuestInstructions(*core, 5u);
 }
 
 } // namespace

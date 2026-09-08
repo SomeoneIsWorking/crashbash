@@ -13,6 +13,7 @@ from source_policy import (  # noqa: E402
     EXPECTED_ORIGINAL_CALLS,
     EXPECTED_OVERRIDE_REGISTRATIONS,
     SourcePolicyError,
+    STATIC_PRODUCT_MARKERS,
     check_source_policy,
 )
 
@@ -55,13 +56,14 @@ class SourcePolicyTests(unittest.TestCase):
                 check_source_policy(root)
 
     def test_runtime_recomp_include_path_fails(self) -> None:
+        marker = next(marker for marker in STATIC_PRODUCT_MARKERS if marker.startswith("runtime/"))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "game").mkdir()
             (root / "game" / "owner.cpp").write_text(
-                '#include "runtime/recomp/core.h"', encoding="utf-8"
+                f'#include "{marker}/core.h"', encoding="utf-8"
             )
-            with self.assertRaisesRegex(SourcePolicyError, "runtime/recomp"):
+            with self.assertRaisesRegex(SourcePolicyError, marker):
                 check_source_policy(root)
 
     def test_direct_stderr_fails(self) -> None:

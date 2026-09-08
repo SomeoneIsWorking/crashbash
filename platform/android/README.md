@@ -1,6 +1,6 @@
 # Crash Bash Android package
 
-This is the Android package owner. It follows Dusklight's peer platform-shell boundary: Lucent owns
+This is the Android package owner. Lucent owns
 Storage Access Framework access, bounded private staging, and atomic promotion; `CrashBashMediaImport`
 owns Crash Bash's media policy and hands a staged document to the title-native validator. The Activity
 only composes setup UI. Native game behavior and virtual-pad policy remain separate owners.

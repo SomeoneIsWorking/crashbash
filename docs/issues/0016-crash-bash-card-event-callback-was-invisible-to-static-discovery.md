@@ -36,28 +36,10 @@ discoverable form:
 
 The address lives only in the framework's host-side event table, which static discovery cannot see.
 
-## Fix (two halves)
+## Runtime contract
 
-1. **Title seed** (`game/recomp_seeds.json`, `main`): `0x8004718C` with the recorded live miss and
-   the guest-side construction site — the repo's documented evidence gate for growing `main`.
-2. **Framework** (psxport `02430b1b`, landed independently in this window): `is_func_entry` gains
-   signal (c) — a `jr ra` boundary behind a bounded run of nop padding — so entries that only ever
-   run from a computed jump sit behind link padding are discovered generically.
-
-The seed remains recorded provenance for the live boundary even with the generic fix landed.
-
-## Companion measurement
-
-The first regeneration at HEAD also tripped the new emitter size guard (`f296c252`): Crash Bash's
-BOOT overlay legitimately emits at 51.7x of its image (19,999,266 bytes of C from 387,072 bytes,
-biggest fragment `ov_boot_gen_800AEA08` at 1.1 MB). The identical output is the substrate that ran
-the verified retail boot at the pre-guard pin, so this is a measured legit case, not data-as-code:
-`tools/recomp_bootstrap.py` sets `PSXPORT_EMIT_MAX_RATIO=56` with the measurement in a comment, and
-a genuine leak growing past it still refuses.
-
-## Verification
-
-Clean-pin derivation (1095 roots -> 1757 functions, version 2026-08-29.1) contains
-`func_8004718C`; `recomp_bootstrap --check` PASS; 130/130 ctest; `verify_boot.py --run` PASS; exact
-301-frame native run exits 0 with zero recomp misses; frame-300 present byte-identical across the
-dirty-emitter and landed-emitter builds.
+The static discovery implementation and its seed metadata have been removed. Preserve the measured
+callback address and its construction site as binary evidence: the shared HLE event delivery must
+dispatch this callback through the current authenticated resident image, discovering and translating
+the cold block on demand. No offline root list is required. The former boot observation establishes
+the callback's role, not conformance of the replacement runtime path.

@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "execution_services.h"
 #include "measured_guest_call.h"
 
 #include <cstdint>
@@ -31,9 +32,9 @@ void beginProcessRunnerActivation(Core &core) {
   core.mem_w32(core.r[29] + 28u, core.r[31]);
   core.mem_w32(core.r[29] + 24u, core.r[18]);
   core.mem_w32(core.r[29] + 20u, core.r[17]);
-  rec_guest_instruction_ticks(&core, 7u);
+  psx::cpu::accountGuestInstructions(core, 7u);
   core.r[18] = kGpuGlobals;
-  rec_guest_instruction_ticks(&core, 1u);
+  psx::cpu::accountGuestInstructions(core, 1u);
 }
 
 void runApplicationPrefix(Core &core) {
@@ -50,7 +51,7 @@ void runApplicationPrefix(Core &core) {
   core.r[4] = guest::kInitialProcessState;
   core.r[31] = 0x800101D0u;
   core.mem_w32(kApplicationDispatch, kLoadedApplication);
-  rec_guest_instruction_ticks(&core, 5u);
+  psx::cpu::accountGuestInstructions(core, 5u);
   core.mem_w32(guest::kCurrentProcessState, guest::kInitialProcessState);
   beginProcessRunnerActivation(core);
 }
@@ -77,7 +78,7 @@ void runBootPrefix(Core &core) {
   measuredGuestCall(core, 0x8002AABCu, 0x80027210u, 2u);
   measuredGuestCall(core, 0x80028C94u, 0x80027218u, 2u);
   core.r[31] = 0x80027220u;
-  rec_guest_instruction_ticks(&core, 2u);
+  psx::cpu::accountGuestInstructions(core, 2u);
   runApplicationPrefix(core);
 }
 

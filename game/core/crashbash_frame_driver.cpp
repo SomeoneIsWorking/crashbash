@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "execution_services.h"
 #include "game.h"
 #include "guest_execution.h"
 #include "measured_guest_call.h"
@@ -33,7 +34,7 @@ void CrashBashFrameDriver::enterProcessState(Core &core, std::uint32_t state) {
     std::abort();
   }
   measuredGuestCall(core, enter, 0x80027120u, 4u);
-  rec_guest_instruction_ticks(&core, 4u);
+  psx::cpu::accountGuestInstructions(core, 4u);
   ++stateEntries_;
   dwellFrames_ = 0;
   dwellReports_ = 0;
@@ -70,11 +71,7 @@ void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields
                     after - before);
       std::abort();
     }
-    if (game_.diff_mode) {
-      game_.spu_audio.frameLogic();
-    } else {
-      game_.spu_audio.frame();
-    }
+    game_.spu_audio.frame();
   }
 }
 
@@ -97,7 +94,7 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
       std::abort();
     }
     if (core.pending_work) {
-      rec_irq_poll(&core);
+      psx::cpu::servicePendingWork(core);
     }
     enterProcessState(core, state);
     enteredState = true;
@@ -105,7 +102,7 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     if (next == activeState_) {
       break;
     }
-    rec_guest_instruction_ticks(&core, 4u);
+    psx::cpu::accountGuestInstructions(core, 4u);
     state = next;
   }
 
@@ -114,10 +111,10 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   if (core.mem_r32(guest::kCurrentProcessState) == activeState_) {
     if (enteredState) {
       core.r[17] = 0x80060000u;
-      rec_guest_instruction_ticks(&core, 1u);
+      psx::cpu::accountGuestInstructions(core, 1u);
     }
     if (core.pending_work) {
-      rec_irq_poll(&core);
+      psx::cpu::servicePendingWork(core);
     }
     const std::uint32_t update = core.mem_r32(activeState_ + 4u);
     const std::uint32_t present = core.mem_r32(activeState_ + 8u);
@@ -129,7 +126,7 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     presentFn_ = present;
     measuredGuestCall(core, update, 0x80027144u, 4u);
     measuredGuestCall(core, present, 0x80027154u, 4u);
-    rec_guest_instruction_ticks(&core, 4u);
+    psx::cpu::accountGuestInstructions(core, 4u);
   }
 
   reportProgress(core, frame);
