@@ -62,7 +62,8 @@ the scoped original-call budget at `0x80018AA0` after 564,484 cycles.
 
 Gap: Re-establish the complete reached sequence through pinned Lightrec with nonzero dynamic execution,
 image-correct invalidation, bounded exits, and reason-accounted fallback. The next reached dependency
-is determining why MENU entry cannot complete its original call within the current turn (issue 0029).
+is preserving MENU entry's finite image-conversion work across a bounded original-call continuation
+(issue 0029).
 
 ### S003 — Pinned-Lightrec gameplay executor
 

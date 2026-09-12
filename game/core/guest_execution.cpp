@@ -174,9 +174,24 @@ void dispatchGuest(Core &core, std::uint32_t address) {
 }
 
 void callOriginal(Core &core, GuestImage image, std::uint32_t address) {
-  if (!psx::cpu::requireGuestReturn(
-          execution(core).original(image, address, psx::cpu::ExecutionBudget::currentTurn(core)),
-          "Crash Bash original call")) {
+  const auto result = execution(core).original(image, address, psx::cpu::ExecutionBudget::currentTurn(core));
+  lucent::debug("crashbash-original",
+                "target=0x{:08X} exit={} pc=0x{:08X} cycles={} r4=0x{:08X} r5=0x{:08X} r6=0x{:08X} "
+                "r7=0x{:08X} r8=0x{:08X} r16=0x{:08X} r17=0x{:08X} r18=0x{:08X} ra=0x{:08X}",
+                address,
+                psx::cpu::executionExitName(result.reason),
+                result.guestPc,
+                result.cycles,
+                core.r[4],
+                core.r[5],
+                core.r[6],
+                core.r[7],
+                core.r[8],
+                core.r[16],
+                core.r[17],
+                core.r[18],
+                core.r[31]);
+  if (!psx::cpu::requireGuestReturn(result, "Crash Bash original call")) {
     std::abort();
   }
 }

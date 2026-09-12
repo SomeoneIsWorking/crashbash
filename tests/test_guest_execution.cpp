@@ -109,6 +109,31 @@ void test_original_uses_dynarec_and_restores_interception() {
            psx::cpu::ExecutionExitReason::Fault);
 }
 
+void test_original_budget_exit_exposes_live_loop_state() {
+  Runtime runtime;
+  auto game = makeGame(runtime);
+  Core &core = game->core;
+  GuestExecution &execution = context(core);
+  const auto image = core.imageCatalog().activate("menu", kRange, 1u);
+  core.mem_w32(kEntry, 0x2508ffffu);       // addiu t0, t0, -1
+  core.mem_w32(kEntry + 4u, 0x1500fffeu);  // bne t0, zero, kEntry
+  core.mem_w32(kEntry + 8u, 0u);           // delay-slot nop
+  core.mem_w32(kEntry + 12u, 0x03e00008u); // jr ra
+  core.mem_w32(kEntry + 16u, 0u);          // delay-slot nop
+  execution.bindAuthenticatedImage(GuestImage::Menu, image, kRange);
+  crashbash::runtime::registerNativeOverride(core, GuestImage::Menu, kEntry, "menu-loop", nativeOriginal);
+  core.r[31] = kReturn;
+  core.r[8] = 1000u;
+  const auto bounded = execution.original(GuestImage::Menu, kEntry, psx::cpu::ExecutionBudget::fromCycles(100u));
+  CHECK_EQ(bounded.reason, psx::cpu::ExecutionExitReason::BudgetExhausted);
+  CHECK(core.r[8] < 1000u);
+  CHECK(core.r[8] > 0u);
+  core.r[8] = 3u;
+  const auto completed = execution.original(GuestImage::Menu, kEntry, psx::cpu::ExecutionBudget::fromCycles(100u));
+  CHECK_EQ(completed.reason, psx::cpu::ExecutionExitReason::GuestReturn);
+  CHECK_EQ(core.r[8], 0u);
+}
+
 void test_invalid_replacement_preserves_binding_and_cores_are_isolated() {
   Runtime runtime;
   auto first = makeGame(runtime);
@@ -152,6 +177,7 @@ void test_invalid_replacement_preserves_binding_and_cores_are_isolated() {
 int main() {
   RUN(pending_registration_reload_and_wrong_image_refusal);
   RUN(original_uses_dynarec_and_restores_interception);
+  RUN(original_budget_exit_exposes_live_loop_state);
   RUN(invalid_replacement_preserves_binding_and_cores_are_isolated);
   return pt_summary();
 }
