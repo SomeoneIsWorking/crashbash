@@ -159,7 +159,9 @@ the native-plus-original result from 17 to 19. Both touched translation units pa
 format checks; source policy retained the 27-registration / 15-original-call denominators.
 
 The direct `TitleAdapter` now composes the per-Core execution context, all native owners, BIOS memory-card
-device publication, native frame driver, and immutable-scene interpolation presenter. Its resident loader
+device publication, native frame driver, and immutable-scene interpolation presenter. The new
+`game/core/player_entry.cpp` composes that adapter with the heap-owned `Game`, authenticates the
+resident executable, binds per-Core hardware owners, and enters `native_boot_run`. Its resident loader
 hashes the entire executable against metadata derived from `titles/crashbash/executable.json`, loads that
 same byte span through shared `loadPsxExeImage`, and binds the returned generation. Failed authentication
 preserves guest state; successful replacement retires the prior resident generation. The retained
@@ -188,11 +190,20 @@ configure and the dependency check aligned the pin/provenance without recompilat
 failing `crashbash_cpp_policy` CTest then passed on two CPUs, completing all 26 title CTests across
 the original run and focused repair. No additional retail gameplay was run.
 
-Gap: connect authenticated overlay publication/replacement and the player host entry, then qualify all
-27 installations and 15 original calls on the real Crash Bash loaded-image and gameplay routes. The
-product target still refuses until that composition exists; synthetic adapter coverage and resident
-loading alone are not retail gameplay evidence. The shared direct-runtime memory-card path also needs
-OS user-data configuration; its current scratch fallback is not a releasable save location.
+Focused player-entry evidence (2026-09-12): `crashbash_port` links with Clang/Ninja and the focused
+adapter, execution, touch, scene, and render-capability tests pass 5/5. A real run with the user
+SCUS_945.70 executable authenticates the resident image, publishes the title owners, initializes the
+guest heap, enters the finite boot prefix, opens the real CHD, and then fails fast at
+`0x80012E90 -> 0x800279A4 -> 0x80034AFC -> 0x80034B8C -> 0x8003F29C -> 0x8003EBF8 -> 0x8003E6B0 ->
+0x800320EC`: the strict VSync service requests `FrameBoundary` after 128 cycles while the startup
+call requires `GuestReturn`. This proves the executable entry and authentication route and identifies
+the next runtime owner; it does not prove boot, gameplay, or presentation.
+
+Gap: make the measured application/CD initialization operation resumable across a frame boundary or
+implement its complete title-owned synchronous equivalent while retaining the strict VSync trap.
+Then qualify all 27 installations and 15 original calls on real loaded-image and gameplay routes. The
+shared direct-runtime memory-card path also needs OS user-data configuration; its current scratch
+fallback is not a releasable save location.
 
 ### S016 — Representative gameplay
 

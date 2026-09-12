@@ -13,8 +13,13 @@ The native title adapter now authenticates and loads the resident executable, in
 image-qualified native owners, and composes the retained frame and interpolation presenters. Its 15
 original-body calls enter psxport's generation-aware dispatcher and scoped original-call boundary.
 
-The gameplay target remains unavailable until authenticated overlay publication and the player host
-entry are connected. `CMakeLists.txt` names that boundary when `crashbash_port` is requested.
+`crashbash_port` is now a real executable entry: it authenticates the resident image, creates the
+per-Core title runtime, binds hardware owners, and enters psxport's native boot/frame loop. A real
+resident-image run reaches the measured application initialization chain, then stops at the existing
+strict VSync frame-boundary contract in `0x80012E90`; the entry is therefore a verified build and
+authentication milestone, not gameplay completion. The next owner must make that startup operation
+resumable across a frame boundary or replace the measured CD/application operation with a complete
+title-owned equivalent. The VSync trap remains fail-fast.
 
 ## Player input and provisioning
 
@@ -25,8 +30,9 @@ The intended default remains `./run.sh`, with an optional explicit USA CHD:
 ./run.sh "/path/to/Crash Bash (USA).chd"
 ```
 
-The launcher currently provisions the authenticated executable and modules, then stops at the
-explicit missing overlay/host-entry target. It never emits or compiles guest source. Disc resolution is
+The launcher currently provisions the authenticated executable and modules, then launches the
+player entry. The entry currently stops at the named startup boundary above. It never emits or
+compiles guest source. Disc resolution is
 explicit argument, `PSXPORT_CRASHBASH_DISC`, `PSXPORT_DISC`, the same keys in `.env`, then one
 root-level `.chd`. Original game content remains untracked.
 

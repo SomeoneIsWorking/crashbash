@@ -110,15 +110,18 @@ target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics gam
 target_link_libraries(crashbash_seam PUBLIC crashbash_guest_execution)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
-# Break-first migration: the generated-code product is intentionally gone. Keep one named failure
-# until authenticated overlay lifecycle and the player host entry are integrated.
-add_custom_target(
+# The native/dynarec player entry is deliberately thin: title authentication and per-Core setup
+# stay in the title owners while psxport owns the bounded host frame loop.
+add_executable(crashbash_port game/core/player_entry.cpp $<TARGET_OBJECTS:crashbash_seam>)
+target_include_directories(crashbash_port PRIVATE game/core game/diagnostics game/input game/render
+                           "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+target_link_libraries(crashbash_port PRIVATE crashbash_guest_execution psxport)
+set_target_properties(
   crashbash_port
-  COMMAND
-    "${CMAKE_COMMAND}" -E echo
-    "Crash Bash gameplay target unavailable: authenticated overlay lifecycle and player host entry are not integrated"
-  COMMAND "${CMAKE_COMMAND}" -E false
-  VERBATIM
+  PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 if(BUILD_TESTING)
   add_executable(crashbash_title_adapter_test tests/test_title_adapter.cpp)
