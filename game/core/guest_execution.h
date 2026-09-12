@@ -44,6 +44,9 @@ public:
   void registerOverride(GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function);
   void bindAuthenticatedImage(GuestImage image, psx::cpu::ImageIdentity identity, GuestAddressRange range);
   void unbindImage(GuestImage image);
+  // External writes remove only the overwritten bytes from an authenticated generation and retire
+  // native keys at overwritten entries. Unchanged fragments retain their original identity.
+  void retireImagesOverlapping(GuestAddressRange physicalRange);
   std::optional<psx::cpu::NativeKey> activeKey(GuestImage image, std::uint32_t address) const;
   psx::cpu::ExecutionResult original(GuestImage image, std::uint32_t address, psx::cpu::ExecutionBudget budget);
 
@@ -69,6 +72,7 @@ private:
 // Retained native owners all use this same context and shared dispatcher.
 void registerNativeOverride(
     Core &core, GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function);
+void retireAuthenticatedImagesForWrite(Core &core, GuestAddressRange physicalRange);
 
 // Enter ordinary guest code through the runtime dispatcher. Callers establish the measured guest
 // ABI state (including r31 and instruction timing) before entering this boundary.

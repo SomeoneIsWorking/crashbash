@@ -39,9 +39,21 @@ string(JSON CRASHBASH_EXECUTABLE_TEXT GET "${CRASHBASH_EXECUTABLE_MANIFEST}" hea
 string(JSON CRASHBASH_EXECUTABLE_TEXT_SIZE GET "${CRASHBASH_EXECUTABLE_MANIFEST}" header text_size)
 configure_file(game/core/executable_identity.h.in title_metadata/executable_identity.h @ONLY)
 
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS titles/crashbash/boot_module.json)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/titles/crashbash/boot_module.json" CRASHBASH_BOOT_MANIFEST)
+string(JSON CRASHBASH_BOOT_DISC_LBA GET "${CRASHBASH_BOOT_MANIFEST}" payload_disc_lba)
+string(JSON CRASHBASH_BOOT_SECTOR_COUNT GET "${CRASHBASH_BOOT_MANIFEST}" sector_count)
+string(JSON CRASHBASH_BOOT_PAYLOAD_BYTES GET "${CRASHBASH_BOOT_MANIFEST}" payload_size)
+string(JSON CRASHBASH_BOOT_SHA256 GET "${CRASHBASH_BOOT_MANIFEST}" payload_sha256)
+string(JSON CRASHBASH_BOOT_LOAD_ADDRESS GET "${CRASHBASH_BOOT_MANIFEST}" load_address)
+string(JSON CRASHBASH_BOOT_ENTRY_OFFSET GET "${CRASHBASH_BOOT_MANIFEST}" entry_pointer_offset)
+string(JSON CRASHBASH_BOOT_ENTRY GET "${CRASHBASH_BOOT_MANIFEST}" entry)
+configure_file(game/core/boot_image_identity.h.in title_metadata/boot_image_identity.h @ONLY)
+
 set(CRASHBASH_SEAM_SOURCES
   game/core/boot_object_callbacks.cpp
   game/core/boot_logo_skip.cpp
+  game/core/boot_image.cpp
   game/core/cd_file_read.cpp
   game/core/cd_license_startup.cpp
   game/core/cd_startup.cpp
@@ -132,6 +144,12 @@ if(BUILD_TESTING)
   set_tests_properties(crashbash_title_adapter PROPERTIES
     TIMEOUT 30
     ENVIRONMENT "PSXPORT_CARD=${CMAKE_CURRENT_SOURCE_DIR}/scratch/title-adapter-test/card.mcr")
+  add_executable(crashbash_boot_image_test tests/test_boot_image.cpp)
+  target_include_directories(crashbash_boot_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
+                             "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_link_libraries(crashbash_boot_image_test PRIVATE crashbash_seam)
+  set_target_properties(crashbash_boot_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_boot_image COMMAND crashbash_boot_image_test)
   add_executable(crashbash_guest_execution_test tests/test_guest_execution.cpp)
   target_include_directories(crashbash_guest_execution_test PRIVATE game/core "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_guest_execution_test PRIVATE crashbash_guest_execution)

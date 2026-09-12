@@ -1,5 +1,6 @@
 #include "cd_file_read.h"
 
+#include "boot_image.h"
 #include "core.h"
 #include "crashbash_guest.h"
 #include "disc.h"
@@ -9,11 +10,47 @@
 #include <array>
 #include <cstdint>
 #include <lucent/log.h>
+#include <optional>
 
 namespace crashbash {
 namespace {
 
 constexpr std::uint32_t kSectorBytes = 2048u;
+
+} // namespace
+
+void retireImagesForCdSectorWrite(Core &core, std::uint32_t destination) {
+  if (const auto mapped = core.mappedMainRamRange(destination, kSectorBytes)) {
+    runtime::retireAuthenticatedImagesForWrite(core, *mapped);
+    return;
+  }
+  // The sector may cross a mirrored-RAM boundary. Use Core's actual mapping so an I/O or
+  // scratchpad destination cannot accidentally retire a main-RAM image.
+  std::optional<GuestAddressRange> run;
+  const auto flush = [&] {
+    if (run) {
+      runtime::retireAuthenticatedImagesForWrite(core, *run);
+      run.reset();
+    }
+  };
+  for (std::uint32_t byte = 0; byte < kSectorBytes; ++byte) {
+    const auto mapped = core.mappedMainRamRange(destination + byte, 1u);
+    if (!mapped) {
+      flush();
+      continue;
+    }
+    const auto offset = mapped->begin;
+    if (!run || run->end != offset) {
+      flush();
+      run = GuestAddressRange{offset, offset + 1u};
+    } else {
+      ++run->end;
+    }
+  }
+  flush();
+}
+
+namespace {
 
 void cdFileReadOwned(Core *core) {
   // Retail 0x80027790 starts an interrupt-driven 2048-byte-sector read, then returns its async
@@ -35,9 +72,16 @@ void cdFileReadOwned(Core *core) {
       return;
     }
     const std::uint32_t sectorDestination = destination + index * kSectorBytes;
+    retireImagesForCdSectorWrite(*core, sectorDestination);
     for (std::uint32_t byte = 0; byte < kSectorBytes; ++byte) {
       core->mem_w8(sectorDestination + byte, sector[byte]);
     }
+  }
+
+  if (completeBootImageRead(*core, lba, destination, sectorCount) == BootImageReadResult::Rejected) {
+    core->mem_w32(guest::kCdReadActive, 0u);
+    core->r[2] = 0xFFFFFFFFu;
+    return;
   }
 
   core->mem_w32(guest::kCdReadActive, 0u);

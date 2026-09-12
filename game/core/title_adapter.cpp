@@ -1,5 +1,6 @@
 #include "title_adapter.h"
 
+#include "boot_image_identity.h"
 #include "core.h"
 #include "crashbash_boot.h"
 #include "crashbash_frame_driver.h"
@@ -7,30 +8,38 @@
 #include "executable_identity.h"
 #include "game.h"
 #include "guest_execution.h"
+#include "image_content_identity.h"
+#include "image_identity.h"
 #include "interpolated_scene.h"
 #include "memcard.h"
 #include "native_owner_set.h"
 #include "platform_hle.h"
 #include "resident_image.h"
 
+#include <lucent/content.h>
 #include <lucent/log.h>
+#include <stdexcept>
 
 namespace crashbash {
 namespace {
 
 // Recovered SCUS_945.70 CRT0 group, retained from the handwritten pre-migration title facts.
 // psxport's crt0_audit re-derives and compares these against the authenticated guest bytes at boot.
+constexpr std::uint32_t kBssBegin = 0x8006E9F0u;
+constexpr GuestAddressRange kResidentCodeRange{identity::kTextAddress & 0x1fffffffu, kBssBegin & 0x1fffffffu};
+static_assert(kResidentCodeRange.begin < kResidentCodeRange.end);
+static_assert(kResidentCodeRange.end <= (identity::kTextAddress & 0x1fffffffu) + identity::kTextBytes);
+
 constexpr GuestProgramImage kProgramImage{
-    .bss = {0x8006E9F0u, 0x80078C90u},
+    .bss = {kBssBegin, boot_image::kLoadAddress},
     .stackTopWordAddress = 0x8002E860u,
     .stackReserveWordAddress = 0x8006D8B4u,
-    .heapBase = 0x80078C90u,
+    .heapBase = boot_image::kLoadAddress,
     .globalPointer = 0x8006E9ECu,
     .libcInitEntry = 0x8003ACCCu,
     .gameMainEntry = guest::kGameMain,
     .crt0Entry = identity::kEntry,
-    .residentText = {identity::kTextAddress & 0x1FFFFFFFu,
-                     (identity::kTextAddress & 0x1FFFFFFFu) + identity::kTextBytes},
+    .residentText = kResidentCodeRange,
     .stackBias = {true, 0},
 };
 
@@ -50,13 +59,19 @@ psx::cpu::PsxExeLoadResult TitleAdapter::loadExecutable(Core &core, std::span<co
     return {std::nullopt, {}, "Crash Bash executable load requires this title's Core context"};
   }
   auto &execution = *static_cast<runtime::GuestExecution *>(core.gameCtx);
-  const auto previous = execution.activeKey(runtime::GuestImage::Resident, identity::kEntry);
   auto result = loadResidentImage(core, bytes);
   if (result) {
-    execution.bindAuthenticatedImage(runtime::GuestImage::Resident, *result.identity, result.image.physicalText);
-    if (previous) {
-      core.imageCatalog().deactivate(previous->image);
+    // The EXE header includes BSS and the heap tail in its text byte count. Those bytes were
+    // authenticated and loaded, but only the pre-BSS interval is resident executable code.
+    runtime::retireAuthenticatedImagesForWrite(core, result.image.physicalText);
+    if (!core.imageCatalog().deactivate(*result.identity)) {
+      throw std::logic_error("Crash Bash resident loader lost its freshly published image");
     }
+    const auto digest = lucent::content::sha256(std::as_bytes(bytes));
+    const auto image =
+        core.imageCatalog().activate("crashbash-usa-resident-code", kResidentCodeRange, imageContentIdentity(digest));
+    result.identity = image;
+    execution.bindAuthenticatedImage(runtime::GuestImage::Resident, image, kResidentCodeRange);
   }
   return result;
 }

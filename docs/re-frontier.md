@@ -92,9 +92,10 @@ remain diagnostics for finding causes, not completion conditions.
   `0x80031A80 -> 0x8003ACEC -> 0x80031AE8` and IRQ2 `0x8003F5F0 -> 0x8003E14C`.
 - where: `docs/findings/vsync-owner-map.md`, `docs/issues/`, retained `replays/flow/` scenarios,
   future dynarec runtime diagnostics
-- gap: Reach the same loaded-image and menu frontier through nonzero Lightrec execution, with all
-  reached native owners active, bounded executor exits, correct invalidation, and no guest-VSync
-  violation or wrong-image dispatch.
+- gap: BOOT publication and partial MENU overwrite now reach the strict MENU entry refusal at
+  `0x800B5244` (issue 0028). Authenticate and publish MENU at the completed read, then continue
+  toward the recorded Cross-selected DAT28136 route through nonzero Lightrec execution with all
+  reached native owners active, bounded exits, correct invalidation, and no guest-VSync violation.
 - notes: First frame, logos, and menu entry are implementation discriminators, not representative
   gameplay conformance.
 

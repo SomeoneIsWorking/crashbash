@@ -1,6 +1,7 @@
 #include "guest_execution.h"
 
 #include "core.h"
+#include "image_identity.h"
 #include "lightrec_executor.h"
 
 #include <algorithm>
@@ -113,6 +114,30 @@ void GuestExecution::unbindImage(GuestImage image) {
   }
 }
 
+void GuestExecution::retireImagesOverlapping(GuestAddressRange physicalRange) {
+  if (!physicalRange.valid() || physicalRange.end > sizeof(core_.ram)) {
+    throw std::invalid_argument("Crash Bash loaded-image retirement requires one physical range");
+  }
+  for (auto binding = bindings_.begin(); binding != bindings_.end();) {
+    if (binding->range.end <= physicalRange.begin || binding->range.begin >= physicalRange.end) {
+      ++binding;
+      continue;
+    }
+    const auto remaining = core_.imageCatalog().subtractRange(binding->identity, physicalRange);
+    if (remaining == 0u) {
+      removeRegistrations(*binding);
+      binding = bindings_.erase(binding);
+      continue;
+    }
+    for (const auto &registration : registrations_) {
+      if (registration.image == binding->image && physicalRange.containsPhysical(registration.address)) {
+        core_.nativeDispatcher().remove({binding->identity, registration.address});
+      }
+    }
+    ++binding;
+  }
+}
+
 std::optional<psx::cpu::NativeKey> GuestExecution::activeKey(GuestImage image, std::uint32_t address) const {
   for (const auto &binding : bindings_) {
     if (binding.image == image && binding.range.containsPhysical(address) &&
@@ -138,6 +163,10 @@ GuestExecution::original(GuestImage image, std::uint32_t address, psx::cpu::Exec
 void registerNativeOverride(
     Core &core, GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function) {
   execution(core).registerOverride(image, address, name, function);
+}
+
+void retireAuthenticatedImagesForWrite(Core &core, GuestAddressRange physicalRange) {
+  execution(core).retireImagesOverlapping(physicalRange);
 }
 
 void dispatchGuest(Core &core, std::uint32_t address) {

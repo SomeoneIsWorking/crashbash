@@ -1,5 +1,6 @@
 #include "title_adapter.h"
 
+#include "boot_image_identity.h"
 #include "cd_control.h"
 #include "crashbash_frame_driver.h"
 #include "crashbash_guest.h"
@@ -42,7 +43,7 @@ void test_native_composition_preserves_picture_device_and_boot_contracts() {
   CHECK_EQ(runtime.guestProgramImage()->gameMainEntry, crashbash::guest::kGameMain);
   CHECK_EQ(runtime.guestProgramImage()->crt0Entry, 0x8002E7B0u);
   CHECK_EQ(runtime.guestProgramImage()->residentText.begin, 0x10000u);
-  CHECK_EQ(runtime.guestProgramImage()->residentText.end, 0x79000u);
+  CHECK_EQ(runtime.guestProgramImage()->residentText.end, 0x6E9F0u);
   CHECK_EQ(runtime.platformHlePlan()->vsyncAddress, crashbash::guest::kVSync.begin);
   CHECK_EQ(runtime.platformHlePlan()->cdCommandAddress, crashbash::guest::kCdCommand);
   CHECK_EQ(runtime.platformHlePlan()->cdSyncAddress, crashbash::guest::kCdSync);
@@ -116,6 +117,7 @@ void test_authenticated_retail_image_loads_and_corruption_preserves_prior_reside
   CHECK(!runtime.loadExecutable(core, corrupted));
   CHECK_EQ(core.mem_r32(loaded.image.textAddress), priorWord);
   CHECK(core.currentImageIdentity(loaded.image.textAddress) == *loaded.identity);
+  CHECK(!core.currentImageIdentity(crashbash::boot_image::kLoadAddress));
   CHECK(core.nativeDispatcher().isInstalled(*key));
   const auto reloaded = runtime.loadExecutable(core, retailBytes);
   CHECK(reloaded);

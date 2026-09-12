@@ -1,5 +1,6 @@
 #include "crashbash_boot.h"
 
+#include "boot_image_identity.h"
 #include "core.h"
 #include "crashbash_guest.h"
 #include "execution_services.h"
@@ -13,7 +14,7 @@ namespace {
 constexpr std::uint32_t kGpuGlobals = 0x80060000u;
 constexpr std::uint32_t kVideoMode = 0x800637A8u;
 constexpr std::uint32_t kFrameHeap = 0x8004E0F0u;
-constexpr std::uint32_t kLoadedApplication = 0x80078C90u;
+constexpr std::uint32_t kLoadedApplication = boot_image::kLoadAddress;
 constexpr std::uint32_t kApplicationDescriptor = 0x80050008u;
 constexpr std::uint32_t kApplicationDispatch = 0x8004E0DCu;
 
