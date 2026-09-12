@@ -1,5 +1,6 @@
 #include "title_adapter.h"
 
+#include "cd_control.h"
 #include "crashbash_frame_driver.h"
 #include "crashbash_guest.h"
 #include "executable_identity.h"
@@ -43,7 +44,14 @@ void test_native_composition_preserves_picture_device_and_boot_contracts() {
   CHECK_EQ(runtime.guestProgramImage()->residentText.begin, 0x10000u);
   CHECK_EQ(runtime.guestProgramImage()->residentText.end, 0x79000u);
   CHECK_EQ(runtime.platformHlePlan()->vsyncAddress, crashbash::guest::kVSync.begin);
+  CHECK_EQ(runtime.platformHlePlan()->cdCommandAddress, crashbash::guest::kCdCommand);
+  CHECK_EQ(runtime.platformHlePlan()->cdSyncAddress, crashbash::guest::kCdSync);
+  CHECK_EQ(runtime.platformHlePlan()->cdSearchFileAddress, crashbash::guest::kCdSearchFile);
   runtime.registerOverrides(*game);
+  game->platform_hle.initBuiltins();
+  CHECK(game->platform_hle.lookup(crashbash::guest::kCdCommand) == cd_command_stock_sync);
+  CHECK(game->platform_hle.lookup(crashbash::guest::kCdSync) == cd_sync_stock_sync);
+  CHECK(game->platform_hle.lookup(crashbash::guest::kCdSearchFile) == cd_searchfile_stock_sync);
   CHECK_EQ(context(game->core).registeredOverrideCount(), 27u);
   CHECK(game->hle.deviceFind("bu") != 0u);
   CHECK_EQ(game->core.imageCatalog().activeCount(), 0u);

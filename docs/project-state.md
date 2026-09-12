@@ -54,8 +54,13 @@ Evidence: Recorded runs reach the first presented frame, MENU `0x800B5244`, the 
 DAT28136 registration/update boundary, and later interactive scenarios with the measured native boot,
 device, and frame owners active.
 
+The direct native/dynarec player now authenticates the resident executable, completes the initial
+disc load through four measured hardware services, and enters its native frame loop. Its first BOOT
+dispatch at `0x80092BDC` correctly refuses an image that has not yet been authenticated and published.
+
 Gap: Re-establish the complete reached sequence through pinned Lightrec with nonzero dynamic execution,
-image-correct invalidation, bounded exits, and reason-accounted fallback.
+image-correct invalidation, bounded exits, and reason-accounted fallback. The next reached dependency
+is BOOT publication at the completed module-load boundary (issue 0027).
 
 ### S003 — Pinned-Lightrec gameplay executor
 
@@ -199,16 +204,25 @@ guest heap, enters the finite boot prefix, opens the real CHD, and then fails fa
 call requires `GuestReturn`. This proves the executable entry and authentication route and identifies
 the next runtime owner; it does not prove boot, gameplay, or presentation.
 
-Framework pin alignment (2026-09-12): `psxport.pin` now records shared psxport `161cb132`
-(`161cb1327c897ebb5305a8a51047221cfb7e4647`), the exact framework checkout used for the current
-consumer build. The earlier canonical gate's only failure was the stale `a5a79652` pin; the pin
-check is expected to pass after this update.
+Framework pin alignment (2026-09-12): `psxport.pin` records shared psxport `0b432b46`
+(`0b432b4677a090882f589c27d893fdd38703c169`), the exact framework checkout used for the current
+consumer build. The combined Clang gate passes all 26 title CTests, including the pin check, and the
+shared execution-boundary check.
 
-Gap: make the measured application/CD initialization operation resumable across a frame boundary or
-implement its complete title-owned synchronous equivalent while retaining the strict VSync trap.
-Then qualify all 27 installations and 15 original calls on real loaded-image and gameplay routes. The
-shared direct-runtime memory-card path also needs OS user-data configuration; its current scratch
-fallback is not a releasable save location.
+Direct CD migration evidence (2026-09-12): The old `GameConfig` bound stock CdCommand, CdSync, and
+CdSearchFile, but the direct plan initially declared only VSync. The framework now exposes those
+three standard CD services as typed plan fields and Crash Bash binds the measured entries. Focused
+Clang tests pass 3 cases / 13 assertions for direct and legacy CD registration, 6 cases / 45
+assertions for stock CD command/sync behavior, and 4 cases / 49 assertions for title composition and
+retail executable authentication. In a bounded headless direct player run, the USA CHD opened,
+`load file start` and `done loading` completed, and the native frame loop began with no guest VSync
+trap. The next strict fault was an unknown BOOT image at `0x80092BDC` after 153,924 guest cycles.
+This advances the startup frontier but does not qualify a presented frame or gameplay.
+
+Gap: publish the authenticated BOOT module generation before dispatch, then qualify all 27
+installations and 15 original calls on real loaded-image and gameplay routes. The shared
+direct-runtime memory-card path also needs OS user-data configuration; its current scratch fallback
+is not a releasable save location.
 
 ### S016 — Representative gameplay
 

@@ -35,6 +35,9 @@ constexpr GuestProgramImage kProgramImage{
 };
 
 constexpr PlatformHlePlan kPlatformPlan{
+    .cdCommandAddress = guest::kCdCommand,
+    .cdSyncAddress = guest::kCdSync,
+    .cdSearchFileAddress = guest::kCdSearchFile,
     .vsyncAddress = guest::kVSync.begin,
     .windowLo = {guest::kVSync.begin, guest::kCdInitHandshake},
     .windowHi = {guest::kVSync.end, guest::kCdCommand + 4u},
