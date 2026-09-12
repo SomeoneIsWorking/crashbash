@@ -54,14 +54,15 @@ Evidence: Recorded runs reach the first presented frame, MENU `0x800B5244`, the 
 DAT28136 registration/update boundary, and later interactive scenarios with the measured native boot,
 device, and frame owners active.
 
-The direct native/dynarec player authenticates the resident executable and the completed 189-sector
-BOOT read, enters native frames 0 and 1, and keeps intact BOOT code authenticated after the 16-sector
-MENU read overwrites only part of it. A bounded retail run crossed the prior BOOT fault
-`0x80093244` and strictly refused the newly reached MENU entry `0x800B5244` after 6,390 guest cycles.
+The direct native/dynarec player authenticates the resident executable and completed 189-sector
+BOOT and 16-sector MENU reads. It enters native frames 0 and 1, preserves untouched BOOT code when
+MENU overwrites only part of it, and crosses the former MENU identity fault at `0x800B5244`.
+One bounded retail run published MENU generation 4 and entered its native observer, then exhausted
+the scoped original-call budget at `0x80018AA0` after 564,484 cycles.
 
 Gap: Re-establish the complete reached sequence through pinned Lightrec with nonzero dynamic execution,
 image-correct invalidation, bounded exits, and reason-accounted fallback. The next reached dependency
-is MENU publication at its completed module-load boundary (issue 0028).
+is determining why MENU entry cannot complete its original call within the current turn (issue 0029).
 
 ### S003 — Pinned-Lightrec gameplay executor
 
@@ -207,7 +208,7 @@ call requires `GuestReturn`. This proves the executable entry and authentication
 the next runtime owner; it does not prove boot, gameplay, or presentation.
 
 Framework pin alignment (2026-09-12): `psxport.pin` records shared psxport `8b210329`, the exact
-framework checkout used for the current consumer build. The combined Clang gate passes all 27 title
+framework checkout used for the current consumer build. The combined Clang gate passes all 28 title
 CTests, including the pin check and shared execution-boundary check.
 
 Direct CD migration evidence (2026-09-12): The old `GameConfig` bound stock CdCommand, CdSync, and
@@ -218,11 +219,12 @@ assertions for stock CD command/sync behavior, and 4 cases / 49 assertions for t
 retail executable authentication. In a bounded headless direct player run, the USA CHD opened,
 `load file start` and `done loading` completed, and the native frame loop began with no guest VSync
 trap. That run stopped at an unknown BOOT image at `0x80092BDC` after 153,924 guest cycles. BOOT
-publication and partial-overwrite retirement now cross that boundary; a later bounded run reached
-MENU `0x800B5244` and refused its still-unpublished image. This advances the startup frontier but
-does not qualify a presented frame or gameplay.
+publication and partial-overwrite retirement now cross that boundary. A later bounded run published
+MENU from its exact measured read and entered `0x800B5244`; its original call then exhausted the
+current-turn budget at `0x80018AA0` after 564,484 cycles. This advances the startup frontier but
+does not qualify a presented frame or gameplay, and the abort prevented fallback-denominator output.
 
-Gap: publish the authenticated MENU module generation before dispatch, then qualify all 27
+Gap: resolve the reached MENU original-call budget boundary, then qualify all 27
 installations and 15 original calls on real loaded-image and gameplay routes. The shared
 direct-runtime memory-card path also needs OS user-data configuration; its current scratch fallback
 is not a releasable save location.

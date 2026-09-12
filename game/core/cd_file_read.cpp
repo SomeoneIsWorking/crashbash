@@ -6,6 +6,7 @@
 #include "disc.h"
 #include "game.h"
 #include "guest_execution.h"
+#include "menu_image.h"
 
 #include <array>
 #include <cstdint>
@@ -78,7 +79,8 @@ void cdFileReadOwned(Core *core) {
     }
   }
 
-  if (completeBootImageRead(*core, lba, destination, sectorCount) == BootImageReadResult::Rejected) {
+  if (completeBootImageRead(*core, lba, destination, sectorCount) == BootImageReadResult::Rejected ||
+      completeMenuImageRead(*core, lba, destination, sectorCount) == MenuImageReadResult::Rejected) {
     core->mem_w32(guest::kCdReadActive, 0u);
     core->r[2] = 0xFFFFFFFFu;
     return;

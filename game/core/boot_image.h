@@ -1,12 +1,14 @@
 #pragma once
 
+#include "authenticated_module_image.h"
+
 #include <cstdint>
 
 class Core;
 
 namespace crashbash {
 
-enum class BootImageReadResult { Unrelated, Published, Rejected };
+using BootImageReadResult = ModuleImageReadResult;
 
 // The retail CD read owns the bytes. This owner admits only the exact measured complete BOOT read
 // and authenticates the resulting guest RAM before publishing its executable generation.
