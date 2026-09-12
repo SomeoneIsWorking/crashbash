@@ -199,6 +199,11 @@ guest heap, enters the finite boot prefix, opens the real CHD, and then fails fa
 call requires `GuestReturn`. This proves the executable entry and authentication route and identifies
 the next runtime owner; it does not prove boot, gameplay, or presentation.
 
+Framework pin alignment (2026-09-12): `psxport.pin` now records shared psxport `161cb132`
+(`161cb1327c897ebb5305a8a51047221cfb7e4647`), the exact framework checkout used for the current
+consumer build. The earlier canonical gate's only failure was the stale `a5a79652` pin; the pin
+check is expected to pass after this update.
+
 Gap: make the measured application/CD initialization operation resumable across a frame boundary or
 implement its complete title-owned synchronous equivalent while retaining the strict VSync trap.
 Then qualify all 27 installations and 15 original calls on real loaded-image and gameplay routes. The
