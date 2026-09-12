@@ -38,9 +38,6 @@ animation state; it never reconstructs the product picture from GTE output, orde
 or framebuffer pixels. Widescreen is a projection/viewport/scissor change, and interpolation uses
 consecutive immutable native scene snapshots without mutating guest state.
 
-USER 2026-08-30: "Change the directive, pixel matching doesn't matter. I just want working game that
-looks correct."
-
 The completion bar is representative gameplay that works and looks correct. Frame comparison, an
 independent emulator, and the separately built test target, including diagnostics, may locate a divergence;
 they do not define presentation completion. Boot, logos, menus, attract loops, and one frame are not
