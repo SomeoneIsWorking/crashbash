@@ -374,7 +374,7 @@ if(BUILD_TESTING)
     NAME crashbash_psxport_pin
     COMMAND
       "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/psxport_sync.py"
-      --check --build-dir "${CMAKE_BINARY_DIR}"
+      --check --build "${CMAKE_BINARY_DIR}"
   )
   add_test(
     NAME crashbash_oracle_irq_compare_selftest
@@ -401,3 +401,11 @@ if(BUILD_TESTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_bounded_resume.py" --selftest
   )
 endif()
+
+# The pin tool's own behaviour: the staleness guard, and a bump that records the commit the build
+# RESOLVED rather than the framework's current HEAD. Added because 7 of 10 ports shipped the tool with no
+# test gating it at all. Unguarded on purpose where this repository does not define BUILD_TESTING -- a
+# guarded add_test there is silently inert, which is the failure this gate exists to prevent.
+add_test(
+  NAME crashbash_psxport_pin_selftest
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_psxport_sync.py")
