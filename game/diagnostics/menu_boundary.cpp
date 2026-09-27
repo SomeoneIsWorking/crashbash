@@ -4,7 +4,6 @@
 #include "guest_execution.h"
 
 #include <cstdint>
-#include <mutex>
 
 #include <lucent/log.h>
 
@@ -24,10 +23,7 @@ constexpr std::uint32_t kDat28136Update = 0x800B4694u;
 constexpr std::uint32_t kAppUpdateCallback = 0x8009F8B4u;
 
 void observeMenuEntry(Core *core) {
-  static std::once_flag marker;
-  std::call_once(marker, [core] {
-    lucent::info("crashbash-boundary", "MENU entry addr={:08X} ra={:08X}", kMenuEntry, core->r[31]);
-  });
+  lucent::info("crashbash-boundary", "MENU entry addr={:08X} ra={:08X}", kMenuEntry, core->r[31]);
   runtime::callOriginal(*core, runtime::GuestImage::Menu, kMenuEntry);
 }
 
@@ -71,14 +67,11 @@ void observeDat28136Registration(Core *core) {
 }
 
 void observeDat28136Update(Core *core) {
-  static std::once_flag marker;
-  std::call_once(marker, [core] {
-    lucent::info("crashbash-boundary",
-                 "DAT28136 update addr={:08X} ra={:08X} callback={:08X}",
-                 kDat28136Update,
-                 core->r[31],
-                 core->mem_r32(kAppUpdateCallback));
-  });
+  lucent::debug("crashbash-boundary",
+                "DAT28136 update addr={:08X} ra={:08X} callback={:08X}",
+                kDat28136Update,
+                core->r[31],
+                core->mem_r32(kAppUpdateCallback));
   runtime::callOriginal(*core, runtime::GuestImage::Dat28136, kDat28136Update);
 }
 

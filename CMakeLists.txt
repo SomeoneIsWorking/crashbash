@@ -394,4 +394,10 @@ if(BUILD_TESTING)
       "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_command_response_timing.py" --selftest
   )
+  add_test(
+    NAME crashbash_bounded_resume_selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_bounded_resume.py" --selftest
+  )
 endif()

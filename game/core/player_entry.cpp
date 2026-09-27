@@ -4,6 +4,7 @@
 #include "c_subsys.h"
 #include "core.h"
 #include "game.h"
+#include "guest_execution.h"
 #include "hw_bind.h"
 #include "title_adapter.h"
 
@@ -78,5 +79,9 @@ int main(int argc, char **argv) {
 
   watchdog_init();
   native_boot_run(&core);
+  // The guest-call denominator beside the framework's other run-end reports: how many calls ran, and
+  // how many of those needed more than one display field. A run in which nothing was ever resumed has
+  // to say so against that count, or the absence of a resume reads as "nothing was measured".
+  crashbash::runtime::reportGuestCallCensus("after native boot");
   return 0;
 }

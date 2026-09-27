@@ -374,7 +374,11 @@ def prepare_product(
         )
     framework = Path(environment.get("PSXPORT_DIR", ROOT / "external" / "psxport"))
     policy = runpy.run_path(str(framework / "tools/port/launch_environment.py"))
-    environment = policy["player_environment"](environment)
+    # `product` names this title's run-log directory under the OS user-data location, and psxport
+    # requires it: the log is the only copy of what the product said, and it must not land in another
+    # title's file. Omitting it raised `TypeError` in `crashbash_bootstrap_selftest`, so a fresh clone
+    # could not launch at all — which is the one thing the launcher is the contract for.
+    environment = policy["player_environment"](environment, product="crashbash")
     environment.setdefault("PSXPORT_ASSET_DIR", str(framework))
     return environment
 

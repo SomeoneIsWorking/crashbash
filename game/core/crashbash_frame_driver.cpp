@@ -15,6 +15,7 @@
 
 #include <cstdlib>
 #include <lucent/log.h>
+#include <optional>
 
 namespace crashbash {
 
@@ -75,6 +76,14 @@ void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields
   }
 }
 
+void CrashBashFrameDriver::finishUpdateSlice(Core &core, const psx::cpu::ExecutionResult &result) {
+  if (!psx::cpu::requireGuestReturn(result, "Crash Bash process update")) {
+    std::abort();
+  }
+  measuredGuestCall(core, presentFn_, kPresentReturnPc, 4u);
+  psx::cpu::accountGuestInstructions(core, 4u);
+}
+
 void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   game_.timing.logicFrame = frame;
   game_.timing.frameTick();
@@ -107,7 +116,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   }
 
   // Retail 0x800270F0 checks for a state transition after enter, then executes update and present
-  // as one indivisible iteration before observing the next transition.
+  // as one indivisible iteration before observing the next transition. The update is one guest call
+  // carried to its return address by runGuestCallToReturn, so an iteration that needs more than one
+  // display field of guest time completes instead of aborting or being split across host turns.
   if (core.mem_r32(guest::kCurrentProcessState) == activeState_) {
     if (enteredState) {
       core.r[17] = 0x80060000u;
@@ -124,9 +135,15 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     }
     updateFn_ = update;
     presentFn_ = present;
-    measuredGuestCall(core, update, 0x80027144u, 4u);
-    measuredGuestCall(core, present, 0x80027154u, 4u);
-    psx::cpu::accountGuestInstructions(core, 4u);
+    finishUpdateSlice(
+        core,
+        runtime::runGuestCallToReturn(
+            core,
+            update,
+            kUpdateReturnPc,
+            "Crash Bash process update",
+            std::nullopt,
+            measuredGuestCallSlice(core, update, kUpdateReturnPc, 4u, psx::cpu::ExecutionBudget::currentTurn(core))));
   }
 
   reportProgress(core, frame);
@@ -208,7 +225,9 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
   const render::ModelTransformInputCensus &inputCensus = render::modelTransformInputCensus();
   lucent::info("crashbash-frame",
                "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
-               "{} field(s) delivered, {} accepted pre-GTE model draw(s) ({} transformed / {} source-decoded), "
+               "{} field(s) delivered, "
+               "{} accepted pre-GTE model draw(s) "
+               "({} transformed / {} source-decoded), "
                "{} model face(s) captured ({} textured) / {} submitted (rejected zero/far/winding "
                "{}/{}/{}), vblank counter 0x{:08X}, "
                "app mode 0x{:08X} unchanged for "

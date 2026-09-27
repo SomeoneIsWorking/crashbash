@@ -1,5 +1,6 @@
 #pragma once
 
+#include "execution_exit.h"
 #include "game_runtime.h"
 #include "scene_snapshot.h"
 
@@ -23,8 +24,13 @@ public:
   render::SceneSnapshotHistory &sceneSnapshots();
 
 private:
-  void enterProcessState(Core &core, std::uint32_t state);
+  static inline constexpr std::uint32_t kUpdateReturnPc = 0x80027144u;
+  static inline constexpr std::uint32_t kPresentReturnPc = 0x80027154u;
 
+  void enterProcessState(Core &core, std::uint32_t state);
+  // Requires the completed update and then runs the pair's present. The update itself is carried to
+  // its return address by runtime::runGuestCallToReturn, so this only ever sees a completed call.
+  void finishUpdateSlice(Core &core, const psx::cpu::ExecutionResult &result);
   // Progress reporting. The interesting event is a process-state CHANGE, and a run that never
   // changes state is precisely the failure worth seeing — so the boring case (sitting in one state)
   // is what gets capped, never the transitions. reportProgress() is called unconditionally at the

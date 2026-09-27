@@ -3,9 +3,11 @@
 #include "game.h"
 #include "game_runtime.h"
 #include "lightrec_executor.h"
+#include "native_dispatch.h"
 #include "testutil.h"
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
 
 namespace {
@@ -134,6 +136,77 @@ void test_original_budget_exit_exposes_live_loop_state() {
   CHECK_EQ(core.r[8], 0u);
 }
 
+// A host turn boundary the harness supplies directly, so the resume path is exercised without
+// depending on how many cycles a host happens to retire inside one translated segment. The pc is a
+// LIVE mid-function address and the cycle count is non-zero, which is exactly the shape of a real
+// turn the fence accepts; a zero-cycle or zero-PC exit is the one it refuses.
+psx::cpu::ExecutionResult syntheticTurn(std::uint32_t resumePc) {
+  return {psx::cpu::ExecutionExitReason::BudgetExhausted, resumePc, 500u, "synthetic turn boundary"};
+}
+
+// A bounded guest body: a short counted loop, then r[2] = 42 and a return. Deliberately free of nested
+// calls, because a nested `jal` overwrites r[31] and this fixture's whole claim is that the resume
+// ends at the call's OWN return address.
+//
+// NOT COVERED HERE, and deliberately: that a resumed ORIGINAL suppresses its own override while a
+// plain resume does not. Whether the executor stops at an override address is a translated-block
+// decision, so that difference is not observable from a fixture this size; psxport records the same
+// gap for the primitive (native_dispatch.cpp, "COVERAGE"). What is observable is that both resumes
+// carry a cut call to its return address, which is what was broken.
+void test_bounded_resume_carries_a_long_call_to_its_return() {
+  Runtime runtime;
+  auto game = makeGame(runtime);
+  Core &core = game->core;
+  GuestExecution &execution = context(core);
+  const auto image = core.imageCatalog().activate("menu", kRange, 1u);
+  constexpr std::uint32_t kBody = 0x80010030u;
+  core.mem_w32(kBody, 0x24080005u);       // addiu t0, zero, 5
+  core.mem_w32(kBody + 4u, 0x2508ffffu);  // addiu t0, t0, -1
+  core.mem_w32(kBody + 8u, 0x1500fffeu);  // bne t0, zero, kBody + 4u
+  core.mem_w32(kBody + 12u, 0u);          // delay-slot nop
+  core.mem_w32(kBody + 16u, 0x2402002au); // addiu v0, zero, 42
+  core.mem_w32(kBody + 20u, 0x03e00008u); // jr ra
+  core.mem_w32(kBody + 24u, 0u);          // delay-slot nop
+  execution.bindAuthenticatedImage(GuestImage::Menu, image, kRange);
+  core.r[31] = kReturn;
+  core.r[29] = 0x801ff000u;
+  // A latched host/interrupt request is serviced at the first block boundary and execution continues
+  // from the Core's own pc, which is not that boundary's pc. The product services pending work before
+  // every guest call; this harness has no frame driver to do it, so the fixture does it explicitly.
+  core.pending_work = 0;
+  core.r[2] = 0u;
+  core.r[8] = 0u;
+
+  // A turn that ended budget-exhausted at a live mid-function pc is resumed to the call's return
+  // address, and the resumed work actually runs: the loop's counter reaches its end value.
+  const auto plain = crashbash::runtime::runGuestCallToReturn(
+      core, kBody, kReturn, "test plain resumed guest call", std::nullopt, syntheticTurn(kBody));
+  CHECK(plain.returned());
+  CHECK_EQ(core.r[2], 42u);
+  CHECK_EQ(core.r[8], 0u);
+  CHECK_EQ(core.r[31], kReturn);
+  CHECK_EQ(core.r[29], 0x801ff000u);
+  CHECK(plain.cycles > 0u);
+
+  // The same call resumed as the ORIGINAL of a key: that is the other framework entry point, and it
+  // re-establishes the suppression and caller scopes the resume needs.
+  crashbash::runtime::registerNativeOverride(core, GuestImage::Menu, kEntry, "menu-value", nativeValue);
+  const psx::cpu::NativeKey key{image, kEntry};
+  core.pending_work = 0;
+  core.r[2] = 0u;
+  core.r[8] = 0u;
+  const auto original = crashbash::runtime::runGuestCallToReturn(
+      core, kBody, kReturn, "test resumed original", key, syntheticTurn(kBody));
+  CHECK(original.returned());
+  CHECK_EQ(core.r[2], 42u);
+  CHECK_EQ(core.r[8], 0u);
+  CHECK_EQ(core.r[31], kReturn);
+  // The suppression scope is released when the resumed original returns, so the dispatcher is back to
+  // intercepting that key rather than left permanently suppressed — a leaked scope would silently
+  // disable every native override from here on.
+  CHECK(core.nativeDispatcher().intercepts({image, kEntry}));
+}
+
 void test_invalid_replacement_preserves_binding_and_cores_are_isolated() {
   Runtime runtime;
   auto first = makeGame(runtime);
@@ -178,6 +251,7 @@ int main() {
   RUN(pending_registration_reload_and_wrong_image_refusal);
   RUN(original_uses_dynarec_and_restores_interception);
   RUN(original_budget_exit_exposes_live_loop_state);
+  RUN(bounded_resume_carries_a_long_call_to_its_return);
   RUN(invalid_replacement_preserves_binding_and_cores_are_isolated);
   return pt_summary();
 }
