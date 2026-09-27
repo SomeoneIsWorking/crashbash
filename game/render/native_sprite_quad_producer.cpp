@@ -36,13 +36,12 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScree
       gpu.s_da_y0 > gpu.s_da_y1) {
     return;
   }
-  const int authoredCanvasShift = draw.authoredWorldOrder && !draw.textured && gpu_vk_wide_engine(&core)
-                                      ? (gpu_vk_wide_engine_w(&core) - gpu_vk_native_w(&core)) / 2
-                                      : 0;
+  const int authoredCanvasShift =
+      draw.authoredWorldOrder && !draw.textured && gpu_vk_wide_engine(&core) ? gpu_vk_wide_left_margin(&core) : 0;
   int drawAreaX0 = gpu.s_da_x0;
   int drawAreaX1 = gpu.s_da_x1;
   if (authoredScreenPresentation && gpu_vk_wide_engine(&core)) {
-    const int margin = (gpu_vk_wide_engine_w(&core) - gpu_vk_native_w(&core)) / 2;
+    const int margin = gpu_vk_wide_left_margin(&core);
     drawAreaX0 = std::max(drawAreaX0, margin);
     drawAreaX1 = std::min(drawAreaX1, margin + gpu_vk_native_w(&core) - 1);
   }

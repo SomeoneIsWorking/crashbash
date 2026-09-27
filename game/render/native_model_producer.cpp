@@ -83,7 +83,9 @@ NativeModelSubmitResult submitFixedModel(Core &core,
     // columns around that frame, so preserve any title viewport offset and move its projection
     // origin by exactly the new left margin. Replacing OFX with the framebuffer midpoint would
     // destroy split/offset viewport intent; leaving it unchanged left-aligns the whole arena.
-    const std::int32_t margin = gpu_vk_wide_engine_ofx(&core) - gpu_vk_native_w(&core) / 2;
+    // The framework owns this quantity; see `gpu_vk_wide_left_margin` for why it is not spelled
+    // `wide_ofx - native_w / 2` here even though that is arithmetically equal while both widths are even.
+    const std::int32_t margin = gpu_vk_wide_left_margin(&core);
     projection.ofx += margin << 16;
     if (environment.authoredScreenPresentation) {
       // The briefing is one 4:3 composition. Its world, dimmer, border, text, and HUD must share
