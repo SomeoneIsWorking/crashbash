@@ -134,6 +134,26 @@ representative retail modes on the hybrid product.
 Evidence: The native path rebuilds midpoint model geometry from consecutive immutable title snapshots
 without changing the retail simulation cadence or mutating guest RAM.
 
+**THE RETAIL CADENCE IS NOW MEASURED, and it is 2 FIELDS PER GAME FRAME = 30 fields/s** (docs/issues/0031).
+The number was absent from this repository, so nothing here could say whether interpolated presentation was
+the right thing for this title at all. It is: the title runs 30 fps, so it is in lerp scope, and preserving
+the retail cadence is what the native path already does. From the provisioned image, not the listing — four
+of five writers store the literal 2 into the rate global `0x8004E0E0` (`guest::kDisplayFieldsPerFrame`), and
+the display owner passes it straight through as the VSync argument. `0x800320EC` proves the argument is a
+FIELD COUNT: `a0 == 1` and `a0 <= 0` both take a **no-wait** branch and only `a0 >= 2` waits, for
+`current + a0 - 1` more fields. **60 fps is therefore structurally unpaceable on this path**, because
+`VSync(1)` is the explicit no-wait case; a skip-every-other-VBlank shape would need a counter compare and the
+process loop has none. Corroborated independently by the process runner looping `{update; present}` with no
+counter, parity test or comparison, and by exactly one of 54 VSync call sites having a non-literal argument.
+
+**Denominator stated honestly:** the census is every `imm16 == 0xE0E0` paired with `lui $reg, 0x8005` over
+**323,072 words across all 8 linked images**, giving 7 sites — 5 writers, 2 readers — with **0 in the six
+gameplay/MENU overlays**. **The fifth writer is the open item:** BOOT `0x80094694` stores **3**, not 2, from
+`$a2 = 3` in a delay slot, reached only via a `beqz`, inside a fixed-point divide. Whether that path is
+per-frame or one-time init is not established. It does not change the gameplay answer, because the overlays
+never touch the global and the resident image re-asserts 2 at every scene start — but "four writers say 2,
+one says 3" is not "the cadence is 2", so the denominator is five writers.
+
 Gap: Complete and verify interpolation for all reached world, effect, UI, and transition families on
 representative hybrid gameplay.
 

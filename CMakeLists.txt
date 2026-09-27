@@ -409,3 +409,12 @@ endif()
 add_test(
   NAME crashbash_psxport_pin_selftest
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_psxport_sync.py")
+# The caller census's OWN decoder check. `probe_call_sites.py` computed a jal target as
+# (word & 0x03FFFFFF) << 2 with no region term, which caps every target at 0x0FFFFFFC -- so `--callee` on
+# any real guest address could NEVER match and the tool printed `matched 0` over a full scan, with a
+# denominator, readable as a finding. Fixed, and this is what keeps it fixed: the decode needs no disc,
+# no product and no root, so it is checkable on every gate run. `--callee 0x800320EC` now matches 47,
+# which is exactly the count docs/findings/vsync-owner-map.md records.
+add_test(NAME probe_call_sites_selftest
+         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/probe_call_sites.py"
+                 --selftest)
