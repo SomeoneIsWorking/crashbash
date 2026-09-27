@@ -47,19 +47,39 @@ function(configure_crashbash_module_identity module_name)
   string(JSON MODULE_PAYLOAD_BYTES GET "${MODULE_MANIFEST}" payload_size)
   string(JSON MODULE_SHA256 GET "${MODULE_MANIFEST}" payload_sha256)
   string(JSON MODULE_LOAD_ADDRESS GET "${MODULE_MANIFEST}" load_address)
-  string(JSON MODULE_ENTRY_OFFSET GET "${MODULE_MANIFEST}" entry_pointer_offset)
-  string(JSON MODULE_ENTRY GET "${MODULE_MANIFEST}" entry)
+  # The nested gameplay overlays record `entry_pointer_offset` and `entry` as JSON null, because their
+  # payload headers are ASCII name tables rather than a table of contents (measured 2026-09-27; see
+  # authenticated_module_image.h). `string(JSON ... GET)` is an ERROR on a null member, so the type is
+  # asked first and the absence is carried through as a stated zero rather than a configure failure or
+  # a guessed offset. The two are recorded as hex STRINGS wherever they exist, so the test is against
+  # NULL and not against a numeric type: testing for NUMBER silently zeroes BOOT's and MENU's real
+  # entry witnesses, which is exactly the regression this branch was written to avoid.
+  string(JSON MODULE_ENTRY_OFFSET_TYPE TYPE "${MODULE_MANIFEST}" entry_pointer_offset)
+  string(JSON MODULE_ENTRY_TYPE TYPE "${MODULE_MANIFEST}" entry)
+  if(NOT MODULE_ENTRY_OFFSET_TYPE STREQUAL "NULL" AND NOT MODULE_ENTRY_TYPE STREQUAL "NULL")
+    string(JSON MODULE_ENTRY_OFFSET GET "${MODULE_MANIFEST}" entry_pointer_offset)
+    string(JSON MODULE_ENTRY GET "${MODULE_MANIFEST}" entry)
+  else()
+    set(MODULE_ENTRY_OFFSET 0)
+    set(MODULE_ENTRY 0)
+  endif()
   set(MODULE_NAME "${module_name}")
   configure_file(game/core/module_image_identity.h.in "title_metadata/${module_name}_image_identity.h" @ONLY)
 endfunction()
 
 configure_crashbash_module_identity(boot)
 configure_crashbash_module_identity(menu)
+configure_crashbash_module_identity(dat28136)
+configure_crashbash_module_identity(dat28272)
+configure_crashbash_module_identity(dat28241)
+configure_crashbash_module_identity(dat28382)
+configure_crashbash_module_identity(dat22510)
 
 set(CRASHBASH_SEAM_SOURCES
   game/core/boot_object_callbacks.cpp
   game/core/boot_logo_skip.cpp
   game/core/authenticated_module_image.cpp
+  game/core/nested_module_image.cpp
   game/core/boot_image.cpp
   game/core/cd_file_read.cpp
   game/core/cd_license_startup.cpp
@@ -164,6 +184,12 @@ if(BUILD_TESTING)
   target_link_libraries(crashbash_menu_image_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_menu_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_menu_image COMMAND crashbash_menu_image_test)
+  add_executable(crashbash_nested_module_image_test tests/test_nested_module_image.cpp)
+  target_include_directories(crashbash_nested_module_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
+                                                                    "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_link_libraries(crashbash_nested_module_image_test PRIVATE crashbash_seam)
+  set_target_properties(crashbash_nested_module_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_nested_module_image COMMAND crashbash_nested_module_image_test)
   add_executable(crashbash_guest_execution_test tests/test_guest_execution.cpp)
   target_include_directories(crashbash_guest_execution_test PRIVATE game/core "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_guest_execution_test PRIVATE crashbash_guest_execution)

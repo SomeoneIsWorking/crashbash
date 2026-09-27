@@ -21,6 +21,12 @@ enum class GuestImage {
   Menu,
   Dat28136,
   Dat22510,
+  // The remaining tracked occupants of the reused 0x800B32B4 nested slot. They are named here
+  // because a logical image that has no value cannot be named by a native key, and a native key
+  // that cannot be named is an override or a translated block with no identity to retire.
+  Dat28272,
+  Dat28241,
+  Dat28382,
 };
 
 using NativeOverride = void (*)(Core *);

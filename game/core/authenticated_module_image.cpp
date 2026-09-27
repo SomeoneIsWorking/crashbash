@@ -41,16 +41,26 @@ ModuleImageReadResult completeModuleImageRead(Core &core,
   const std::span<const std::uint8_t> bytes(core.ram + physical, spec.payloadBytes);
   const auto digest = lucent::content::sha256(std::as_bytes(bytes));
   const auto actualSha = lucent::content::sha256_hex(digest);
+  // The entry witness is read ONLY when the manifest recorded one. Reading it unconditionally would
+  // read four bytes of a name table and compare them against 0, which is a guaranteed mismatch and a
+  // refusal that says nothing about the image.
   std::uint32_t entry = 0u;
-  for (std::uint32_t index = 0; index < sizeof(entry); ++index) {
-    entry |= static_cast<std::uint32_t>(bytes[spec.entryPointerOffset + index]) << (index * 8u);
+  if (hasEntryWitness(spec)) {
+    for (std::uint32_t index = 0; index < sizeof(entry); ++index) {
+      entry |= static_cast<std::uint32_t>(bytes[spec.entryPointerOffset + index]) << (index * 8u);
+    }
   }
   if (actualSha != spec.sha256 || entry != spec.entry) {
     lucent::error("crashbash-module",
-                  "completed {} read failed image authentication: sha256 {} entry 0x{:08X}",
+                  "completed {} read failed image authentication: sha256 {} entry 0x{:08X} (expected "
+                  "sha256 {} entry 0x{:08X}; this module carries {} content witness)",
                   spec.name,
                   actualSha,
-                  entry);
+                  entry,
+                  spec.sha256,
+                  spec.entry,
+                  hasEntryWitness(spec) ? "2 (sha256 and a table-of-contents entry word)"
+                                        : "1 (sha256 alone; this module carries no entry word)");
     return ModuleImageReadResult::Rejected;
   }
   psx::cpu::notifyExecutableWrite(core, range, psx::cpu::ExecutableWriteSource::ModuleLoad);
@@ -58,10 +68,16 @@ ModuleImageReadResult completeModuleImageRead(Core &core,
   auto &execution = *static_cast<runtime::GuestExecution *>(core.gameCtx);
   execution.bindAuthenticatedImage(spec.image, image, range);
   lucent::info("crashbash-module",
-               "authenticated {} image generation {} at 0x{:08X}",
+               "authenticated {} image generation {} at 0x{:08X}: {} sector(s), {} byte(s), {} — sha256 {}",
                spec.name,
                image.generation,
-               spec.loadAddress);
+               spec.loadAddress,
+               spec.sectorCount,
+               spec.payloadBytes,
+               hasEntryWitness(spec)
+                   ? "2 content witnesses (sha256 plus the table-of-contents entry word)"
+                   : "1 content witness (sha256 alone; this module's header is a name table, not a pointer table)",
+               spec.sha256);
   return ModuleImageReadResult::Published;
 }
 
