@@ -68,9 +68,49 @@ is preserving MENU entry's finite image-conversion work across a bounded origina
 ### S003 — Pinned-Lightrec gameplay executor
 
 Partial capability: the direct player links pinned Lightrec as its first guest executor and reaches
-BOOT execution and the next strict MENU image refusal. The asset-free product-link and selector
-checks exclude an interpreter-only default. Representative gameplay, complete image publication,
-and a whole-run translated/fallback counter ledger are still missing.
+BOOT execution. The asset-free product-link and selector checks exclude an interpreter-only default.
+Representative gameplay, complete image publication, and a whole-run translated/fallback counter ledger
+are still missing.
+
+**MEASURED 2026-09-27, and the MENU image refusal is GONE — so the old wording above was stale.** The
+consolidated resume owner (`cdc3ba5`) removed the abort. A 400-frame-capped headless run of
+`build/player/bin/crashbash_port` now ends on the guest's OWN terms with a clean exit:
+
+| measurement | value |
+|---|---|
+| aborts / `executor:error` / faults | **0** (previously an abort at the MENU image channel swap) |
+| guest calls completed | **30,751**, of which **3 needed a resume**, deepest **7 host turns** against the cap of 12 |
+| guest instructions executed | 32,521,896 in 2,839,510 executed blocks |
+| renderer | `[gpu_vk] headless renderer up`, `present image 960x720 (headless sink)` — the Vulkan path DOES initialise |
+| transform census | attempts=673 captured=673 **mismatch=0**; standard/alternate GTE input 673/673, 0 mismatched on rotation/translation/projection |
+| BIOS card syscalls | 112 calls, **0 unhandled** |
+| disc | 947 hunk lookups, 817 hits, 130 fills (13.7% miss) |
+| last field | **f255**, then `[native_boot] frame loop done` |
+| state reached | **one** — `0x8004E0B8` (entry `0x80010410`, update `0x80010394`, present `0x80010278`), and it is reported as `dwelling in state 0x8004E0B8 for 256 frame(s)` |
+
+So the honest reading is narrow and worth stating precisely: **the product no longer aborts, executes
+its whole guest loop cleanly, and its transform and syscall paths are clean — but it never leaves
+`0x8004E0B8`, so "reaches f255" is NOT progress and gameplay is still unreachable.** Counting fields
+without counting distinct states would have reported this as a large advance; the frame driver's own
+`dwelling in state ... for N frame(s)` line is what makes the difference visible, and it should be the
+number quoted for this title from now on.
+
+Two instrument facts from the same run, both of which nearly produced a wrong claim:
+
+- **`PSXPORT_NATIVE_FRAMES` is read through the legacy `cfg_int` path, not a declared CVar.** The boot
+  audit reports it `UNKNOWN` because nothing has read it yet at boot, and the EXIT audit reports it
+  `legacy (observed when read)`. Both are true; reading the boot line alone would have concluded the cap
+  did nothing and that the run was unbounded, when the guest simply finished first.
+- **`PSXPORT_VK_HEADLESS=1` is genuinely never read, and that is correct.**
+  `runtime/psx/gpu_vk.cpp:178` is `s_headless = (cfg_on("PSXPORT_VK_WINDOW") && !cfg_on("PSXPORT_VK_HEADLESS")) ? 0 : 1;`
+  — with no window requested the `&&` short-circuits and the override is never consulted. The product is
+  headless because a window is the switch, which is the documented "a forgotten flag fails SAFE" design.
+  The exit audit's `UNKNOWN ... NOTHING ever read it` is a true report of a no-op, and it is NOT evidence
+  that the renderer failed to initialise. It briefly read as exactly that, which is worth recording
+  because the renderer was up and presenting on the same run.
+
+Still missing: representative gameplay, complete image publication, and the whole-run
+translated/fallback counter ledger.
 
 ### S004 — Native graphics coverage
 
