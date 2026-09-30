@@ -56,6 +56,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S016 | Representative interactive gameplay passes on the native/dynarec product | partial | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
 | S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
 | S018 | Hosted CI truthfully covers applicable Linux, Windows, macOS, and Android product boundaries | partial | S003 | G001 |
+| S020 | Crash Bash: load operations complete without loading-only waits or presentation; logos cancel through the recovered route | missing | S003 | G004 |
 
 The verified S009-S012 entries describe durable reached behavior and replay inputs, not dynamic-engine
 completion. They become dynarec conformance evidence only after those scenarios run through the hybrid
@@ -449,6 +450,13 @@ execution of this expanded job remains unverified, and it does not establish pac
 Gap: the former green Android metadata/selftest job was removed because it did not build or install an
 APK. Add Android and desktop jobs only when they drive the actual redistributable platform boundary
 without game assets.
+
+### S020 — Crash Bash loading removal
+
+Missing. No load operation has been censused or classified for Crash Bash. Gap: enumerate its load
+issuers and the wait and presentation each drives, then complete each through the title's own load
+mechanics without its loading-only wait, with payload and terminal state compared against retail
+and the absence of loading presentation captured.
 
 ## Dynamic migration acceptance
 

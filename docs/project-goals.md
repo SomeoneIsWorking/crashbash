@@ -81,3 +81,21 @@ Constraints and non-goals: projected screen coordinates, guest GTE matrices, pac
 framebuffer images are not interpolation inputs; native scene snapshots own the temporal data.
 
 Contributing state items: S004, S006, S007, S016.
+
+## G004 — Loading removal
+
+Remove storage latency and loading-only waits from every load the game performs, without changing
+unrelated scripted timing or faking completion. Loading runs asynchronously and the product goes
+straight to the next real presentation.
+
+Success requires each measured load operation to deliver the same payload and terminal state as
+retail while omitting its loading-only presentation. Logo screens accept Start/Cross through the
+title's recovered cancellation route (or a purpose-built skip establishing the same lifecycle,
+resource, and state invariants). Authored transition cutscenes are presentation, not loading, and
+remain.
+
+Faster simulation, bypassed lifecycle callbacks, written phase/timer/scene words, and presentation
+tricks that hide a wait are not implementations of this goal. Loading removal is suppressed under
+oracle comparison.
+
+Contributing state: S020.
