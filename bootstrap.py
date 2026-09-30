@@ -328,7 +328,7 @@ def prepare_product(
         environment["PSXPORT_CRASHBASH_DISC"] = str(disc.resolve())
     jobs = str(min(os.cpu_count() or 1, 16))
 
-    runner([sys.executable, "-B", "tools/psxport_sync.py", "--auto"], environment)
+    runner([sys.executable, "-B", "tools/psxport_fetch.py", "--auto"], environment)
     runner(configure_arguments(paths.build), environment)
     runner(
         [

@@ -9,7 +9,7 @@ Never commit discs, extracted executables, `.env`, or machine-specific paths. Ru
 
 `external/psxport` is not a git submodule. It is a symlink to the workspace's shared framework clone
 when one exists, or a private clone at this repository's `psxport.pin` on a fresh machine.
-`tools/psxport_sync.py --auto` establishes that checkout. Framework changes happen in the shared
+`tools/psxport_fetch.py --auto` establishes that checkout. Framework changes happen in the shared
 psxport clone, while this title records only a psxport revision that has passed its own product gates.
 
 ## Product execution contract
