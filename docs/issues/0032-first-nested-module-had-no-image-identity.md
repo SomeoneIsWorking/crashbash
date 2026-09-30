@@ -235,3 +235,64 @@ changes it is visibly a run that never left the logo.
   writers, all resident (`0x80018C3C`, `0x80029C94` and `0x80027590`, `0x8002768C`). Answering the
   hazard needs a runtime store/branch observation on the camera struct, which has not been done.
   Do not read the pair below as "safe to widen": it is a picture result, not a scalar-safety result.
+
+### 3. Follow-on, 2026-09-30: the route was wrong, not just the observer — an interactive live match
+
+The section above got to Crashball's character-select stage and stopped there. That was not the guest
+refusing to continue: **the input shape was wrong, and the wrongness is only visible from the
+retained replay.** The tracked `replays/flow/crashball-control.pad` holds **Circle for 800 frames
+(1200-1999)**; the leg above tapped Cross on a 24-frame cadence and nothing else. On character
+select, Cross cycles the roster, so a Cross-only replay reaches that stage and then sits there
+indefinitely — and "sits there" looked exactly like the mode refusing to start.
+
+The tracked replay, driven unchanged on the dynarec product, reaches a **live Crashball match**:
+3,740 frames, exit 0, replay consumed 3,740 of 3,740. Route: attract exit → MENU → DAT28136
+(character select) → **DAT28241 published at frame ~2000**, which is the module that runs the match.
+Note what that does to the scene record: at the shared `0x800B32B4` slot, address `0x800B4694` is
+DAT28136's registered callback in image generation 5 and DAT28241's code in generation 6, so the
+scene's `update` pointer does not change while the code behind it does. That is the loaded-image
+identity case S015 measures, and it is why "the scene never changed" was never going to be the signal.
+
+| measurement | value |
+|---|---|
+| executor calls / blocks / instructions | 824,429 / 56,755,797 / 881,471,499 |
+| fallback blocks / instructions | **0 / 0** |
+| fallback reasons | all five `=0`; `refused_fallback_blocks=0`, all five `refused_*` `=0` |
+| guest calls completed / needing a resume | 803,814 / **9**, deepest **7** host turns against the derived cap of 12, 14,820,784 cycles over those calls |
+| image generations published in one run | **4** — BOOT 3, MENU 4, DAT28136 5, DAT28241 6 |
+| scene changes | **10**, all guest-taken through `0x8001E588`; the observer is read-only |
+| presented match frames | 553,189-557,800 of 691,200 non-black (80.03-80.70%) |
+| per-frame host time, unpaced | **p50 9.50 ms, p95 13.25 ms, p99 18.50 ms, worst 359.77 ms, 3 beyond range** |
+
+**Movement is proven against a control leg, not asserted from a screenshot.** The control is the
+byte-identical replay with every frame from 3560 on forced to `0xFFFF` — 180 frames changed, all
+other frames equal — so it receives no direction at all. Full 2 MiB guest-RAM dumps at 8 frames in
+both runs give:
+
+- frame 3555, before any held direction, differs in **0 of 524,288** words between the legs: the dump
+  is deterministic and the legs are the same run up to the input;
+- the guest's parsed P1 word `0x80063A92` reads `0xFF7F` under held Left and `0xFFDF` under held
+  Right in the treatment, and **`0xFFFF` in the control at all 8 frames**;
+- of 524,288 words, **159** fall monotonically across all three Left steps and rise monotonically
+  across all three Right steps, and every one of them also differs from the control at 6 of the 7
+  post-input frames. `0x8005721C` is the clearest: `118, 113, 101, 99` then `95, 98, 99, 116`;
+- the HUD score advances during the window (P1 `12` at 3560 → `11` at 3640 → `09` at 3730 as the
+  ball reaches the left goal), so ball and score state are live rather than frozen.
+
+**What is NOT resolved, stated so it is not re-derived as if it were:** the individual store
+instruction behind those words. `tools/probe_addr_refs.py --stores-only` returns **0 sites** for
+`0x80056ACC`, `0x80056ADC`, `0x8005721C`, `0x801D4048` and `0x801D40FC`, and no 32-bit word in the
+dumped RAM equals any of them or a plausible base, because the guest computes the address as
+base+index in a register. The one base in that band the images materialise by `lui` is `0x80056998`
+(BOOT `0x800825B4` and `0x80082624`, `lui $v0, 0x8005; addiu $s0, $v0, 0x6998`) inside the
+input-edge handler that tests direction bits `0x4000` and `0x40`. Resolving the loop that walks that
+base is the next RE step and is the open half of this issue.
+
+**A tenth dead tap, found in the instrument rather than the game.** Nothing in the title called
+`Game::perf.frameBegin()/frameEnd()`, so the framework's per-frame profiler produced no timing line
+at all — no p50, no p95, nothing — for this title, on a passing framework test and a working
+channel. Absence of output read as absence of a measurement. It is now bracketed in
+`CrashBashFrameDriver::stepFrame`, and the distribution above is from it. The channel knob is
+`PSXPORT_DEBUG` (`cmake/psxport.cmake` sets `LUCENT_CHANNEL_ENV=PSXPORT_DEBUG`); an earlier leg of
+this work set `LUCENT_DEBUG`, which does nothing here — the channels that appeared to be enabled
+were emitting only because they are info-level.

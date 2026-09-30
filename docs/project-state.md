@@ -13,17 +13,24 @@ revision, widens the camera, and adds 60 Hz interpolated presentation without ac
 **S016 through S003, then S013.** Crash Bash runs in parallel with the active Spyro 1 title on the
 native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish list, in order:
 
-1. **A live match, not a mode entry** (S016): the Cross-driven menu and the DAT28136 controlled mode
-   are reached on Lightrec and render (issue 0032); drive one into an interactive Crashball match.
-2. **Issue 0030's remaining half**: the resume contract is implemented and classified (0029); what is
+1. **S016 remainder**: the live Crashball match is reached, controlled and measured (S016 above).
+   What is left on this goal is audio/timing coverage from the headless WAV sink and per-frame
+   frame-time evidence on the other released host architectures.
+2. **Issue 0032's remaining citation**: the store instruction behind the measured movement words,
+   which the images reach by base+index that no `lui` materialises. The base in that band is
+   `0x80056998` (BOOT `0x800825B4` / `0x80082624`).
+3. **Issue 0030's remaining half**: the resume contract is implemented and classified (0029); what is
    left is the framework-side negative case for a resume whose image generation has been retired.
-3. **S003 ledger**: a whole-run translated/fallback denominator and complete image publication for
-   every resident and nested module on one representative run.
-4. **S016 / S009–S012**: requalify the Crashball, battle and tournament Crate Crush, and Polar Push
-   scenarios through Lightrec.
-5. **S015**: all 28 overrides by image identity and the 16 original calls under the differential.
-6. **S013**: the remaining modes. **S014**: audio requalification from the headless WAV sink.
-7. Then measure the widescreen gameplay-read hazard (camera `+0x18` behind `*0x800569E0`) and
+4. **S003 ledger**: complete image publication for every resident and nested module on one
+   representative run. The Crashball leg now publishes BOOT, MENU, DAT28136 and DAT28241 in one run;
+   DAT28272, DAT28382 and DAT22510 have not been seen alongside them.
+5. **S016 / S009–S012**: requalify the battle and tournament Crate Crush, and Polar Push scenarios
+   through Lightrec.
+6. **S015**: all 28 overrides by image identity and the 16 original calls under the differential. The
+   live-match leg is already a concrete instance of the case: `0x800B4694` is DAT28136's registered
+   callback in one image generation and DAT28241's code in the next, at the same address.
+7. **S013**: the remaining modes. **S014**: audio requalification.
+8. Then measure the widescreen gameplay-read hazard (camera `+0x18` behind `*0x800569E0`) and
    requalify 60 fps interpolation.
 
 ## Capability inventory
@@ -38,7 +45,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the hybrid product | partial | S002, S003, S004, S015 | G001 |
-| S009 | The Crashball gameplay scenario reaches a live match and accepts player control | verified | recorded behavior; on Lightrec the mode is reached and rendered (issue 0032), the live match is the remaining S016 half | G001 |
+| S009 | The Crashball gameplay scenario reaches a live match and accepts player control | verified | recorded behavior; **requalified on Lightrec 2026-09-30** — `replays/flow/crashball-control.pad` drives a live match, guest movement words are proven against an idle control leg, 0 fallback (S016, issue 0032) | G001 |
 | S010 | Battle Mode Crate Crush reaches a live match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | recorded behavior; dynarec requalification in S016 | G001 |
@@ -153,6 +160,18 @@ dynarec-first product, with zero fallback. It is still **partial**: one run does
 resident and nested module (the idle attract loop publishes DAT28272 and DAT28241, the Cross route
 publishes DAT28136, and none of the five has been seen in one run), and the residency set S003 names
 still has to be proven complete per module.
+
+**The live-match leg, 2026-09-30 — one process, 3,740 frames, `replays/flow/crashball-control.pad`,
+exit 0.** 824,429 executor calls, 56,755,797 executed blocks, 881,471,499 executed instructions;
+`fallback_blocks=0`, `fallback_instructions=0`, every reason counter 0, `refused_fallback_blocks=0`,
+`max_fallback_blocks_per_execution=1`; 803,814 guest calls completed, 9 needed a resume, deepest 7
+host turns against the derived cap of 12, 14,820,784 guest cycles over those calls; the replay was
+consumed 3,740 of 3,740 frames. The route leaves the attract cycle, publishes **MENU** and
+**DAT28136**, then publishes **DAT28241** at frame ~2000, which is the module that runs the match:
+at the shared `0x800B32B4` slot the *same* address `0x800B4694` holds DAT28136's registration
+callback in one image generation and DAT28241's code in the next, which is the loaded-image identity
+case S015 measures rather than a scene change. Presented output at the match frames is
+553,189-557,800 of 691,200 non-black (80.03-80.70%).
 
 ### S004 — Native graphics coverage
 
@@ -334,13 +353,74 @@ is not a releasable save location.
 
 ### S016 — Representative gameplay
 
-Partial capability (moved off `missing` 2026-09-30): the dynarec-first product now accepts real pad
-edges and leaves the attract cycle on its own, reaching the Cross-driven menu and the DAT28136
-controlled mode with 0 fallback and 99.67% non-black presented output at frame 600 (issue 0032).
+Partial capability, advanced 2026-09-30 from the character-select stage to an **interactive live
+Crashball match** on the dynarec-first product (issue 0032).
 
-Missing: an interactive **match** rather than a mode's character-select stage, with player movement,
-audio/timing coverage, and per-host frame-time evidence on each released host architecture. The
-character-select stage is the entry to Crashball, not Crashball.
+**How the match is reached, from the guest's own code and nothing else.** The tracked
+`replays/flow/crashball-control.pad` drives it. The input shape is not guessable and the difference
+matters: Cross taps every 32 frames through frame 1192 leave the attract cycle and reach the menu, but
+**tapping Cross alone reaches character select and then sits there indefinitely** — on that stage
+Cross cycles the roster instead of confirming. The route needs the 800-frame Circle hold at frames
+1200-1999; Cross at 2000 publishes DAT28241 and starts the match, Cross at 2560 leaves the briefing.
+Measured scene changes on this run: logo `0x800A00DC` → MENU `0x800B9524` → `0x8009F720`
+(enter `0x80092CAC`, update `0x80092EDC`, present `0x80092E94`) → `0x800A0BF4` → `0x8009E5C8` →
+`0x800A00DC` → `0x8009F720` → … 10 live changes, every one taken by the guest through the scene
+machine. The observer is read-only: it calls the retail body at `0x8001E588` and reports the record
+before and after.
+
+**Player movement, proven against a control leg rather than asserted.** Two runs of the *same*
+3,740-frame replay, differing only in 180 frames of direction input:
+
+- **treatment** — `replays/flow/crashball-control.pad`, Left held 3560-3619, Right held 3620-3739;
+- **control** — the byte-identical replay with every frame from 3560 on forced to `0xFFFF`
+  (180 frames changed, every other frame byte-for-byte equal), so the control receives no direction
+  at all.
+
+Guest RAM was dumped whole (2 MiB) at frames 3555, 3575, 3595, 3615, 3625, 3650, 3700 and 3735 in
+both runs. Measured, with denominators:
+
+| claim | measurement |
+|---|---|
+| the input really reaches the guest | `0x80063A92` (parsed P1, active-low) `0xFFFF` → `0xFF7F` under Left → `0xFFDF` under Right; `0x8005133C` (active-high P1) `0x0000` → `0x0080` → `0x0020`. In the control leg **both stay at rest across all 8 frames** |
+| the two legs are the same run | frame 3555, which precedes the first held direction, differs in **0 of 524,288** words; from 3575 on the legs diverge (6,039 / 8,558 / 11,651 / 15,794 / 18,565 / 25,906 / 29,354 words), so the dump is deterministic and the later differences are caused by the input |
+| guest words move in the commanded direction | of 524,288 scanned words, **159** decrease monotonically across all three Left steps *and* increase monotonically across all three Right steps. A word that merely drifts will not satisfy a sign flip on the commanded axis, so this is a filter, not a coincidence count |
+| the movement is caused by the input | every one of those 159 words also differs from the idle control leg at 6 of the 7 post-input frames. Representative, all at the same frame set: `0x8005721C` (a small signed screen-space value) `118, 113, 101, 99` under Left then `95, 98, 99, 116` under Right, against a control that never leaves its own trajectory; `0x80056ACC`/`0x80056ADC` and `0x801D4048`/`0x801D40FC` move the same way, the last pair crossing zero as the commanded direction reverses |
+| the match is live, not a still | the ball is in play with a motion trail, and the HUD score digits advance during the window (P1 `12` at frame 3560 → `11` at 3640 → `09` at 3730, as the ball reaches the left goal; the other three digits hold) |
+
+**Citation status, stated precisely.** `0x8005133C` has 10 `lui`+displacement sites across the
+authenticated images and is fully attributable; `0x80063A92` has **0**, because the guest reaches it
+through a base register no `lui` materialises. The movement words are reached the same way:
+`tools/probe_addr_refs.py --stores-only` returns 0 sites for `0x80056ACC`, `0x80056ADC`,
+`0x8005721C`, `0x801D4048` and `0x801D40FC`, and no 32-bit word in the dumped RAM equals any of them
+or a plausible base for them, so the effective address is base+index computed in a register. The one
+base in that band the images do materialise by `lui` is `0x80056998`, at BOOT `0x800825B4` and
+`0x80082624` (`lui $v0, 0x8005; addiu $s0, $v0, 0x6998`) inside the input-edge handler that tests the
+direction bits `0x4000` and `0x40`. **The individual store instruction is therefore not yet
+attributed, and this row does not claim it is.** Closing it needs the base+index loop resolved, which
+is the next RE step (issue 0032).
+
+**Per-frame host time, 3,740 frames, pacing disabled** (`PSXPORT_DEBUG=perf`, `PSXPORT_NOPACE=1`).
+Whole-run distribution: **p50 9.50 ms, p95 13.25 ms, p99 18.50 ms, worst 359.77 ms, 3 frames beyond
+the histogram range**. Inside the match and movement window the 60-frame averages are 10.16 ms
+(f3480), 11.29 ms (f3540), 10.78 ms (f3600) and 11.32 ms (f3660). Two facts about what this does and
+does not say: the 359.77 ms worst case is a one-off module instantiation, not a per-frame cost, and
+these are **unpaced host CPU costs** — the title still runs two display fields per game frame, so
+9.50 ms p50 is not a claim of 105 fps gameplay. The `audio` phase slot reads 0.00 **by construction**:
+the per-field SPU advance is inside the `game-logic` span because `GpuPerf`'s phases are a partition
+and a nested bracket would double-charge the same wall time and drive the reported idle negative.
+
+**A defect this milestone found in the instrument, not the product.** Nothing in the title ever called
+`Game::perf.frameBegin()/frameEnd()`, so the framework's per-frame profiler — enabled, healthy, and
+covered by a passing framework test — produced **no timing line at all** for this title. That reads
+exactly like a clean measurement of absence, which is the failure mode this workspace has hit nine
+times. It is now bracketed in `CrashBashFrameDriver::stepFrame`. Related and also corrected: the
+channel is selected by **`PSXPORT_DEBUG`**, not `LUCENT_DEBUG` (`cmake/psxport.cmake` sets
+`LUCENT_CHANNEL_ENV=PSXPORT_DEBUG`); an earlier leg of this work set the wrong variable and the
+channels it appeared to enable were emitting only because they are info-level.
+
+Still missing for `verified`: audio/timing coverage from the headless WAV sink, and per-frame
+frame-time evidence on each other released host architecture. Battle, Tournament and Polar Push
+remain un-requalified on the dynarec product.
 
 ### S017 — Break-first static-path removal
 

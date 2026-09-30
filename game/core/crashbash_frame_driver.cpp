@@ -72,6 +72,13 @@ void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields
                     after - before);
       std::abort();
     }
+    // NOT bracketed as GpuPerf::Phase::Audio. The phases are a partition, not a nest: `phaseEnd`
+    // charges the time since the last `phaseBegin` and advances the mark, so an Audio bracket
+    // opened while GameLogic is open would charge the same span twice and push
+    // `frame - cpu_sum` (the reported idle) negative. The per-field SPU advance therefore belongs
+    // to the GameLogic span, and the `audio` slot is reported 0.00 BY CONSTRUCTION for this title
+    // rather than measured as free. Recording the per-field audio cost separately needs a phase
+    // bracket the driver can own, i.e. a framework change, not a title-local one.
     game_.spu_audio.frame();
   }
 }
@@ -85,6 +92,11 @@ void CrashBashFrameDriver::finishUpdateSlice(Core &core, const psx::cpu::Executi
 }
 
 void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
+  // psxport's per-frame CPU/frame-time profiler is owned by Game and is off unless the `perf` log
+  // channel is enabled. Nothing called it before this: the instrument existed, the channel worked,
+  // and a run produced no timing line at all — which reads exactly like "the profiler measured
+  // nothing", so the frame-time percentiles were unavailable for this title rather than absent.
+  game_.perf.frameBegin();
   game_.timing.logicFrame = frame;
   game_.timing.frameTick();
   core.rsub.otAttr.beginLogicFrame(frame);
@@ -94,6 +106,11 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   render::beginModelMaterialDiagnosticFrame();
   render::beginModelFacePixelDiagnosticFrame();
   render::beginModelPacketIdentityDiagnosticFrame();
+  // Everything above is host-side per-tick work; everything below is the guest tick and the
+  // present. `markPre` is the boundary, so a phase that reads 0.00 ms means this work is cheap and
+  // never "the work moved somewhere this label still claims to cover".
+  game_.perf.markPre();
+  game_.perf.phaseBegin(GpuPerf::Phase::GameLogic);
 
   std::uint32_t state = core.mem_r32(guest::kCurrentProcessState);
   bool enteredState = false;
@@ -151,12 +168,16 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   render::reportModelFacePixelDiagnosticFrame(frame);
   render::reportModelPacketIdentityDiagnosticFrame(frame);
   snapshot_tick(&core);
+  game_.perf.phaseEnd(GpuPerf::Phase::GameLogic);
+  game_.perf.phaseBegin(GpuPerf::Phase::Present);
   if (deliveredFields_ == 0) {
     sceneSnapshots_.markUnpresented();
     game_.presentation.commitUnpresented(&core);
   } else {
     game_.presentation.commit(&core, static_cast<int>(deliveredFields_), game_.temporalPresentation.get());
   }
+  game_.perf.phaseEnd(GpuPerf::Phase::Present);
+  game_.perf.frameEnd();
 }
 
 // One line per call site, never wrapped in an `if (debug)`. The cap is on the BORING case: a state
