@@ -10,8 +10,22 @@ revision, widens the camera, and adds 60 Hz interpolated presentation without ac
 
 ## Current focus
 
-**S003** — Consume psxport's per-`Core`, pinned-Lightrec executor and prove dynarec-first gameplay with explicit bounded fallback accounting. The former static product has already been deleted and is not a bridge,
-fallback, or oracle.
+**S016 through S003, then S013.** Crash Bash runs in parallel with the active Spyro 1 title on the
+native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish list, in order:
+
+1. **Leave process state `0x8004E0B8`** (issue 0032) and reach the Cross-driven main menu and a
+   controlled mode on Lightrec, with the transition taken by the guest's own mode table rather than
+   a written vtable.
+2. **Close issues 0029 and 0030**: classify the MENU entry original call's budget exit and give the
+   suspend-resume consumer the framework API it needs (or record the exact framework change).
+3. **S003 ledger**: a whole-run translated/fallback denominator and complete image publication for
+   every resident and nested module on one representative run.
+4. **S016 / S009–S012**: requalify the Crashball, battle and tournament Crate Crush, and Polar Push
+   scenarios through Lightrec.
+5. **S015**: all 27 overrides by image identity and the 15 original calls under the differential.
+6. **S013**: the remaining modes. **S014**: audio requalification from the headless WAV sink.
+7. Then measure the widescreen gameplay-read hazard (camera `+0x18` behind `*0x800569E0`) and
+   requalify 60 fps interpolation.
 
 ## Capability inventory
 
