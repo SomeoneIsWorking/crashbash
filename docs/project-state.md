@@ -41,7 +41,8 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S002 | The retail boot and loaded-image sequence have a recorded first-frame and menu frontier to re-establish through the dynarec | partial | S001, S003 | G001 |
 | S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec with bounded, reason-accounted fallback | partial | S001, shared psxport executor | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct across representative content | partial | S002, S015 | G001, G002, G003 |
-| S005 | The native camera supports wider aspect ratios without changing vertical framing | partial | S004 | G002 |
+| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would, and gameplay-read state kept at native width | partial — the cull/limit owner audit and a margin census against a 4:3 run are missing | S004 | G002 |
+| S019 | Widescreen anchors the UI: edge HUD elements sit at the widened edges or safe area, centred elements stay centred, nothing stretches | missing | S005 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the hybrid product | partial | S002, S003, S004, S015 | G001 |
