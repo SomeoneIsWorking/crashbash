@@ -46,8 +46,12 @@ private:
   std::uint32_t dwellReports_ = 0;
   std::uint32_t updateFn_ = 0;
   std::uint32_t presentFn_ = 0;
+  // The root scene the shell dispatches through (`kAppModeVtable`) and the live scene machine
+  // (`0x8009F658`) that actually selects boot / menu / gameplay. Both are read only.
   std::uint32_t appMode_ = 0;
   std::uint32_t appModeChanges_ = 0;
+  std::uint32_t scene_ = 0;
+  std::uint32_t sceneChanges_ = 0;
   render::SceneSnapshotHistory sceneSnapshots_;
 };
 

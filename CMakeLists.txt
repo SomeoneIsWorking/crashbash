@@ -95,6 +95,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/resident_image.cpp
   game/core/polar_push_contact.cpp
   game/diagnostics/menu_boundary.cpp
+  game/diagnostics/scene_machine.cpp
   game/input/crashbash_touch_controls.cpp
   game/render/model_face_coverage.cpp
   game/render/model_face_pixel_diagnostic.cpp
@@ -195,6 +196,19 @@ if(BUILD_TESTING)
   target_link_libraries(crashbash_guest_execution_test PRIVATE crashbash_guest_execution)
   set_target_properties(crashbash_guest_execution_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_guest_execution COMMAND crashbash_guest_execution_test)
+  # The scene machine is read out of the AUTHENTICATED images, so its cases need the same
+  # provisioned inputs the other image tests take on argv. There is deliberately NO "skip when
+  # absent" branch: a gate that registers nothing when its corpus is missing is the green zero this
+  # workspace has been bitten by, and a test that cannot run must read as a failure, not a pass.
+  add_executable(crashbash_scene_machine_test tests/test_scene_machine.cpp)
+  target_include_directories(crashbash_scene_machine_test PRIVATE game/core "${PSXPORT_DIR}/tests"
+                                                                  "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_link_libraries(crashbash_scene_machine_test PRIVATE crashbash_seam)
+  set_target_properties(crashbash_scene_machine_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_scene_machine
+           COMMAND crashbash_scene_machine_test
+                   "${CMAKE_CURRENT_SOURCE_DIR}/scratch/bin/crashbash/SCUS_945.70"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/scratch/bin/crashbash/overlays/BOOT.BIN")
   add_executable(
     crashbash_touch_controls_test
     tests/test_crashbash_touch_controls.cpp

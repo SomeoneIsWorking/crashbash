@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 
-EXPECTED_OVERRIDE_REGISTRATIONS = 27
-EXPECTED_ORIGINAL_CALLS = 15
+# The migration boundary, counted so it cannot drift silently.
+#
+# 2026-09-30: 27 -> 28 registrations and 15 -> 16 original calls, for ONE addition — the read-only
+# scene-machine observer on the retail leaf 0x8001E588 (game/diagnostics/scene_machine.cpp). It was
+# added because the mode question was being read from a word with exactly one writer, so "reached
+# Crashball" and "never left the logo" printed the same line; see docs/issues/0032. Each increment has
+# to name itself here, because a tripwire that is relaxed without a reason is the same defect as one
+# that is never relaxed.
+EXPECTED_OVERRIDE_REGISTRATIONS = 28
+EXPECTED_ORIGINAL_CALLS = 16
 SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"})
 ENVIRONMENT_CONFIG_OWNER = Path("packaging/linux/user_paths.cpp")
 DIRECT_STDERR_PATTERN = re.compile(
@@ -136,3 +145,26 @@ def check_source_policy(root: Path) -> SourcePolicyReport:
             f"runtime original-call boundary has {original_calls} calls; expected {EXPECTED_ORIGINAL_CALLS}"
         )
     return SourcePolicyReport(len(paths), override_registrations, original_calls)
+
+
+def main() -> int:
+    # A module with no entry point is a GREEN ZERO: `python tools/source_policy.py` used to import,
+    # define nothing, and exit 0 — indistinguishable from a clean tree by anyone running it by hand
+    # or from a wrapper. The CTest case imports `check_source_policy` directly, so this was never the
+    # gate; it only looked like one.
+    root = Path(__file__).resolve().parents[1]
+    try:
+        report = check_source_policy(root)
+    except SourcePolicyError as failure:
+        print(f"[source-policy] FAILED: {failure}", file=sys.stderr)
+        return 1
+    print(
+        f"[source-policy] OK: scanned {report.source_files} source file(s); "
+        f"{report.override_registrations} native override registration(s) and "
+        f"{report.original_calls} original call(s) against the declared boundary"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

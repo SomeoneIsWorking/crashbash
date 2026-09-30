@@ -165,23 +165,53 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
 // enterProcessState with no cap at all. A frame that ran no update/present pair says so explicitly
 // rather than printing nothing, because silence there is indistinguishable from "never measured".
 void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
-  // The nested app-mode object, reported on every change with no cap: this is the machine that
-  // selects boot / menu / gameplay, and a run that never changes it is not running the game.
+  // The nested root scene, reported on every change with no cap. This is the scene the shell
+  // itself dispatches through, and it is BOOT's header for the whole run by construction — its only
+  // writer is the resident application main at 0x800101CC, before any mode exists. It is reported
+  // because it is the outer frame loop's owner, NOT because it selects modes: the machine that does
+  // is the scene record below.
   const std::uint32_t mode = core.mem_r32(guest::kAppModeVtable);
   if (mode != appMode_) {
     appMode_ = mode;
     ++appModeChanges_;
     if (mode == 0) {
-      lucent::info("crashbash-frame", "f{}: app mode cleared to 0 — no mode handlers are installed", frame);
+      lucent::info("crashbash-frame", "f{}: root app scene cleared to 0 — the shell has no scene to dispatch", frame);
     } else {
       lucent::info("crashbash-frame",
-                   "f{}: app mode -> 0x{:08X} (change #{}, enter=0x{:08X} update=0x{:08X} present=0x{:08X})",
+                   "f{}: root app scene -> 0x{:08X} (change #{}, enter=0x{:08X} update=0x{:08X} "
+                   "present=0x{:08X}) — the shell's own scene; the mode machine is 0x{:08X}",
                    frame,
                    mode,
                    appModeChanges_,
                    core.mem_r32(mode),
-                   core.mem_r32(mode + 4u),
-                   core.mem_r32(mode + 8u));
+                   core.mem_r32(mode + guest::kSceneTransitionUpdateSlot),
+                   core.mem_r32(mode + guest::kSceneTransitionPresentSlot),
+                   guest::kSceneTransition);
+    }
+  }
+
+  // The live scene machine, also on every change with no cap. THIS is the mode: boot, menu, attract
+  // and gameplay are all scenes here, and a run that never changes it has reached none of them.
+  const std::uint32_t scene = core.mem_r32(guest::kSceneTransition + guest::kSceneCurrentSlot);
+  if (scene != scene_) {
+    scene_ = scene;
+    ++sceneChanges_;
+    if (scene == 0) {
+      lucent::info("crashbash-frame", "f{}: scene machine has NO current scene", frame);
+    } else {
+      lucent::info("crashbash-frame",
+                   "f{}: scene -> 0x{:08X} (change #{}, enter=0x{:08X} update=0x{:08X} "
+                   "present=0x{:08X}; previous=0x{:08X} target=0x{:08X} flags=0x{:X} clock age {})",
+                   frame,
+                   scene,
+                   sceneChanges_,
+                   core.mem_r32(scene + guest::kSceneTransitionEnterSlot),
+                   core.mem_r32(scene + guest::kSceneTransitionUpdateSlot),
+                   core.mem_r32(scene + guest::kSceneTransitionPresentSlot),
+                   core.mem_r32(guest::kSceneTransition + guest::kScenePreviousSlot),
+                   core.mem_r32(guest::kSceneTransition + guest::kSceneTargetSlot),
+                   core.mem_r32(guest::kSceneTransition + guest::kSceneFlagsSlot),
+                   core.mem_r32(guest::kSceneTransitionClock + guest::kSceneClockAgeSlot));
     }
   }
 
@@ -230,7 +260,7 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
                "({} transformed / {} source-decoded), "
                "{} model face(s) captured ({} textured) / {} submitted (rejected zero/far/winding "
                "{}/{}/{}), vblank counter 0x{:08X}, "
-               "app mode 0x{:08X} unchanged for "
+               "app mode 0x{:08X} / scene 0x{:08X} unchanged for "
                "the whole dwell)",
                frame,
                activeState_,
@@ -248,7 +278,8 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
                farDepthRejected,
                windingRejected,
                core.mem_r32(guest::kVblankCounter),
-               appMode_);
+               appMode_,
+               scene_);
   lucent::info("crashbash-render",
                "transform census attempts={} captured={} mismatch={} output={} rotation={} translation={} camera={} "
                "projection={} last=({:08X},{:08X},{:08X},{:08X},{:08X})",

@@ -53,7 +53,10 @@ void test_native_composition_preserves_picture_device_and_boot_contracts() {
   CHECK(game->platform_hle.lookup(crashbash::guest::kCdCommand) == cd_command_stock_sync);
   CHECK(game->platform_hle.lookup(crashbash::guest::kCdSync) == cd_sync_stock_sync);
   CHECK(game->platform_hle.lookup(crashbash::guest::kCdSearchFile) == cd_searchfile_stock_sync);
-  CHECK_EQ(context(game->core).registeredOverrideCount(), 27u);
+  // 28 as of 2026-09-30: the read-only scene-machine observer on the retail leaf 0x8001E588
+  // (game/diagnostics/scene_machine.cpp, issue 0032). tools/source_policy.py carries the same
+  // denominator, so the two cannot disagree.
+  CHECK_EQ(context(game->core).registeredOverrideCount(), 28u);
   CHECK(game->hle.deviceFind("bu") != 0u);
   CHECK_EQ(game->core.imageCatalog().activeCount(), 0u);
 }

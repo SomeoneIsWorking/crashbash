@@ -1,12 +1,12 @@
 ---
 id: 29
 title: Crash Bash MENU entry original call exhausts current-turn budget
-status: investigating
+status: resolved
 symptom: After authenticated MENU entry, strict original-call execution exits BudgetExhausted at 0x80018AA0
 state_items: S002,S003,S015
 tags: menu,dynarec,budget,host-turn
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-30
 ---
 
 ## Reached boundary
@@ -51,3 +51,68 @@ or replace this particular conversion with a fully recovered title-native operat
 against the retail body. This touches the shared executor/native-call contract, so coordinate its
 owner before changing it. Do not increase a constant budget, ignore `BudgetExhausted`, or
 fast-forward a guest state to make the observer return.
+
+## Resolved 2026-09-30 — classified by cause, and the resume cap is derived rather than raised
+
+**This budget IS on the path to the main menu and to a controlled mode**, so it had to be classified,
+not waved through. It was, and it is a legitimate one-time finite conversion.
+
+### The body is finite, and that is now a property of the bytes rather than of one sampled state
+
+`FUN_800189F4` is `0x800189F4..0x80018B04`, read in full from the authenticated resident executable:
+
+    80018A10  lh    $v1, 0xc($s2)      ; header width, signed halfword
+    80018A28  lh    $v0, 0xe($s2)      ; header height, signed halfword
+    80018A18  slt   $v0, $v1, $s1     ; clamp against the caller's width
+    80018A30  slt   $v0, $v0, $s0     ; clamp against the caller's height
+    80018A38  mult  $s1, $s0          ; pixels = width * height
+    80018A6C  addiu $s0, $s0, -1      ; outer induction variable
+    80018A90  addiu $a1, $s1, -1      ; inner induction variable
+    80018AA0  lhu   $a0, ($a2)        ; inner body: load, swap 5-bit channels, store, advance both
+    80018ACC  bne   $a1, $t0, 0x80018aa0    ; back-edge, $t0 = -1
+    80018AE4  bne   $s0, $t1, 0x80018a90    ; back-edge, $t1 = -1
+
+There are **exactly two backward branches in the whole function**, both compare a register that the
+preceding block decremented against `-1`, and there is no data-dependent exit: the iteration count is
+the product of two clamped halfwords, known before the first iteration. The one sampled state issue
+0029 recorded (`r5=127`, `r16=211`, `r17=512`) is therefore not evidence of an unbounded loop; it is
+one point on a counted descent, and the count now comes from the code.
+
+### The cap, and where the number comes from
+
+MEASURED on the pinned Lightrec product, MENU entry `0x800B5244`:
+
+    [crashbash-guest] guest call 0x800B5244 to return address 0x8001E7C0 outlived one host turn:
+      7 turn(s), 3441400 guest cycles (6.097 display fields)
+
+The body is 2 bytes in and 2 bytes out per pixel over the 128-sector / 262,144-byte image that entry
+converts, i.e. **131,072 pixels**, which gives the per-pixel cost this title's own load path measures:
+
+    3,441,400 cycles / 131,072 px = 26.256 cycles/px        (one display field = 564,480 cycles)
+
+The largest payload this title's own load path can hand the body is BOOT's, 189 sectors =
+387,072 bytes = **193,536 pixels**, so a complete conversion of the largest tracked image costs
+
+    193,536 px * 26.256 = 5,081,442 cycles = 9.00 display fields
+
+and the shipped `kGuestCallTurnCap = 12` display fields is **6,773,760 cycles = 257,991 pixels =
+a 252-sector image**: it covers the largest tracked payload with 33% headroom and still fails inside
+0.2 s of wall clock on a guest loop. The number was not raised to make a symptom disappear; it is the
+measured per-pixel cost multiplied by the largest image the loader can produce, rounded up, and the
+run-end census prints the deepest turn count beside it so the derivation stays falsifiable from a log
+(`deepest 7 turn(s) against a cap of 12`).
+
+### Whole-run denominators on the same run that reaches the menu
+
+257,083 guest calls completed, 6 needed a resume, 0 faults, 264,839 executor calls, 18,931,728
+executed blocks, 287,182,711 executed instructions, **0 fallback blocks / 0 fallback instructions**
+with every refusal reason 0. Nothing in the path is interpreted.
+
+### The framework API the suspended state needed
+
+`psx::cpu::resumeOriginal` and `psx::cpu::resumeGuestToReturn` now exist in the pinned framework and
+`game/core/guest_execution.cpp` consumes them, so issue 0030's "the consumer half was written first and
+the framework half was never written" is stale: the contract landed and this tree builds against it.
+What 0030 still asks for — the negative case where a resume whose image generation has been retired
+must fault — is implemented in `runGuestCallToReturn` for an original call and refused loudly rather
+than resumed into.

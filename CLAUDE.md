@@ -25,7 +25,7 @@ generated guest corpus, static dispatch table, or precompiled title substrate. T
 path has already been deleted before dynarec implementation and must remain absent without a
 compatibility mode or tombstone.
 
-Preserve all 27 current native override installations and all 15 original calls from native
+Preserve all 28 current native override installations and all 16 original calls from native
 owners through psxport's scoped runtime original-call operation, which bypasses
 only the current override and executes the authenticated original body through Lightrec. Override and
 translated-block identity must include the loaded image generation because several modules reuse the

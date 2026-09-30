@@ -136,10 +136,16 @@ remain diagnostics for finding causes, not completion conditions.
 - evidence: Active table `0x800B8E28` updates through `0x800B3CA8`; rising-edge `0x80051380`
   accepts Cross `0x4000` at `0x800B3D88-0x800B3D8C` and schedules `0x800B8E50` through
   `0x8009F8A8`.
-- where: `game/diagnostics/menu_boundary.cpp`, `docs/issues/0020-active-menu-was-incorrectly-expected-to-accept-start.md`,
-  `docs/issues/0021-cross-menu-acceptance-needs-an-idle-start-cross.md`
-- gap:
-- notes: START is not an alternate acceptance route.
+- where: `game/diagnostics/menu_boundary.cpp`, `game/diagnostics/scene_machine.cpp`,
+  `docs/issues/0020-active-menu-was-incorrectly-expected-to-accept-start.md`,
+  `docs/issues/0021-cross-menu-acceptance-needs-an-idle-start-cross.md`,
+  `docs/issues/0032-first-nested-module-had-no-image-identity.md`
+- gap: none for the menu edge itself. MEASURED 2026-09-30 on the pinned Lightrec product: with a real
+  per-frame Cross replay the guest took its own accept (`MENU accept edge=00004000 current=800B8E28
+  pending=00000000->800B8E50`) and the flow published DAT28136 on its own. What is still missing is the
+  interactive MATCH downstream of that mode, which is S016.
+- notes: START is not an alternate acceptance route. `kAppModeVtable` (`0x8004E0DC`) is NOT the mode
+  selector — the scene record at `0x8009F658` is; see issue 0032.
 
 ### graphics.native-state — Preserve native game-state rendering inputs
 

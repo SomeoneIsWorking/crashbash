@@ -13,6 +13,7 @@
 #include "model_submit_capture.h"
 #include "model_transform_capture.h"
 #include "polar_push_contact.h"
+#include "scene_machine.h"
 #include "sprite_quad_capture.h"
 
 namespace crashbash {
@@ -32,6 +33,7 @@ void registerNativeOwners(Core &core) {
   render::registerModelSubmitCaptureOverrides(core);
   render::registerSpriteQuadCaptureOverride(core);
   diagnostics::registerMenuBoundary(core);
+  diagnostics::registerSceneMachine(core);
 }
 
 } // namespace crashbash

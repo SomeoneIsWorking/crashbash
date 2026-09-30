@@ -13,16 +13,15 @@ revision, widens the camera, and adds 60 Hz interpolated presentation without ac
 **S016 through S003, then S013.** Crash Bash runs in parallel with the active Spyro 1 title on the
 native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish list, in order:
 
-1. **Leave process state `0x8004E0B8`** (issue 0032) and reach the Cross-driven main menu and a
-   controlled mode on Lightrec, with the transition taken by the guest's own mode table rather than
-   a written vtable.
-2. **Close issues 0029 and 0030**: classify the MENU entry original call's budget exit and give the
-   suspend-resume consumer the framework API it needs (or record the exact framework change).
+1. **A live match, not a mode entry** (S016): the Cross-driven menu and the DAT28136 controlled mode
+   are reached on Lightrec and render (issue 0032); drive one into an interactive Crashball match.
+2. **Issue 0030's remaining half**: the resume contract is implemented and classified (0029); what is
+   left is the framework-side negative case for a resume whose image generation has been retired.
 3. **S003 ledger**: a whole-run translated/fallback denominator and complete image publication for
    every resident and nested module on one representative run.
 4. **S016 / S009–S012**: requalify the Crashball, battle and tournament Crate Crush, and Polar Push
    scenarios through Lightrec.
-5. **S015**: all 27 overrides by image identity and the 15 original calls under the differential.
+5. **S015**: all 28 overrides by image identity and the 16 original calls under the differential.
 6. **S013**: the remaining modes. **S014**: audio requalification from the headless WAV sink.
 7. Then measure the widescreen gameplay-read hazard (camera `+0x18` behind `*0x800569E0`) and
    requalify 60 fps interpolation.
@@ -39,14 +38,14 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the hybrid product | partial | S002, S003, S004, S015 | G001 |
-| S009 | The Crashball gameplay scenario reaches a live match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
+| S009 | The Crashball gameplay scenario reaches a live match and accepts player control | verified | recorded behavior; on Lightrec the mode is reached and rendered (issue 0032), the live match is the remaining S016 half | G001 |
 | S010 | Battle Mode Crate Crush reaches a live match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S013 | The remaining retail modes are reachable and playable | missing | S008 | G001 |
 | S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S003 | G001 |
-| S015 | All 27 native overrides install by runtime image identity and all 15 original-body calls execute through the dynarec | partial | S003 | G001 |
-| S016 | Representative interactive gameplay passes on the native/dynarec product | missing | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
+| S015 | All 28 native overrides install by runtime image identity and all 16 original-body calls execute through the dynarec | partial | S003 | G001 |
+| S016 | Representative interactive gameplay passes on the native/dynarec product | partial | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
 | S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
 | S018 | Hosted CI truthfully covers applicable Linux, Windows, macOS, and Android product boundaries | partial | S003 | G001 |
 
@@ -125,6 +124,35 @@ Two instrument facts from the same run, both of which nearly produced a wrong cl
 
 Still missing: representative gameplay, complete image publication, and the whole-run
 translated/fallback counter ledger.
+
+**MEASURED 2026-09-30, and the "never leaves `0x8004E0B8`" reading above was a DEAD TAP.** The run
+this paragraph described drove the pad at rest, so the guest ran the **attract cycle** — which is
+what retail tells it to do until a button is pressed — and the frame driver was watching
+`kAppModeVtable` (`0x8004E0DC`), whose one writer is `0x800101CC` and which holds the shell's own BOOT
+scene for the whole run by construction. The mode machine is the scene record at `0x8009F658`; issue
+0032 derives both facts from the authenticated bytes and `crashbash_scene_machine_test` censuses them.
+
+One 4000-frame headless run with a real per-frame pad replay (Cross held 5 frames every 24 frames,
+delivered through the guest's own SIO0 packet path, not a written button word), exit 0, pad replay
+fully consumed 4000 of 4000 frames:
+
+| measurement | value |
+|---|---|
+| live scene changes | **9**, every one the guest's own (logo → MENU `0x800B9524` → … → Crashball character select `0x8009F720`) |
+| BOOT logo handoff | requested by the guest on `0x8001E588`: `scene 0x8009F658 -> 0x800A00DC request-flags=0x12` |
+| MENU accept | `edge=00004000 current=800B8E28 pending=00000000->800B8E50` — the guest's own Cross edge |
+| controlled mode reached | **DAT28136** published (generation 5, 42 sectors, LBA 28136), then its registration replaced app callback `0x80093038` with `0x800B4694` |
+| guest calls completed / resumed | 851,945 / **6**, deepest **7** host turns against the derived cap of 12 |
+| executor calls / blocks / instructions | 873,988 / 53,768,141 / 840,634,226 |
+| fallback blocks / instructions | **0 / 0**, every reason 0, every refusal 0 |
+| faults | 0 |
+| presented frames | menu at f100; Crashball character select at f700/1600/3900, **689,194/691,200 non-black (99.71%)** each |
+
+So the S003 ledger now exists for one representative run that leaves the attract cycle, on the
+dynarec-first product, with zero fallback. It is still **partial**: one run does not cover every
+resident and nested module (the idle attract loop publishes DAT28272 and DAT28241, the Cross route
+publishes DAT28136, and none of the five has been seen in one run), and the residency set S003 names
+still has to be proven complete per module.
 
 ### S004 — Native graphics coverage
 
@@ -222,8 +250,8 @@ gameplay.
 
 ### S015 — Runtime overrides and original calls
 
-Evidence: the surviving title sources contain 27 registrations through the single image-qualified
-`runtime::registerNativeOverride` boundary and all 15 former generated-body calls now enter the single
+Evidence: the surviving title sources contain 28 registrations through the single image-qualified
+`runtime::registerNativeOverride` boundary and all 16 former generated-body calls now enter the single
 scoped `runtime::callOriginal` boundary. `tools/verify_native_ownership.py` reports both denominators
 and its test suite proves forbidden old paths are detected.
 
@@ -299,22 +327,27 @@ MENU from its exact measured read and entered `0x800B5244`; its original call th
 current-turn budget at `0x80018AA0` after 564,484 cycles. This advances the startup frontier but
 does not qualify a presented frame or gameplay, and the abort prevented fallback-denominator output.
 
-Gap: resolve the reached MENU original-call budget boundary, then qualify all 27
-installations and 15 original calls on real loaded-image and gameplay routes. The shared
+Gap: resolve the reached MENU original-call budget boundary (closed by issue 0029), then qualify all 28
+installations and 16 original calls on real loaded-image and gameplay routes. The shared
 direct-runtime memory-card path also needs OS user-data configuration; its current scratch fallback
 is not a releasable save location.
 
 ### S016 — Representative gameplay
 
-Missing capability: Pass representative interactive gameplay with correct rendering, input, audio,
-timing, devices, and per-host frame time on the dynarec-first native/dynarec product.
+Partial capability (moved off `missing` 2026-09-30): the dynarec-first product now accepts real pad
+edges and leaves the attract cycle on its own, reaching the Cross-driven menu and the DAT28136
+controlled mode with 0 fallback and 99.67% non-black presented output at frame 600 (issue 0032).
+
+Missing: an interactive **match** rather than a mode's character-select stage, with player movement,
+audio/timing coverage, and per-host frame-time evidence on each released host architecture. The
+character-select stage is the entry to Crashball, not Crashball.
 
 ### S017 — Break-first static-path removal
 
 Evidence: the tracked offline emitter integration, seed file, generated registry installer, and
 static-only verifiers are deleted. The ignored generated corpus, prior static build tree, and retained
 static product binaries are absent. `tools/source_policy.py` rejects the old files, generated directory,
-static dispatch markers, and any change to the 27-registration/15-original-call source boundary.
+static dispatch markers, and any change to the 28-registration/16-original-call source boundary.
 
 ### S018 — Platform CI coverage
 
@@ -344,8 +377,8 @@ The first Crash Bash dynamic milestone must prove all of the following together:
   integration with nonzero translated-block execution;
 - product link and configuration inspection excludes an interpreter-only default, with every fallback
   reached only after an explicit JIT rejection and bounded by reason-accounted counters;
-- all 27 native override installations are keyed by complete runtime image identity and address;
-- all 15 former generated-body calls use a scoped original call that suppresses only the current
+- all 28 native override installations are keyed by complete runtime image identity and address;
+- all 16 former generated-body calls use a scoped original call that suppresses only the current
   override, enters the original guest body through Lightrec, and returns with correct guest state;
 - loaded-image replacement at the shared `0x800B32B4` slot invalidates affected translated blocks and
   cannot reuse an override or block under the wrong image identity;
