@@ -34,6 +34,7 @@ std::optional<SpriteQuadDraw> decodeSpriteQuad(const SpriteQuadDescriptor &descr
   SpriteQuadDraw draw{
       .sourceFunction = call.sourceFunction,
       .sourceAddress = call.descriptor,
+      .callerReturnAddress = call.callerReturnAddress,
       .renderList = call.renderList,
       .packedPosition = call.packedPosition,
       .orderingBin = call.orderingBin,
@@ -73,6 +74,7 @@ std::optional<SpriteQuadDraw> decodeScreenColorQuad(const ScreenColorQuadCall &c
   SpriteQuadDraw draw{
       .sourceFunction = call.sourceFunction,
       .sourceAddress = call.sourceAddress,
+      .callerReturnAddress = call.callerReturnAddress,
       .renderList = call.renderList,
       .orderingBin = static_cast<std::int32_t>(orderingBin),
       .sourceColors = call.colors,

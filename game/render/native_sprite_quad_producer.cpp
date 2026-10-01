@@ -3,14 +3,19 @@
 #include "core.h"
 #include "game.h"
 #include "gpu_vk.h"
+#include "hud_layout.h"
 #include "model_face_coverage.h"
 #include "producer_scope.h"
 #include "render_queue.h"
 #include "sprite_render_list.h"
+#include "ui_anchor.h"
+
+#include <lucent/log.h>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace crashbash::render {
@@ -27,7 +32,49 @@ const char *producerName(std::uint32_t sourceFunction) {
   return sourceFunction == kScreenColorQuadSubmit ? "hud:g4" : "sprite:gt4";
 }
 
-void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScreenPresentation) {
+// The horizontal shift this element needs BEFORE the framework's own 2D layout transform runs.
+//
+// The framework centres every authored 4:3 2D x by the margin (psxport `RQ_2D_AUTHORED_4_3`), which
+// is the right answer for a centred element and the wrong one for a corner panel: it slides the
+// panel off the edge it belongs to and into the arena the widening revealed. So the class is read
+// from the element's own authored rectangle — see hud_layout.h — and what the producer applies is
+// the DIFFERENCE between that class and the centring the framework is about to do. At 4:3 the
+// margin is zero and this is the identity, which is why the 4:3 picture cannot change.
+//
+// The world-ordered screen-color quads are NOT here: they already carry the authored canvas shift
+// below and are submitted with `RQ_OM_DEPTH`, which never enters the 2D transform at all.
+int horizontalCorrection(Core &core,
+                         const SpriteQuadDraw &draw,
+                         std::uint32_t logicFrame,
+                         bool authoredScreenPresentation) {
+  if (draw.authoredWorldOrder) {
+    return 0;
+  }
+  const std::optional<hud_layout::Caller> caller = hud_layout::callerOf(draw.callerReturnAddress);
+  if (!caller) {
+    // An element this port has not classified stays exactly where the framework's own rule puts it.
+    // Guessing a class for an unknown element is how a HUD ends up half-migrated at 16:9, so the
+    // unknown is reported and the framework's answer stands.
+    lucent::warn("uihud",
+                 "UNCLASSIFIED element caller={:08X} source={:08X} authored=({}, {}) — left on the "
+                 "framework's centring rule",
+                 draw.callerReturnAddress,
+                 draw.sourceFunction,
+                 draw.x[0],
+                 draw.x[1]);
+    return 0;
+  }
+  const ui_anchor::Frame frame = ui_anchor::frame(&core);
+  const std::int32_t width = draw.x[1] - draw.x[0] + 1;
+  const ui_anchor::Anchor anchor = hud_layout::anchorFor(*caller, draw.x[0], width, frame, authoredScreenPresentation);
+  return ui_anchor::correctionAndReport(
+      logicFrame, hud_layout::forCaller(*caller)->name, anchor, draw.x[0], width, frame);
+}
+
+void submitSpriteQuad(Core &core,
+                      const SpriteQuadDraw &draw,
+                      std::uint32_t logicFrame,
+                      bool authoredScreenPresentation) {
   if (core.game == nullptr || core.rsub.mode.psxRender()) {
     return;
   }
@@ -46,6 +93,15 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScree
     drawAreaX1 = std::min(drawAreaX1, margin + gpu_vk_native_w(&core) - 1);
   }
 
+  const int anchoredShift = horizontalCorrection(core, draw, logicFrame, authoredScreenPresentation);
+  // THE CLIP TRAVELS WITH THE ELEMENT. The framework's 2D transform shifts the submitted draw area by
+  // the same margin it shifts the vertices, and this element's vertices were just moved BACK by the
+  // margin the anchoring applied. Leaving the clip behind clips the element against a rectangle that
+  // no longer bounds it: at 16:9 a left-edge panel authored at x = 32 was cut at x = 86, so two
+  // thirds of the corner panel the widening was supposed to reveal never reached the screen. Both
+  // numbers are in the element's own authored space, so they are corrected together.
+  drawAreaX0 += anchoredShift;
+  drawAreaX1 += anchoredShift;
   int xs[4]{};
   int ys[4]{};
   int us[4]{};
@@ -54,7 +110,7 @@ void submitSpriteQuad(Core &core, const SpriteQuadDraw &draw, bool authoredScree
   unsigned char green[4]{};
   unsigned char blue[4]{};
   for (std::size_t index = 0; index < draw.x.size(); ++index) {
-    xs[index] = draw.x[index] + authoredCanvasShift + gpu.s_off_x;
+    xs[index] = draw.x[index] + anchoredShift + authoredCanvasShift + gpu.s_off_x;
     ys[index] = draw.y[index] + gpu.s_off_y;
     us[index] = draw.u[index];
     vs[index] = draw.v[index];
@@ -145,7 +201,7 @@ void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t 
       continue;
     }
     ProducerScope producer(&core.rsub.producerScope, draw.sourceFunction, producerName(draw.sourceFunction));
-    submitSpriteQuad(core, draw, snapshot.authoredScreenPresentation);
+    submitSpriteQuad(core, draw, snapshot.logicFrame, snapshot.authoredScreenPresentation);
   }
 }
 

@@ -4,11 +4,13 @@
 #include "crashbash_frame_driver.h"
 #include "game.h"
 #include "guest_execution.h"
+#include "guest_packet_filter.h"
 #include "sprite_quad_decode.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <lucent/log.h>
+#include <optional>
 
 namespace crashbash::render {
 namespace {
@@ -62,6 +64,7 @@ void spriteQuadCapture(Core *core) {
   const SpriteQuadCall call{
       .sourceFunction = kSpriteQuadSubmit,
       .descriptor = core->r[4],
+      .callerReturnAddress = core->r[31],
       .renderList = core->mem_r32(kSpriteRenderList),
       .packedPosition = core->r[5],
       .orderingBin = static_cast<std::int32_t>(core->r[6]),
@@ -78,6 +81,17 @@ void spriteQuadCapture(Core *core) {
 
   // The super remains the guest-behavior oracle and owns the function's return value, allocation,
   // packet construction, and OT insertion. Native rendering consumes only the pre-super record above.
+  //
+  // The owner scope attributes every packet the super writes to THIS producer, so the guest's copy of
+  // the quad can be suppressed at GP0 execution while the guest call itself still runs to completion
+  // — its ABI, its pool writes and its OT insertion all happen exactly as retail did. It is scoped to
+  // the super, NOT to the native submit, and it is only entered when this title actually took
+  // ownership: a call this port refused to decode must leave its packets visible rather than have
+  // them attributed to a producer that will not draw them.
+  std::optional<GuestPacketOwnerScope> owner;
+  if (draw) {
+    owner.emplace(&core->rsub.guestPacketFilter, kSpriteQuadSubmit);
+  }
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kSpriteQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
@@ -87,6 +101,7 @@ void flatSpriteQuadCapture(Core *core) {
   const SpriteQuadCall call{
       .sourceFunction = kFlatSpriteQuadSubmit,
       .descriptor = core->r[4],
+      .callerReturnAddress = core->r[31],
       .renderList = core->mem_r32(kSpriteRenderList),
       .packedPosition = core->r[5],
       .orderingBin = static_cast<std::int32_t>(core->r[6]),
@@ -95,6 +110,10 @@ void flatSpriteQuadCapture(Core *core) {
   };
   const std::optional<SpriteQuadDraw> draw = captureSpriteQuad(*core, call);
 
+  std::optional<GuestPacketOwnerScope> owner;
+  if (draw) {
+    owner.emplace(&core->rsub.guestPacketFilter, kFlatSpriteQuadSubmit);
+  }
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kFlatSpriteQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
@@ -108,6 +127,7 @@ void screenColorQuadCapture(Core *core) {
     ScreenColorQuadCall call{
         .sourceFunction = kScreenColorQuadSubmit,
         .sourceAddress = source,
+        .callerReturnAddress = core->r[31],
         .renderList = core->mem_r32(kSpriteRenderList),
         .flags = flags,
         .xOffset = static_cast<std::int32_t>(core->mem_r32(kScreenXOffset)),
@@ -134,12 +154,32 @@ void screenColorQuadCapture(Core *core) {
     }
   }
 
+  // The screen-colour leaf's decode is OPTIONAL in a way the two sprite leaves' is not: it is refused
+  // unless both draw-environment bits are set, and a refused call submits nothing natively — so it
+  // must NOT be marked as this producer's, or its packets would be suppressed and never drawn.
+  std::optional<GuestPacketOwnerScope> owner;
+  if (draw) {
+    owner.emplace(&core->rsub.guestPacketFilter, kScreenColorQuadSubmit);
+  }
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kScreenColorQuadSubmit);
   recordCapturedSpriteQuad(*core, draw);
 }
 } // namespace
 
 void registerSpriteQuadCaptureOverride(Core &core) {
+  // Each leaf's guest copy is REPLACED by this title's native submit, so the guest's visual
+  // contribution is suppressed and only the native one is presented. This is the whole point of the
+  // three declarations: without them the framework replays the guest's own packets AND the native
+  // producer draws the same quads, and at 16:9 the two land in different places because the HUD
+  // anchors to the widened edges while the framework's replay stays centred.
+  //
+  // It reaches only because the title declares its packet-pool windows
+  // (`TitleAdapter::guestPacketPoolWindows`): OtAttr attributes a packet to a producer only inside
+  // that window, and a title that declares no window has a filter that matches nothing.
+  core.rsub.guestPacketFilter.setSuppressed(kSpriteQuadSubmit, true);
+  core.rsub.guestPacketFilter.setSuppressed(kFlatSpriteQuadSubmit, true);
+  core.rsub.guestPacketFilter.setSuppressed(kScreenColorQuadSubmit, true);
+
   runtime::registerNativeOverride(
       core, runtime::GuestImage::Resident, kSpriteQuadSubmit, "CrashBash::SpriteQuadCapture", spriteQuadCapture);
   runtime::registerNativeOverride(core,

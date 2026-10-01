@@ -113,6 +113,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/render/scene_snapshot.cpp
   game/render/sprite_quad_capture.cpp
   game/render/sprite_quad_decode.cpp
+  game/render/ui_anchor.cpp
 )
 
 find_package(SDL3 REQUIRED)
@@ -267,6 +268,13 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_sprite_render_list COMMAND crashbash_sprite_render_list_test)
+  add_executable(crashbash_ui_anchor_test tests/test_ui_anchor.cpp)
+  target_include_directories(crashbash_ui_anchor_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_ui_anchor_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_ui_anchor COMMAND crashbash_ui_anchor_test)
   add_executable(crashbash_render_capabilities_test tests/test_render_capabilities.cpp)
   target_include_directories(crashbash_render_capabilities_test PRIVATE game/core "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_render_capabilities_test PRIVATE psxport)

@@ -52,6 +52,16 @@ constexpr PlatformHlePlan kPlatformPlan{
     .windowHi = {guest::kVSync.end, guest::kCdCommand + 4u},
 };
 
+// The two heap packet pools, named by the guest globals the retail renderer's setup functions
+// publish. Parity 0 is `0x8005F790`/`0x8005F794`; parity 1 is `0x8006379C`/`0x800637A0`. Each pair is
+// {base, end}; the "current" pointer that walks the pool is `0x8005F798` / `0x800637A4` and is NOT a
+// window bound — the framework needs where the pool STARTS and STOPS, not where it is.
+constexpr GuestPacketPoolWindows kPacketPoolWindows{
+    .representation = GuestPacketPoolWindows::Representation::LiveBaseEndPointers,
+    .basePointer = {0x8005F790u, 0x8006379Cu},
+    .endPointer = {0x8005F794u, 0x800637A0u},
+};
+
 } // namespace
 
 psx::cpu::PsxExeLoadResult TitleAdapter::loadExecutable(Core &core, std::span<const std::uint8_t> bytes) {
@@ -86,6 +96,26 @@ const GuestProgramImage *TitleAdapter::guestProgramImage() const {
 const PlatformHlePlan *TitleAdapter::platformHlePlan() const {
   return &kPlatformPlan;
 }
+
+// THE 2D PACKET POOL, as the six guest globals the retail renderer publishes.
+//
+// The retail renderer does not use a fixed packet arena: `0x800274FC` and `0x800276C4` each call the
+// guest heap allocator for `requested_size + 0x1800` and publish inclusive base / exclusive end for
+// one parity, and `0x800272AC` alternates between the two. So the window is declared in psxport's
+// LIVE form — two pointer-global pairs — and the bounds are re-read whenever the guest rewrites a
+// global, which is what tracks a pool the game reallocates. The heap ADDRESSES are deliberately not
+// here: the measured frame-2500 bounds were `[0x801F97E8,0x801FEFE8)` and `[0x801F3FD0,0x801F97D0)`,
+// which are observed values, not title constants.
+//
+// WHY A DECLARATION MATTERS AT ALL. psxport's OtAttr attributes a guest packet to the producer that
+// wrote it only inside this window, and `GuestPacketFilter` suppresses only what OtAttr attributes.
+// With no window declared the filter matched nothing and answered "not owned" for every packet — so
+// the title's own native HUD producer could not stop the guest's copy of the same HUD being replayed,
+// and at 16:9 the two appeared side by side. See docs/issues/0034.
+const GuestPacketPoolWindows *TitleAdapter::guestPacketPoolWindows() const {
+  return &kPacketPoolWindows;
+}
+
 const char *TitleAdapter::discEnvVar() const {
   return "PSXPORT_CRASHBASH_DISC";
 }

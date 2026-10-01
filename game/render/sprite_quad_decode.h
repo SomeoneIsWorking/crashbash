@@ -19,6 +19,11 @@ struct SpriteQuadDescriptor {
 struct SpriteQuadCall {
   std::uint32_t sourceFunction = 0;
   std::uint32_t descriptor = 0;
+  // The guest routine that called this submit leaf (`ra` at the override's entry). It is the
+  // element's identity for anchoring: the leaf is shared by every HUD element, so the leaf address
+  // cannot say which one this is, and the descriptor address is a per-image asset record whose
+  // value moves with the loaded module.
+  std::uint32_t callerReturnAddress = 0;
   std::uint32_t renderList = 0;
   std::uint32_t packedPosition = 0;
   std::int32_t orderingBin = 0;
@@ -29,6 +34,7 @@ struct SpriteQuadCall {
 struct ScreenColorQuadCall {
   std::uint32_t sourceFunction = 0;
   std::uint32_t sourceAddress = 0;
+  std::uint32_t callerReturnAddress = 0;
   std::uint32_t renderList = 0;
   std::uint32_t flags = 0;
   std::array<std::int16_t, 4> x{};

@@ -87,6 +87,9 @@ bool isRenderableModelDraw(const ModelDraw &draw);
 struct SpriteQuadDraw {
   std::uint32_t sourceFunction = 0;
   std::uint32_t sourceAddress = 0;
+  // The guest routine that called the submit leaf (`ra` at the override's entry). Stable across
+  // images and modes, unlike `sourceAddress`, which is a per-image asset record.
+  std::uint32_t callerReturnAddress = 0;
   std::uint32_t renderList = 0;
   std::uint32_t packedPosition = 0;
   std::int32_t orderingBin = 0;

@@ -30,6 +30,9 @@ public:
   diagnostics::RunLedger &runLedger(Core &core) const;
   const GuestProgramImage *guestProgramImage() const override;
   const PlatformHlePlan *platformHlePlan() const override;
+  // The guest globals naming the two heap packet pools. See the definition for the addresses and
+  // why a title declares them at all.
+  const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   const char *discEnvVar() const override;
 
   void *createContext(Core &core) override;
