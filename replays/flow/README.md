@@ -3,15 +3,17 @@
 One active-low PSX pad mask per host frame, little-endian `uint16`, `0xFFFF` = every button released.
 They are the minimum retained scenarios for requalifying a title after the static execution path was
 retired, not claims that every retail mode is covered. Feed one with
-`PSXPORT_PAD_REPLAY=<path> PSXPORT_NATIVE_FRAMES=<frames>`; the guest receives the masks through the
+`PSXPORT_PAD_REPLAY=<path>` (the run logs `replay COMPLETE` when the last frame is delivered;
+`PSXPORT_NATIVE_FRAMES` is no longer a knob and the runtime warns that it did nothing); the guest receives the masks through the
 real SIO0 pad chain, so every transition below is the guest's own.
 
 | replay | frames | route | Lightrec status |
 |---|---|---|---|
 | `crashball-control.pad` | 3,740 | attract exit → Cross menu → character select → **live Crashball match** → held Left (3560-3619) and held Right (3620-3739) | **requalified 2026-09-30 on the dynarec product** — live match reached, direction-driven movement measured against an idle control leg, 0 fallback |
 | `battle-crate-crush-control.pad` | 15,401 | Battle Mode → live Crate Crush match | not yet requalified (S016 item 4) |
-| `tournament-crate-crush-control.pad` | 7,910 | Tournament Mode → first Crate Crush match | not yet requalified (S016 item 4) |
-| `polar-push-control.pad` | 17,682 | Polar Push → a complete, controllable live match | not yet requalified (S016 item 4) |
+| `tournament-crate-crush-control.pad` | 4,330 | Tournament → 1P → character → first tournament → options → briefing (4 Cross) → **live Crate Crush match** (DAT28382) → held Left 60, Right 120 | **re-recorded and requalified 2026-10-02 on the dynarec product** |
+| `polar-push-control.pad` | 4,547 | Battle → 1P → character → CHOOSE LEVEL Right → VS BATTLE → options → briefing → **live Polar Push match** (DAT22510) → held Left 60, Right 120 | **re-recorded and requalified 2026-10-02 on the dynarec product** |
+| `pogo-painter-control.pad` | 4,655 | Battle → 1P → character → CHOOSE LEVEL Right ×2 → VS BATTLE → options → briefing → **live Pogo Painter match** (DAT28272) → held Right 30, Up 30, Left 60 | **recorded 2026-10-02 on the dynarec product** |
 
 `crashball-control.pad` is the one scenario whose input shape is non-obvious and worth stating: the
 opening Cross taps (every 32 frames through 1192) only leave the attract cycle and reach the menu.

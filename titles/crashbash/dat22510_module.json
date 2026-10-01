@@ -7,10 +7,10 @@
   "source_file_lba": 236,
   "payload_disc_lba": 22510,
   "sector_size": 2048,
-  "sector_count": 70,
+  "sector_count": 71,
   "payload_offset": "0x02B81000",
-  "payload_size": "0x00023000",
-  "payload_sha256": "fb8ee41f2c19a9c419e7b4240de82237fca09efee98bdfec63b7ec430a18457f",
+  "payload_size": "0x00023800",
+  "payload_sha256": "7477dd74ccd80f8f1b8ce63265f8acf130e36a97f1e9182767383556e8ffc7e1",
   "load_address": "0x800B32B4",
   "entry_pointer_offset": null,
   "entry": null

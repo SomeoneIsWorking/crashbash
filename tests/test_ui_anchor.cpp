@@ -108,6 +108,9 @@ void authoredScreenPresentationStaysCentred() {
   for (const Caller caller : {Caller::Panels,
                               Caller::LivesLeft,
                               Caller::LivesRight,
+                              Caller::ScoreFirst,
+                              Caller::ScoreSecond,
+                              Caller::ScoreThird,
                               Caller::String,
                               Caller::StringSprite,
                               Caller::Countdown}) {
@@ -128,6 +131,13 @@ void classificationIsPerCaller() {
   expect(crashbash::render::hud_layout::callerOf(0x80019EE8u) == Caller::Panels, "panel caller");
   expect(crashbash::render::hud_layout::callerOf(0x80079F9Cu) == Caller::LivesRight, "lives-right caller");
   expect(crashbash::render::hud_layout::callerOf(0x8007A010u) == Caller::LivesLeft, "lives-left caller");
+  expect(crashbash::render::hud_layout::callerOf(0x80079EE0u) == Caller::ScoreFirst, "score first-digit caller");
+  expect(crashbash::render::hud_layout::callerOf(0x80079DF8u) == Caller::ScoreThird, "score third-digit caller");
+  // A score digit follows its player's panel: P1's last digit (x = 73) stays left, P4's (x = 457) goes right.
+  expect(crashbash::render::hud_layout::anchorFor(Caller::ScoreThird, 73, 31, kWide1699, false) == Anchor::LeftEdge,
+         "a left-hand score digit anchors left");
+  expect(crashbash::render::hud_layout::anchorFor(Caller::ScoreThird, 457, 31, kWide1699, false) == Anchor::RightEdge,
+         "a right-hand score digit anchors right");
   expect(!crashbash::render::hud_layout::callerOf(0x80000000u).has_value(), "an unknown caller is refused");
   expect(crashbash::render::hud_layout::forCaller(Caller::String)->anchor == Anchor::Centred,
          "the string family is centred");

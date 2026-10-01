@@ -41,8 +41,9 @@ remain diagnostics for finding causes, not completion conditions.
 - status: re-verified
 - deps: runtime.target
 - evidence: BOOT is at LBA 35799. MENU, DAT28272, DAT28241, DAT28136, DAT28382, and DAT22510
-  occupy the reused nested region at `0x800B32B4`. DAT22510 is `CRASHBSH.DAT + 0x02B81000`, size
-  `0x23000`, SHA-256 `fb8ee41f2c19a9c419e7b4240de82237fca09efee98bdfec63b7ec430a18457f`.
+  occupy the reused nested region at `0x800B32B4`. DAT22510 is `CRASHBSH.DAT + 0x02B81000`, 71 sectors,
+  size `0x23800`, SHA-256 `7477dd74ccd80f8f1b8ce63265f8acf130e36a97f1e9182767383556e8ffc7e1` (the retail
+  read is 71 sectors; sector 71 continues the module's halfword table).
   The provision path validates the complete 73,220,096-byte DAT and 44/44 recorded facts.
 - where: `tools/provision.py`, `tools/loaded_module.py`, `titles/crashbash/*_module.json`
 - gap:

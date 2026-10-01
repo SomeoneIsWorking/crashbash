@@ -15,6 +15,13 @@
 //               (return from `jal 0x80029D28` at `0x80019EE0`)
 //   0x8007A010  the FIRST digit of each player's lives counter             x = 43 / 139 / 331 / 427 side-of-centre
 //   0x80079F9C  the SECOND digit of each player's lives counter            x = 62 / 158 / 350 / 446 side-of-centre
+//   0x80079EE0  the FIRST digit of each player's 3-digit score             x = 35 / 131 / 323 / 419 side-of-centre
+//   0x80079E6C  the SECOND digit of each player's 3-digit score            x = 54 / 150 / 342 / 438 side-of-centre
+//   0x80079DF8  the THIRD digit of each player's 3-digit score             x = 73 / 169 / 361 / 457 side-of-centre
+//               (all five digit sites are `jal 0x8002992C` inside BOOT's one HUD routine 0x800798A4;
+//               the score row is what Pogo Painter and the attract demo draw under the portraits,
+//               measured 2026-10-02 from the UNCLASSIFIED census of the Polar Push, Tournament Crate
+//               Crush and Pogo Painter runs)
 //   0x80024688  the string renderer (`jal 0x8002992C` at `0x80024680`),     centred blocks             centred
 //               reached from the text walk at `0x80024400`
 //   0x80024640  a flat sprite through the same walk                        see below                  centred
@@ -63,6 +70,12 @@ enum class Caller : std::uint32_t {
   // side: all four players use both, and the side is a fact about the authored rectangle.
   LivesRight = 0x80079F9Cu,
   LivesLeft = 0x8007A010u,
+  // BOOT: the per-player 3-digit score, one submit site per digit in the same HUD routine
+  // (0x800798A4) as the lives digits. Each site serves all four players; the side is again a fact
+  // about the authored rectangle.
+  ScoreFirst = 0x80079EE0u,
+  ScoreSecond = 0x80079E6Cu,
+  ScoreThird = 0x80079DF8u,
 };
 
 // What a family is, for anchoring and for the report that names it.
@@ -89,6 +102,10 @@ constexpr std::optional<Family> forCaller(Caller caller) {
   case Caller::LivesRight:
   case Caller::LivesLeft:
     return Family{"lives", ui_anchor::Anchor::Centred};
+  case Caller::ScoreFirst:
+  case Caller::ScoreSecond:
+  case Caller::ScoreThird:
+    return Family{"score", ui_anchor::Anchor::Centred};
   }
   return std::nullopt;
 }
@@ -107,6 +124,12 @@ constexpr std::optional<Caller> callerOf(std::uint32_t returnAddress) {
     return Caller::LivesRight;
   case static_cast<std::uint32_t>(Caller::LivesLeft):
     return Caller::LivesLeft;
+  case static_cast<std::uint32_t>(Caller::ScoreFirst):
+    return Caller::ScoreFirst;
+  case static_cast<std::uint32_t>(Caller::ScoreSecond):
+    return Caller::ScoreSecond;
+  case static_cast<std::uint32_t>(Caller::ScoreThird):
+    return Caller::ScoreThird;
   }
   return std::nullopt;
 }
@@ -123,7 +146,8 @@ constexpr std::optional<Caller> callerOf(std::uint32_t returnAddress) {
 // are a centred composition, and they are excluded by `isPerPlayerRow` below rather than by a
 // position test that a briefing panel would fail by luck.
 constexpr bool isPerPlayerRow(Caller caller) {
-  return caller == Caller::Panels || caller == Caller::LivesLeft || caller == Caller::LivesRight;
+  return caller == Caller::Panels || caller == Caller::LivesLeft || caller == Caller::LivesRight ||
+         caller == Caller::ScoreFirst || caller == Caller::ScoreSecond || caller == Caller::ScoreThird;
 }
 
 // The class of one per-player element, from the rectangle the guest authored for it.
