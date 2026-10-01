@@ -51,7 +51,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S010 | Battle Mode Crate Crush reaches a live match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | recorded behavior; dynarec requalification in S016 | G001 |
-| S013 | The remaining retail modes are reachable and playable | missing | S008 | G001 |
+| S013 | The remaining retail modes are reachable and playable | missing — every `replays/flow/*.pad` was a pre-v1 raw recording the runtime REFUSES, so S009-S012 had been running with the pad at rest; all four are now v1 and the Crashball route drives a live 4-player match again. The Adventure level-select screen (the CRASHBALL/POLAR PANIC island carousel) accepts left/right camera moves but no confirm on any face button, which is what blocks the other minigames and Battle/Tournament | S008 | G001 |
 | S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S003 | G001 |
 | S015 | All 28 native overrides install by runtime image identity and all 16 original-body calls execute through the dynarec | partial | S003 | G001 |
 | S016 | Representative interactive gameplay passes on the native/dynarec product | partial | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
