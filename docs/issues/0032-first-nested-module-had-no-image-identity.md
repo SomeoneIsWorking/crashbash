@@ -228,13 +228,18 @@ pre-GTE draws, 4,922 faces captured, 2,917 textured, ~2,817 submitted per frame)
 An idle run still dwells in `0x8004E0B8` forever and still reloads MENU and the attract modules. That
 is not a defect and the log now says so: the scene lines name the live scene, and a run that never
 changes it is visibly a run that never left the logo.
-- The gameplay-reads hazard for this title's widening is **NOT** answered, and cannot be answered by
-  an absolute-address scan: the projection H the model producer widens is `camera + 0x18` where
-  `camera = *0x800569E0`, and the horizontal scale is `*0x8005B698 + 4`. Both sit behind pointer
-  globals, so neither has an address to scan. What is measured is that each pointer has exactly 2
-  writers, all resident (`0x80018C3C`, `0x80029C94` and `0x80027590`, `0x8002768C`). Answering the
-  hazard needs a runtime store/branch observation on the camera struct, which has not been done.
-  Do not read the pair below as "safe to widen": it is a picture result, not a scalar-safety result.
+- **SUPERSEDED 2026-09-30 as a gate — this hazard is no longer on the widescreen path, and this
+  paragraph must not be read as a blocker.** The measured content stands: the projection H the model
+  producer widens is `camera + 0x18` where `camera = *0x800569E0`, and the horizontal scale is
+  `*0x8005B698 + 4`; both sit behind pointer globals, so neither has an address to scan, and each
+  pointer has exactly 2 writers, all resident (`0x80018C3C`, `0x80029C94` and `0x80027590`,
+  `0x8002768C`). What changed is the consequence. Under the corrected sourcing rule (project-state
+  S005) the port sources margin objects from **object memory**, ignoring the game's culls, and
+  **widens no guest window at all** — so there is no guest scalar to be gameplay-unsafe. The owner
+  already worked host-side: `projection.ofx += margin << 16` on the captured transform, with the
+  authored-screen draw area clamped to the centred viewport. Answering the hazard by observing stores
+  on the camera struct is still a worthwhile fact about the title; it is no longer a precondition for
+  the feature, and "not answered" here no longer means "unsafe to ship".
 
 ### 3. Follow-on, 2026-09-30: the route was wrong, not just the observer — an interactive live match
 

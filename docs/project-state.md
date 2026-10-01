@@ -30,8 +30,9 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
    live-match leg is already a concrete instance of the case: `0x800B4694` is DAT28136's registered
    callback in one image generation and DAT28241's code in the next, at the same address.
 7. **S013**: the remaining modes. **S014**: audio requalification.
-8. Then measure the widescreen gameplay-read hazard (camera `+0x18` behind `*0x800569E0`) and
-   requalify 60 fps interpolation.
+8. Then requalify 60 fps interpolation. Widescreen is no longer gated on the camera-scalar hazard
+   measurement: under the corrected sourcing rule (S005) no guest window is widened, so that
+   measurement is off the critical path.
 
 ## Capability inventory
 
@@ -41,7 +42,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S002 | The retail boot and loaded-image sequence have a recorded first-frame and menu frontier to re-establish through the dynarec | partial | S001, S003 | G001 |
 | S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec with bounded, reason-accounted fallback | partial | S001, shared psxport executor | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct across representative content | partial | S002, S015 | G001, G002, G003 |
-| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the cull/limit owner audit and a margin census against a 4:3 run are missing | S004 | G002 |
+| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the margin census against a 4:3 run is DONE (0 margin objects absent from object memory; guest RAM 524,288/524,288 words identical at frames 2500 and 2800; 12 of 12 census frames match). The cull/limit owner audit is partial: `0x80056ACC` has 3 store sites (resident `0x8001C0C0` and `0x8001C1B8`, both halfword stores off the source-decode base from `0x8001C008`/`0x8001C0F0`, plus `0x8001E188` off `0x8001A918`) and `0x80056ADC` has 2 (`0x8001AC78` off `0x80019CF8`, `0x8001E1C4` off `0x8001A918`), but the pod/movement words `0x801D4048`, `0x801D40FC` and `0x8005721C` return **0** sites because the guest forms base+index, and the only base in that band the images materialise by `lui` is `0x80056998` (BOOT `0x800825B4`/`0x80082624`). Battle, Tournament and Polar Push are unsurveyed | S004 | G002 |
 | S019 | Widescreen anchors the UI: edge HUD elements sit at the widened edges or safe area, centred elements stay centred, nothing stretches | missing | S005 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
@@ -187,10 +188,47 @@ Gap: Requalify these owners across representative dynarec gameplay and complete 
 ### S005 — Widescreen camera
 
 Evidence: The native camera shows additional horizontal Crashball coverage while preserving vertical
-framing, and authored 4:3 presentation compositions remain centered.
+framing, and authored 4:3 presentation compositions remain centered. The owner widens the projection
+host-side (`projection.ofx += margin << 16`, with the authored-screen draw area clamped to the centred
+viewport) and never writes a guest projection scalar.
 
-Gap: Verify projection, viewport, scissor, HUD intent, and proven culling ownership through the other
-representative retail modes on the hybrid product.
+**The rule's home is the S005 row above**, which already states the sourcing policy (margin objects from
+object memory, margin-only objects animated port-side, guest memory untouched). Two points this section
+adds that the row does not carry, and one it withdraws:
+
+- **The reportable gap is a margin object ABSENT from object memory** — despawned by a camera window
+  rather than culled from a list. A culled-but-resident object is the rule working as intended, not a
+  finding.
+- **Withdrawn as a gate:** "measure the widescreen gameplay-read hazard (camera `+0x18` behind
+  `*0x800569E0`)" as a *precondition* for widening. No guest window is widened — not the camera
+  window, not `H`, not a draw-area or scissor word — so there is no guest scalar to be
+  gameplay-unsafe. The camera-struct observation is still a worthwhile fact about the title; it no
+  longer gates the feature.
+
+**Measured, 2026-09-30 — the RAM identity invariant, both legs, one replay, 3,000 frames.** The
+`aspect` knob is the settings file (`PSXPORT_SETTINGS`, `aspect=0` = 4:3, `aspect=1` = 16:9), not an
+environment variable. The two legs are `native_width=512 render_width=512` and
+`native_width=512 render_width=684`; the aspects are confirmed distinct rather than one silently
+falling back to the other.
+
+| check | result |
+|---|---|
+| guest RAM across aspects, frame 2500 | **524,288 / 524,288 words identical (100.0000%)** |
+| guest RAM across aspects, frame 2800 | **524,288 / 524,288 words identical (100.0000%)** |
+| object-memory population | **identical at 12 of 12 census frames** in every category — draws, transformed, source-decoded, faces captured, textured all equal. Only `faces submitted` differs, by at most **9 faces** (1218/1216, 1720/1718, 2799/2808, 2798/2807 — under 0.4%) and **in both directions**: a projection change moving a few faces across the clip boundary, not a cull removing objects |
+| capture corroboration, read off the two PNGs rather than a logged counter | both `present_3000.png` captures show the same HUD score digits 14 / 15 / 14 / 15 and the same ball position; the 16:9 frame carries additional arena at both edges |
+| reportable gap class — a margin object **absent from object memory** | **zero objects**, from 524,288 scanned words × 2 aspects × 2 frames. This follows rather than merely agreeing: object memory *is* guest memory, the guest bytes are identical across aspects, so an object present in the 4:3 population and missing in the 16:9 one would require a guest write that did not happen |
+
+Method note, because the tool refused rather than reporting a vacuous result: the first comparison
+asked for a frame-3000 dump that neither leg has — `PSXPORT_NATIVE_FRAMES=3000` ends before it — and
+the audit exited 2 with `REFUSED` instead of printing "2 of 3 frames identical". The two frames both
+legs do hold are the two rows above. The census is a **count** comparison, and the RAM identity is
+what carries the set-identity claim; the census corroborates it and is not the proof.
+
+Gap: frames 2048-3000 are not covered by the per-frame census schedule (it reports on a geometric
+dwell schedule, last at frame 2047), so the identity result is measured at frames 2500 and 2800 and
+corroborated at 12 census frames reaching frame 2047. The other representative retail modes (Battle,
+Tournament, Polar Push) have not been surveyed under this rule.
 
 ### S006 — Interpolated presentation
 
