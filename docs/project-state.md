@@ -424,9 +424,10 @@ guest heap, enters the finite boot prefix, opens the real CHD, and then fails fa
 call requires `GuestReturn`. This proves the executable entry and authentication route and identifies
 the next runtime owner; it does not prove boot, gameplay, or presentation.
 
-Framework pin alignment (2026-09-12): `psxport.pin` records shared psxport `8b210329`, the exact
-framework checkout used for the current consumer build. The combined Clang gate passes all 28 title
-CTests, including the pin check and shared execution-boundary check.
+Framework alignment (2026-09-12): the consumer build ran against shared psxport `8b210329`. The
+combined Clang gate passed all 28 title CTests, including the then-live pin check and the shared
+execution-boundary check. (The pin mechanism was retired 2026-10-02; `external/psxport` is now the
+workspace's live checkout.)
 
 Direct CD migration evidence (2026-09-12): The old `GameConfig` bound stock CdCommand, CdSync, and
 CdSearchFile, but the direct plan initially declared only VSync. The framework now exposes those
@@ -527,8 +528,9 @@ static dispatch markers, and any change to the 28-registration/16-original-call 
 ### S018 — Platform CI coverage
 
 Partial capability: `.github/workflows/ci.yml` configures a Linux x86-64 native adapter job with full
-history, read-only permissions, pinned actions, and an explicit timeout. It resolves `psxport.pin`,
-uses that checkout's shared Linux setup action, and runs `tools/verify.py`. The thin title verifier
+history, read-only permissions, pinned actions, and an explicit timeout. It resolves the framework with
+`tools/psxport_fetch.py` (a clone of psxport `main` in CI, which has no sibling checkout), uses that
+checkout's shared Linux setup action, and runs `tools/verify.py`. The thin title verifier
 selects the real `crashbash_title_adapter_test` artifact and every `crashbash_` CTest; shared
 `ConsumerVerifier` owns build, style/test execution, and linked execution-boundary checks. Hosted
 execution of this expanded job remains unverified, and it does not establish packaged gameplay.

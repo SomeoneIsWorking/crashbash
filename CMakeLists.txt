@@ -5,9 +5,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(CTest)
 
-# PSXPORT_DIR — the framework. external/psxport is NOT a git submodule (2026-08-16): it is a symlink
-# to the workspace's shared framework clone, or a private clone at this repo's psxport.pin on a fresh
-# machine; tools/psxport_fetch.py --auto establishes whichever applies. Defaults to external/psxport so
+# PSXPORT_DIR — the framework. external/psxport is NOT a git submodule (2026-08-16): it is a relative
+# symlink to the workspace's live framework checkout, or a clone of its main where there is none;
+# tools/psxport_fetch.py --auto establishes whichever applies. Defaults to external/psxport so
 # a bare clone of this repo builds standalone.
 set(PSXPORT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/psxport" CACHE PATH
     "psxport framework source directory (default: external/psxport)")
@@ -16,16 +16,6 @@ if(NOT EXISTS "${PSXPORT_DIR}/cmake/psxport.cmake")
                       "`uv run --frozen python tools/psxport_fetch.py --auto`, or point PSXPORT_DIR "
                       "at a psxport checkout.")
 endif()
-# RECORD WHAT THIS CONFIGURE RESOLVED, so `tools/psxport_sync.py --check` can compare the built
-# framework against the one psxport.pin RECORDS.
-execute_process(COMMAND git -C "${PSXPORT_DIR}" rev-parse HEAD
-                OUTPUT_VARIABLE PSXPORT_RESOLVED_SHA OUTPUT_STRIP_TRAILING_WHITESPACE
-                ERROR_QUIET RESULT_VARIABLE _psxport_rev_rc)
-if(NOT _psxport_rev_rc EQUAL 0)
-  set(PSXPORT_RESOLVED_SHA "unknown")
-endif()
-file(WRITE "${CMAKE_BINARY_DIR}/psxport_resolved.txt"
-     "dir = ${PSXPORT_DIR}\ncommit = ${PSXPORT_RESOLVED_SHA}\n")
 set(PSXPORT_BUILD_SMOKE OFF CACHE BOOL "Build the framework agnosticism smoke" FORCE)
 add_subdirectory("${PSXPORT_DIR}" psxport_build)
 
@@ -436,12 +426,6 @@ if(BUILD_TESTING)
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_provision.py"
   )
   add_test(
-    NAME crashbash_psxport_pin
-    COMMAND
-      "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/psxport_sync.py"
-      --check --build "${CMAKE_BINARY_DIR}"
-  )
-  add_test(
     NAME crashbash_oracle_irq_compare_selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_oracle_irq.py"
@@ -467,13 +451,6 @@ if(BUILD_TESTING)
   )
 endif()
 
-# The pin tool's own behaviour: the staleness guard, and a bump that records the commit the build
-# RESOLVED rather than the framework's current HEAD. Added because 7 of 10 ports shipped the tool with no
-# test gating it at all. Unguarded on purpose where this repository does not define BUILD_TESTING -- a
-# guarded add_test there is silently inert, which is the failure this gate exists to prevent.
-add_test(
-  NAME crashbash_psxport_pin_selftest
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_psxport_sync.py")
 # The caller census's OWN decoder check. `probe_call_sites.py` computed a jal target as
 # (word & 0x03FFFFFF) << 2 with no region term, which caps every target at 0x0FFFFFFC -- so `--callee` on
 # any real guest address could NEVER match and the tool printed `matched 0` over a full scan, with a

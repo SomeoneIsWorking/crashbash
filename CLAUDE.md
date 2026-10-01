@@ -7,10 +7,10 @@ goals, state, ownership map, and RE frontier are `docs/project-goals.md`, `docs/
 Never commit discs, extracted executables, `.env`, or machine-specific paths. Run artifacts go under
 `scratch/`, never `/tmp`; build output goes under `build/`.
 
-`external/psxport` is not a git submodule. It is a symlink to the workspace's shared framework clone
-when one exists, or a private clone at this repository's `psxport.pin` on a fresh machine.
-`tools/psxport_fetch.py --auto` establishes that checkout. Framework changes happen in the shared
-psxport clone, while this title records only a psxport revision that has passed its own product gates.
+`external/psxport` is not a git submodule. It is a relative symlink to the workspace's live framework
+checkout when one exists, or a clone of psxport `main` where there is none. `tools/psxport_fetch.py
+--auto` establishes that checkout. Framework changes happen in the workspace's psxport, and this title
+always gates against them as they stand.
 
 ## Product execution contract
 

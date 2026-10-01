@@ -54,7 +54,7 @@ remain diagnostics for finding causes, not completion conditions.
 - status: todo
 - deps: runtime.images, psxport per-`Core` dynarec executor
 - evidence:
-- where: `external/psxport`, `psxport.pin`, `game/core/`
+- where: `external/psxport`, `game/core/`
 - gap: Wire the title to psxport's maintained, pinned Lightrec integration; prove nonzero translated
   blocks; audit the gameplay link and configuration surfaces to prove that the interpreter in the
   separately built test target, including diagnostics, is absent and cannot be selected or entered as
