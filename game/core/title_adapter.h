@@ -6,6 +6,12 @@
 #include <memory>
 
 namespace crashbash {
+namespace diagnostics {
+// A member reference needs no definition: this header hands back the Core's ledger, it does not
+// know what a ledger contains, and including it here would make every consumer of this boundary
+// depend on the diagnostics owner for no reason.
+class RunLedger;
+} // namespace diagnostics
 
 // Typed psxport composition boundary. Compose the GuestExecution context with authenticated
 // loaded-image lifecycle and the retained native frame/presentation owners.
@@ -17,6 +23,11 @@ public:
 
   // Authenticating and loading consume one immutable byte span; no path is reopened after hashing.
   psx::cpu::PsxExeLoadResult loadExecutable(Core &core, std::span<const std::uint8_t> bytes);
+
+  // The whole-run ledger this Core's own title context owns. The product reaches it here, through
+  // the object it already composed, so the run that closes the ledger is the run that filled it and
+  // there is no accessor for anyone else to use.
+  diagnostics::RunLedger &runLedger(Core &core) const;
   const GuestProgramImage *guestProgramImage() const override;
   const PlatformHlePlan *platformHlePlan() const override;
   const char *discEnvVar() const override;

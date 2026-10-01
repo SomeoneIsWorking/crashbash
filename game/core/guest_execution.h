@@ -1,6 +1,7 @@
 #pragma once
 
 #include "native_dispatch.h"
+#include "run_ledger.h"
 
 #include <cstdint>
 #include <optional>
@@ -54,6 +55,17 @@ public:
   // native keys at overwritten entries. Unchanged fragments retain their original identity.
   void retireImagesOverlapping(GuestAddressRange physicalRange);
   std::optional<psx::cpu::NativeKey> activeKey(GuestImage image, std::uint32_t address) const;
+
+  // The one whole-run ledger for this Core. It is a member because this context is the Core's own
+  // title state: it is created with the Core, destroyed with it, and every guest-execution fact the
+  // ledger prints is observed here. It is a reference, not an owned copy, so the ledger the product
+  // reports is provably the one this execution fed.
+  diagnostics::RunLedger &ledger() {
+    return ledger_;
+  }
+  const diagnostics::RunLedger &ledger() const {
+    return ledger_;
+  }
   // ONE bounded host turn of the original body for this override key. It reports that turn's typed
   // exit unchanged: BudgetExhausted is an ordinary outcome, and what to do about it belongs to
   // runGuestCallToReturn below, not to a call site.
@@ -72,11 +84,25 @@ private:
     GuestAddressRange range;
   };
   void removeRegistrations(const Binding &binding);
+  // The run ledger is told the registration and binding counts here, where they change, so its
+  // run-end line has a producer instead of reading title state something else may have moved.
+  void noteOwnershipCensus();
 
   Core &core_;
+  diagnostics::RunLedger ledger_;
   std::vector<Registration> registrations_;
   std::vector<Binding> bindings_;
 };
+
+// The ledger belonging to the Core's own title context.
+//
+// WHY A LOOKUP EXISTS HERE, given every other feeder takes its ledger as a parameter. psxport
+// installs the context from `Core`'s constructor (runtime/psx/core.cpp), BEFORE the product has a
+// Core to build a ledger for, so the context cannot be handed one at construction. It is also the
+// only per-Core handle the framework gives: a native override receives a bare `Core *`, and a
+// CD-read completion has a signature the framework owns. This returns the ledger of THAT Core's
+// context — it is a lookup of a member, not a singleton, and two Cores still have two ledgers.
+diagnostics::RunLedger &runLedgerFor(Core &core);
 
 // Retained native owners all use this same context and shared dispatcher.
 void registerNativeOverride(

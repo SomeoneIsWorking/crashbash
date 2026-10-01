@@ -59,7 +59,7 @@ psx::cpu::PsxExeLoadResult TitleAdapter::loadExecutable(Core &core, std::span<co
     return {std::nullopt, {}, "Crash Bash executable load requires this title's Core context"};
   }
   auto &execution = *static_cast<runtime::GuestExecution *>(core.gameCtx);
-  auto result = loadResidentImage(core, bytes);
+  auto result = loadResidentImage(core, bytes, execution.ledger());
   if (result) {
     // The EXE header includes BSS and the heap tail in its text byte count. Those bytes were
     // authenticated and loaded, but only the pre-BSS interval is resident executable code.
@@ -74,6 +74,10 @@ psx::cpu::PsxExeLoadResult TitleAdapter::loadExecutable(Core &core, std::span<co
     execution.bindAuthenticatedImage(runtime::GuestImage::Resident, image, kResidentCodeRange);
   }
   return result;
+}
+
+diagnostics::RunLedger &TitleAdapter::runLedger(Core &core) const {
+  return runtime::runLedgerFor(core);
 }
 
 const GuestProgramImage *TitleAdapter::guestProgramImage() const {

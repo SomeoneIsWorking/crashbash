@@ -6,6 +6,7 @@
 #include "game.h"
 #include "guest_execution.h"
 #include "hw_bind.h"
+#include "run_ledger.h"
 #include "title_adapter.h"
 
 #include <lucent/log.h>
@@ -59,9 +60,16 @@ int main(int argc, char **argv) {
   // on the heap so the entry stack remains bounded on hosts with the usual 8 MiB thread stack.
   auto game = std::make_unique<Game>();
   Core &core = game->core;
+  // The run's ledger, owned by the Core's title context and reached through the runtime object this
+  // product composed. It exists before the executable is loaded, because loading it is itself a
+  // publication this run must account for, and it is closed on every return path below. The report
+  // names the outcome, so a run that ends through `refuseRun` and one that returns from the frame
+  // loop are told apart.
+  crashbash::diagnostics::RunLedger &ledger = runtime.runLedger(core);
   const auto loaded = runtime.loadExecutable(core, bytes);
   if (!loaded) {
     lucent::error("boot", "cannot authenticate Crash Bash executable '{}': {}", executable.string(), loaded.detail);
+    ledger.close("the executable failed authentication");
     return 2;
   }
 
@@ -83,5 +91,6 @@ int main(int argc, char **argv) {
   // how many of those needed more than one display field. A run in which nothing was ever resumed has
   // to say so against that count, or the absence of a resume reads as "nothing was measured".
   crashbash::runtime::reportGuestCallCensus("after native boot");
+  ledger.close("after native boot");
   return 0;
 }

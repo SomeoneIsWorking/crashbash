@@ -132,8 +132,63 @@ Two instrument facts from the same run, both of which nearly produced a wrong cl
   that the renderer failed to initialise. It briefly read as exactly that, which is worth recording
   because the renderer was up and presenting on the same run.
 
-Still missing: representative gameplay, complete image publication, and the whole-run
-translated/fallback counter ledger.
+Still missing: representative gameplay.
+
+**MEASURED 2026-10-01 — the whole-run ledger and the image-publication census EXIST, and the
+execution numbers now belong to psxport.** `game/diagnostics/run_ledger.{h,cpp}` (library
+`crashbash_run_ledger`) reports only what the framework has no counter for: WHICH authenticated
+image was published, from which offer, with what witnesses, plus this title's refusals, guest
+faults, native registrations and original-body calls. The dynarec's own numbers are printed by
+psxport `runtime/cpu/execution_ledger.h` (`logRunEndLedger`, called from native_boot) in ONE format,
+and this title deliberately prints none of them — a second copy in a second format is two answers to
+one question. `tests/test_run_ledger.cpp` asserts the absence (`!printed("run-end executor:")` and
+four more), so the duplication cannot come back unnoticed.
+
+Measured on one 1,500-frame retail run against pinned psxport `d51ee05a`, log
+`scratch/ledger/class-1500.log`, product `build/migration/bin/crashbash_port`, headless, silent,
+unpaced, exit 0. **Framework `guest` channel:** 119,329 calls · 6,900 blocks translated / 14,670,173
+executed · 214,993,195 guest instructions · 118,316 host dispatches · 14,663,272 cache hits / 6,904
+misses · **25,993,839 invalidations, attributed**: cpu=21,518,393, mapped_store=4,473,896, dma=1,518,
+module_load=4, debugger=0, savestate=0, native=28 · invalidation work 18,445,608 Lightrec calls of
+which 18,442,941 answered by a guard, 2,667 walks over 97,890 block scans (7,680,960 before psxport `d51ee05a`), **57 blocks actually
+revoked** · 27 budget exits, 27 with a PC inside a loaded code image, 0 outside · **0 interpreter
+fallbacks**, with all five reasons and all five refused reasons present and zero.
+
+**Title `crashbash-ledger` channel, same run:** 3 module offers / 3 published / 0 refused, plus 1
+resident executable image, 4 distinct tracked images · resident generation 1 over
+`[0x010000,0x079000)`, BOOT generation 3 over `[0x078C90,0x0D7490)`, MENU generation 4 over
+`[0x0B32B4,0x0BB2B4)`, DAT28272 generation 5 over `[0x0B32B4,0x0C62B4)`, each with byte count,
+content-witness count and the runtime's own invalidation delta across the publication · 28
+overrides registered, 3 image generations bound, 98,914 original-body calls at 12 distinct sites ·
+0 fallback refusal sites. DAT28136, DAT28382 and DAT22510 were **not** exercised: reaching them
+needs the controlled mode selection issue 0032 still owns.
+
+**`counters.invalidations` is REQUESTS, not invalidated blocks, and psxport now reports both
+halves — so this title states no invalidation number at all.** `LightrecExecutor::invalidate` /
+`invalidateAll` increment it once per CALL, and `Core::writeGuestMemory` issues one
+`notifyExecutableWrite` per mapped guest store, which is why 25,993,839 requests (21.5M of them from
+the CPU itself) stand against **57 blocks actually revoked** and 6,900 ever translated. The
+`invalidation_work` and `invalidations_by_source` lines exist precisely because the request count
+alone reads as four orders of magnitude too large; the first version of the title ledger printed
+that request count under the words "reached the block cache" and had to be corrected.
+
+**A run that ends by refusal still emits the ledger** — measured, not asserted. Pointing the product
+at a byte-corrupted `SCUS_945.70` (log `scratch/ledger/measured-refusal.log`, exit 2) prints the
+full ledger, names `run-end resident refusal: Crash Bash USA executable SHA-256 does not match the
+authenticated manifest`, and says loudly that 0 executed instructions means the run measured NOTHING
+rather than reporting a healthy set of zeros. `refuseRun` is the product's one refusal route for the
+execution boundary and reports before it aborts, because `std::abort()` runs no destructor and the
+framework's own `~LightrecExecutor` telemetry — documented as being emitted "on every exit path" —
+is absent on exactly those paths (issue 0033).
+
+**Two ledger requirements cannot be met from the title and are named as exact framework changes**
+(issue 0033): an ADMITTED interpreter fallback leaves no port-visible site (the runtime keeps
+`fallbackRefusalPc` private to its `Impl` and only sets it on the refusal branch), and "overrides
+hit" has no framework counter at all (`NativeDispatcher::invoke` has no census; `hostDispatches`
+includes BIOS/HLE). The ledger reports the refusal sites the runtime does surface and says which
+half it cannot see, rather than publishing a number it cannot stand behind. psxport `5b66eb7f` has
+since taken the other two thirds of this gap — the run-end guest ledger, and `invalidation_work`
+with `invalidations_by_source`, which this title previously had to explain for itself.
 
 **MEASURED 2026-09-30, and the "never leaves `0x8004E0B8`" reading above was a DEAD TAP.** The run
 this paragraph described drove the pad at rest, so the guest ran the **attract cycle** — which is

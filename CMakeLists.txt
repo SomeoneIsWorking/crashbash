@@ -145,6 +145,16 @@ set_target_properties(crashbash_guest_execution PROPERTIES CXX_STANDARD 20 CXX_S
 target_include_directories(crashbash_guest_execution PUBLIC game/core)
 target_link_libraries(crashbash_guest_execution PUBLIC psxport)
 
+# The whole-run ledger is its own owner, and its own library, because BOTH the execution seam
+# (`guest_execution.cpp` feeds it original calls, faults and refusals) and the image-publication
+# owner (which feeds it every authenticated generation) depend on it. Folding it into either of them
+# would make one of the two a cycle.
+add_library(crashbash_run_ledger STATIC game/diagnostics/run_ledger.cpp)
+set_target_properties(crashbash_run_ledger PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+target_include_directories(crashbash_run_ledger PUBLIC game/diagnostics)
+target_link_libraries(crashbash_run_ledger PUBLIC psxport)
+target_link_libraries(crashbash_guest_execution PUBLIC crashbash_run_ledger)
+
 add_library(crashbash_seam OBJECT ${CRASHBASH_SEAM_SOURCES})
 set_target_properties(crashbash_seam PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics game/input game/render "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
@@ -173,6 +183,13 @@ if(BUILD_TESTING)
   set_tests_properties(crashbash_title_adapter PROPERTIES
     TIMEOUT 30
     ENVIRONMENT "PSXPORT_CARD=${CMAKE_CURRENT_SOURCE_DIR}/scratch/title-adapter-test/card.mcr")
+  add_executable(crashbash_run_ledger_test tests/test_run_ledger.cpp)
+  target_include_directories(crashbash_run_ledger_test PRIVATE game/core game/diagnostics
+                             "${PSXPORT_DIR}/tests"
+                             "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_link_libraries(crashbash_run_ledger_test PRIVATE crashbash_seam)
+  set_target_properties(crashbash_run_ledger_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_run_ledger COMMAND crashbash_run_ledger_test)
   add_executable(crashbash_boot_image_test tests/test_boot_image.cpp)
   target_include_directories(crashbash_boot_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
                              "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")

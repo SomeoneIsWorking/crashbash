@@ -5,6 +5,7 @@
 #include "image_identity.h"
 #include "lightrec_executor.h"
 #include "native_dispatch.h"
+#include "run_ledger.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -53,6 +54,30 @@ double displayFields(const Core &core, std::uint64_t cycles) {
   return static_cast<double>(cycles) / static_cast<double>(psx::cpu::ExecutionBudget::currentTurn(core).cycles);
 }
 
+// The logical name a tracked image is known by everywhere else in this title. Named here, next to
+// the enum it names, so the ledger and the refusals cannot spell one image two ways.
+const char *imageName(GuestImage image) {
+  switch (image) {
+  case GuestImage::Resident:
+    return "resident";
+  case GuestImage::Boot:
+    return "boot";
+  case GuestImage::Menu:
+    return "menu";
+  case GuestImage::Dat28136:
+    return "dat28136";
+  case GuestImage::Dat22510:
+    return "dat22510";
+  case GuestImage::Dat28272:
+    return "dat28272";
+  case GuestImage::Dat28241:
+    return "dat28241";
+  case GuestImage::Dat28382:
+    return "dat28382";
+  }
+  return "unknown";
+}
+
 void recordCompleted(
     Core &core, std::uint32_t entry, std::uint32_t returnPc, std::uint32_t turns, std::uint64_t cycles) {
   ++census.completed;
@@ -80,7 +105,7 @@ void recordCompleted(
 
 } // namespace
 
-GuestExecution::GuestExecution(Core &core) : core_(core) {
+GuestExecution::GuestExecution(Core &core) : core_(core), ledger_(core) {
   if (core.gameCtx) {
     throw std::logic_error("Crash Bash Core already has a title context");
   }
@@ -126,6 +151,7 @@ void GuestExecution::registerOverride(GuestImage image,
     }
   }
   registrations_.push_back({image, address, std::string(name), function});
+  noteOwnershipCensus();
 }
 
 void GuestExecution::bindAuthenticatedImage(GuestImage image,
@@ -152,6 +178,7 @@ void GuestExecution::bindAuthenticatedImage(GuestImage image,
   unbindImage(image);
   const Binding binding{image, identity, range};
   bindings_.push_back(binding);
+  noteOwnershipCensus();
   for (const auto &registration : registrations_) {
     if (registration.image == image &&
         !core_.nativeDispatcher().install(
@@ -169,6 +196,7 @@ void GuestExecution::unbindImage(GuestImage image) {
   if (binding != bindings_.end()) {
     removeRegistrations(*binding);
     bindings_.erase(binding);
+    noteOwnershipCensus();
   }
 }
 
@@ -185,6 +213,7 @@ void GuestExecution::retireImagesOverlapping(GuestAddressRange physicalRange) {
     if (remaining == 0u) {
       removeRegistrations(*binding);
       binding = bindings_.erase(binding);
+      noteOwnershipCensus();
       continue;
     }
     for (const auto &registration : registrations_) {
@@ -194,6 +223,10 @@ void GuestExecution::retireImagesOverlapping(GuestAddressRange physicalRange) {
     }
     ++binding;
   }
+}
+
+void GuestExecution::noteOwnershipCensus() {
+  ledger_.noteInstalledOverrides(registrations_.size(), bindings_.size());
 }
 
 std::optional<psx::cpu::NativeKey> GuestExecution::activeKey(GuestImage image, std::uint32_t address) const {
@@ -218,6 +251,10 @@ GuestExecution::original(GuestImage image, std::uint32_t address, psx::cpu::Exec
   return psx::cpu::callOriginal(core_, *key, budget);
 }
 
+diagnostics::RunLedger &runLedgerFor(Core &core) {
+  return execution(core).ledger();
+}
+
 void registerNativeOverride(
     Core &core, GuestImage image, std::uint32_t address, std::string_view name, NativeOverride function) {
   execution(core).registerOverride(image, address, name, function);
@@ -228,9 +265,12 @@ void retireAuthenticatedImagesForWrite(Core &core, GuestAddressRange physicalRan
 }
 
 void dispatchGuest(Core &core, std::uint32_t address) {
-  if (!psx::cpu::requireGuestReturn(dispatchGuestSlice(core, address, psx::cpu::ExecutionBudget::currentTurn(core)),
-                                    "Crash Bash guest call")) {
-    std::abort();
+  const psx::cpu::ExecutionResult result =
+      dispatchGuestSlice(core, address, psx::cpu::ExecutionBudget::currentTurn(core));
+  if (!psx::cpu::requireGuestReturn(result, "Crash Bash guest call")) {
+    diagnostics::RunLedger &ledger = execution(core).ledger();
+    ledger.noteGuestFault("Crash Bash guest call", result.guestPc, result.detail);
+    ledger.refuseRun(lucent::format("the guest call entered at 0x{:08X} did not return", address));
   }
 }
 
@@ -258,7 +298,7 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
                     result.guestPc,
                     cycles,
                     result.detail);
-      std::abort();
+      execution(core).ledger().refuseRun("a guest call exhausted its host turn with no guest progress");
     }
     if (turns >= kGuestCallTurnCap) {
       lucent::error("crashbash-guest",
@@ -275,7 +315,7 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
                     result.guestPc,
                     result.detail,
                     kGuestCallTurnCap);
-      std::abort();
+      execution(core).ledger().refuseRun("a guest call ran past the host-turn cap without returning");
     }
     // A resumed ORIGINAL re-establishes the suppression of its own override from the key. If the image
     // generation behind that key is no longer the one mapped at the entry, the suppression would
@@ -291,7 +331,7 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
                       "longer suppressed, so resuming would re-enter it from inside the original body",
                       owner,
                       entry);
-        std::abort();
+        execution(core).ledger().refuseRun("a resumed original call lost the image generation behind its override");
       }
     }
     const psx::cpu::ExecutionBudget turn = psx::cpu::ExecutionBudget::currentTurn(core);
@@ -301,7 +341,9 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
     ++turns;
   }
   if (!psx::cpu::requireGuestReturn(result, owner)) {
-    std::abort();
+    diagnostics::RunLedger &ledger = execution(core).ledger();
+    ledger.noteGuestFault(owner, result.guestPc, result.detail);
+    ledger.refuseRun("a guest call ended in something other than a return");
   }
   recordCompleted(core, entry, returnPc, turns, cycles);
   return result;
@@ -334,6 +376,7 @@ void reportGuestCallCensus(std::string_view why) {
 
 void callOriginal(Core &core, GuestImage image, std::uint32_t address) {
   GuestExecution &context = execution(core);
+  context.ledger().noteOriginalCall(imageName(image), address);
   const std::uint32_t returnPc = core.r[31];
   const auto key = context.activeKey(image, address);
   const auto first = context.original(image, address, psx::cpu::ExecutionBudget::currentTurn(core));
