@@ -19,8 +19,8 @@ float fixedModelSortKeyOrd(int sortKey) {
   // this reason (it is already baked into the key); `depthLimit` is the same mistake one step on.
   //
   // The denominator is therefore the key domain's own frame-wide bound, taken from the game's
-  // types rather than tuned: retail rejects every face whose key >= depthLimit, and depthLimit is a
-  // signed halfword, so every ACCEPTED key is < 0x8000 whatever a given draw's limit happens to be.
+  // types rather than tuned: the key is the ordering-table word a face lands in (its viewport's slice
+  // plus a retail key below that slice's signed-halfword depthLimit), so every key is < 0x8000.
   // A uniform band of 1/0x8000 (~3.05e-5 of the ord range) leaves each bucket far more D32 tie room
   // than the 4e-7 that starved bucket 789 under the earlier 1/pz-shaped carrier. The half-key
   // offset centers each band so adjacent bands never touch.

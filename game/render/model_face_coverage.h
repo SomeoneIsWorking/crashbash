@@ -40,8 +40,9 @@ ModelFaceCoverage classifyFixedModelFace(const std::array<ProjectedFaceVertex, 3
                                          std::int16_t depthLimit,
                                          std::int16_t depthScale);
 
-// Frame-wide bound on any ACCEPTED OT key: retail rejects every face whose key >= depthLimit, and
-// depthLimit is a signed halfword, so no accepted key reaches 0x8000 under any draw's limit.
+// Frame-wide bound on any authored order key. The key is the ordering-table word a face lands in: its
+// viewport's slice plus its retail key, which retail only inserts below its slice's signed-halfword
+// depthLimit. Every such word lies in the 0x1000-word table, so no key reaches 0x8000.
 inline constexpr int kFixedModelSortKeyDomain = 0x8000;
 
 // The D32 ord band carrying `sortKey`, uniform over the frame-wide key domain. It is deliberately a

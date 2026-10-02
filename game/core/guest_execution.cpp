@@ -3,6 +3,7 @@
 #include "core.h"
 #include "execution_control.h"
 #include "image_identity.h"
+#include "image_identity_state.h"
 #include "lightrec_executor.h"
 #include "native_dispatch.h"
 #include "run_ledger.h"
@@ -105,7 +106,8 @@ void recordCompleted(
 
 } // namespace
 
-GuestExecution::GuestExecution(Core &core) : core_(core), ledger_(core) {
+GuestExecution::GuestExecution(Core &core)
+    : core_(core), ledger_(core), statePort_(std::make_unique<ImageIdentityState>(*this)) {
   if (core.gameCtx) {
     throw std::logic_error("Crash Bash Core already has a title context");
   }
@@ -200,6 +202,20 @@ void GuestExecution::unbindImage(GuestImage image) {
   }
 }
 
+bool GuestExecution::retireBindingRange(const Binding &binding, GuestAddressRange physicalRange) {
+  const auto remaining = core_.imageCatalog().subtractRange(binding.identity, physicalRange);
+  if (remaining == 0u) {
+    removeRegistrations(binding);
+    return false;
+  }
+  for (const auto &registration : registrations_) {
+    if (registration.image == binding.image && physicalRange.containsPhysical(registration.address)) {
+      core_.nativeDispatcher().remove({binding.identity, registration.address});
+    }
+  }
+  return true;
+}
+
 void GuestExecution::retireImagesOverlapping(GuestAddressRange physicalRange) {
   if (!physicalRange.valid() || physicalRange.end > sizeof(core_.ram)) {
     throw std::invalid_argument("Crash Bash loaded-image retirement requires one physical range");
@@ -209,19 +225,75 @@ void GuestExecution::retireImagesOverlapping(GuestAddressRange physicalRange) {
       ++binding;
       continue;
     }
-    const auto remaining = core_.imageCatalog().subtractRange(binding->identity, physicalRange);
-    if (remaining == 0u) {
-      removeRegistrations(*binding);
+    if (!retireBindingRange(*binding, physicalRange)) {
       binding = bindings_.erase(binding);
       noteOwnershipCensus();
       continue;
     }
-    for (const auto &registration : registrations_) {
-      if (registration.image == binding->image && physicalRange.containsPhysical(registration.address)) {
-        core_.nativeDispatcher().remove({binding->identity, registration.address});
+    ++binding;
+  }
+}
+
+std::vector<BoundImageRecord> GuestExecution::boundImages() const {
+  std::vector<const Binding *> ordered;
+  ordered.reserve(bindings_.size());
+  for (const auto &binding : bindings_) {
+    ordered.push_back(&binding);
+  }
+  std::sort(ordered.begin(), ordered.end(), [](const Binding *left, const Binding *right) {
+    return left->identity.generation < right->identity.generation;
+  });
+  std::vector<BoundImageRecord> records;
+  records.reserve(ordered.size());
+  for (const Binding *binding : ordered) {
+    const auto description = core_.imageCatalog().describe(binding->identity);
+    if (!description) {
+      throw std::logic_error("Crash Bash binding names an image generation its catalog never published");
+    }
+    records.push_back(
+        {binding->image, description->name, description->contentIdentity, binding->range, description->ranges});
+  }
+  return records;
+}
+
+psx::state::NativeStatePort &GuestExecution::statePort() {
+  return *statePort_;
+}
+
+bool GuestExecution::ownsEveryActiveResidency() const {
+  return core_.imageCatalog().activeCount() == bindings_.size();
+}
+
+void GuestExecution::restoreBoundImages(const std::vector<BoundImageRecord> &records) {
+  for (const auto &binding : bindings_) {
+    removeRegistrations(binding);
+    core_.imageCatalog().deactivate(binding.identity);
+  }
+  bindings_.clear();
+  noteOwnershipCensus();
+  for (const BoundImageRecord &record : records) {
+    const psx::cpu::ImageIdentity identity =
+        core_.imageCatalog().activate(record.name, record.range, record.contentIdentity);
+    bindAuthenticatedImage(record.image, identity, record.range);
+    // The record's surviving ranges are sorted and disjoint inside its range; every gap between them
+    // is a span a later write retired before the state was taken.
+    std::uint32_t cursor = record.range.begin;
+    std::vector<GuestAddressRange> retired;
+    for (const GuestAddressRange surviving : record.residentRanges) {
+      if (cursor < surviving.begin) {
+        retired.push_back({cursor, surviving.begin});
+      }
+      cursor = surviving.end;
+    }
+    if (cursor < record.range.end) {
+      retired.push_back({cursor, record.range.end});
+    }
+    const Binding binding{record.image, identity, record.range};
+    for (const GuestAddressRange gap : retired) {
+      if (!retireBindingRange(binding, gap)) {
+        throw std::logic_error("Crash Bash restored image record had no surviving residency");
       }
     }
-    ++binding;
   }
 }
 

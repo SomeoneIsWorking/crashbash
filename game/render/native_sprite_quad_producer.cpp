@@ -73,6 +73,7 @@ int horizontalCorrection(Core &core,
 
 void submitSpriteQuad(Core &core,
                       const SpriteQuadDraw &draw,
+                      std::int32_t orderingPosition,
                       std::uint32_t logicFrame,
                       bool authoredScreenPresentation) {
   if (core.game == nullptr || core.rsub.mode.psxRender()) {
@@ -122,7 +123,7 @@ void submitSpriteQuad(Core &core,
   RenderQueue &queue = core.game->rq;
   const int layer = draw.authoredWorldOrder ? RQ_WORLD : RQ_HUD;
   const int orderMode = draw.authoredWorldOrder ? RQ_OM_DEPTH : RQ_OM_2D_FG;
-  const int sortKey = draw.authoredWorldOrder ? draw.orderingBin : -1;
+  const int sortKey = draw.authoredWorldOrder ? orderingPosition : -1;
   const float keyOrd = draw.authoredWorldOrder ? fixedModelSortKeyOrd(sortKey) : 0.0f;
   const float depth[4] = {keyOrd, keyOrd, keyOrd, keyOrd};
   const int textureMode = draw.textured ? (draw.texturePage >> 7u) & 3u : 3;
@@ -170,38 +171,42 @@ void submitSpriteQuad(Core &core,
 
 } // namespace
 
-void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t renderList) {
+void submitSpriteQuads(Core &core, const SceneSnapshot &snapshot, std::uint32_t orderingTable) {
   if (!snapshot.valid || snapshot.spriteQuads.empty() || core.game == nullptr || core.rsub.mode.psxRender()) {
     return;
   }
 
-  std::vector<std::size_t> order;
+  struct Placed {
+    std::size_t index = 0;
+    std::int32_t orderingPosition = 0;
+  };
+  std::vector<Placed> order;
   order.reserve(snapshot.spriteQuads.size());
   for (std::size_t index = 0; index < snapshot.spriteQuads.size(); ++index) {
-    if (spriteRenderListTargetsOrderingTable(snapshot.spriteQuads[index].renderList, renderList)) {
-      order.push_back(index);
+    const SpriteQuadDraw &draw = snapshot.spriteQuads[index];
+    if (spriteRenderListTargetsOrderingTable(draw.renderList, orderingTable)) {
+      order.push_back({index, orderingTablePosition(draw.renderList, orderingTable, draw.orderingBin)});
     }
   }
   if (order.empty()) {
     return;
   }
-  std::sort(order.begin(), order.end(), [&snapshot](std::size_t left, std::size_t right) {
-    const SpriteQuadDraw &a = snapshot.spriteQuads[left];
-    const SpriteQuadDraw &b = snapshot.spriteQuads[right];
-    if (a.orderingBin != b.orderingBin) {
-      return a.orderingBin > b.orderingBin;
+  // The table is drawn from its last word to its first, and a word's own chain from its newest insertion.
+  std::sort(order.begin(), order.end(), [](const Placed &left, const Placed &right) {
+    if (left.orderingPosition != right.orderingPosition) {
+      return left.orderingPosition > right.orderingPosition;
     }
-    return left > right;
+    return left.index > right.index;
   });
 
-  for (const std::size_t index : order) {
-    const SpriteQuadDraw &draw = snapshot.spriteQuads[index];
+  for (const Placed &placed : order) {
+    const SpriteQuadDraw &draw = snapshot.spriteQuads[placed.index];
     if (draw.sourceFunction != kGouraudSpriteQuadSubmit && draw.sourceFunction != kFlatSpriteQuadSubmit &&
         draw.sourceFunction != kScreenColorQuadSubmit) {
       continue;
     }
     ProducerScope producer(&core.rsub.producerScope, draw.sourceFunction, producerName(draw.sourceFunction));
-    submitSpriteQuad(core, draw, snapshot.logicFrame, snapshot.authoredScreenPresentation);
+    submitSpriteQuad(core, draw, placed.orderingPosition, snapshot.logicFrame, snapshot.authoredScreenPresentation);
   }
 }
 

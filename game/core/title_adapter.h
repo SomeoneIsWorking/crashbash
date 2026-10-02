@@ -34,6 +34,8 @@ public:
   // why a title declares them at all.
   const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   const char *discEnvVar() const override;
+  // The Core's own image-identity state (runtime::ImageIdentityState), owned by its title context.
+  psx::state::NativeStatePort *nativeState(Core &core) const override;
 
   void *createContext(Core &core) override;
   void destroyContext(void *context) override;

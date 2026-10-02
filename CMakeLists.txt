@@ -100,6 +100,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/render/interpolated_scene.cpp
   game/render/native_model_producer.cpp
   game/render/native_sprite_quad_producer.cpp
+  game/render/render_viewport.cpp
   game/render/scene_snapshot.cpp
   game/render/sprite_quad_capture.cpp
   game/render/sprite_quad_decode.cpp
@@ -131,7 +132,7 @@ set_target_properties(
     CXX_STANDARD_REQUIRED ON
 )
 
-add_library(crashbash_guest_execution STATIC game/core/guest_execution.cpp)
+add_library(crashbash_guest_execution STATIC game/core/guest_execution.cpp game/core/image_identity_state.cpp)
 set_target_properties(crashbash_guest_execution PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 target_include_directories(crashbash_guest_execution PUBLIC game/core)
 target_link_libraries(crashbash_guest_execution PUBLIC psxport)
@@ -258,6 +259,13 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_sprite_render_list COMMAND crashbash_sprite_render_list_test)
+  add_executable(crashbash_render_viewport_test tests/test_render_viewport.cpp game/render/render_viewport.cpp)
+  target_include_directories(crashbash_render_viewport_test PRIVATE game/render)
+  set_target_properties(
+    crashbash_render_viewport_test
+    PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
+  )
+  add_test(NAME crashbash_render_viewport COMMAND crashbash_render_viewport_test)
   add_executable(crashbash_ui_anchor_test tests/test_ui_anchor.cpp)
   target_include_directories(crashbash_ui_anchor_test PRIVATE game/render)
   set_target_properties(

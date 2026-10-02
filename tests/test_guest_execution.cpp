@@ -2,8 +2,10 @@
 
 #include "game.h"
 #include "game_runtime.h"
+#include "image_identity_state.h"
 #include "lightrec_executor.h"
 #include "native_dispatch.h"
+#include "state_blob.h"
 #include "testutil.h"
 
 #include <memory>
@@ -245,6 +247,97 @@ void test_invalid_replacement_preserves_binding_and_cores_are_isolated() {
   CHECK(!execution.activeKey(GuestImage::Menu, kEntry));
 }
 
+// A whole-machine state carries the session's image identities, and restoring it replaces the
+// identities of the session it is loaded into: the shape is the measured one, a resident executable,
+// BOOT with the nested slot retired by a module load, and DAT22510 published in that slot, restored
+// over a session that has MENU in the same slot instead.
+void test_restored_identities_replace_the_session_and_keep_their_retired_ranges() {
+  constexpr GuestAddressRange kResident{0x1000u, 0x2000u};
+  constexpr GuestAddressRange kBoot{0x10000u, 0x10400u};
+  constexpr GuestAddressRange kSlot{0x10200u, 0x10400u};
+  constexpr std::uint32_t kPolarEntry = 0x80010200u;
+  Runtime runtime;
+  auto game = makeGame(runtime);
+  Core &core = game->core;
+  GuestExecution &execution = context(core);
+  execution.registerOverride(GuestImage::Dat22510, kPolarEntry, "polar-value", nativeValue);
+
+  execution.bindAuthenticatedImage(
+      GuestImage::Resident, core.imageCatalog().activate("resident", kResident, 7u), kResident);
+  execution.bindAuthenticatedImage(GuestImage::Boot, core.imageCatalog().activate("boot", kBoot, 8u), kBoot);
+  execution.retireImagesOverlapping(kSlot);
+  const auto savedPolar = core.imageCatalog().activate("polar", kSlot, 9u);
+  execution.bindAuthenticatedImage(GuestImage::Dat22510, savedPolar, kSlot);
+
+  psx::state::BlobWriter out;
+  crashbash::runtime::writeBoundImages(out, execution.boundImages());
+  psx::state::BlobReader in(out.bytesOut());
+  std::string error;
+  const auto records = crashbash::runtime::readBoundImages(in, error);
+  CHECK_MSG(records.has_value(), error.c_str());
+  CHECK_EQ(records->size(), 3u);
+
+  // The session moves on: MENU replaces DAT22510 in the slot.
+  execution.retireImagesOverlapping(kSlot);
+  const auto menu = core.imageCatalog().activate("menu", kSlot, 10u);
+  execution.bindAuthenticatedImage(GuestImage::Menu, menu, kSlot);
+  CHECK(!core.nativeDispatcher().isInstalled({savedPolar, kPolarEntry}));
+
+  execution.restoreBoundImages(*records);
+  CHECK_EQ(core.imageCatalog().activeCount(), 3u);
+  CHECK(execution.ownsEveryActiveResidency());
+  const auto polar = core.currentImageIdentity(kPolarEntry);
+  CHECK(polar.has_value());
+  CHECK(*polar != menu);
+  CHECK(*polar != savedPolar); // a fresh generation: nothing keyed to the old one can match it
+  CHECK(core.imageCatalog().describe(*polar)->name == "polar");
+  CHECK(core.nativeDispatcher().isInstalled({*polar, kPolarEntry}));
+  CHECK(execution.activeKey(GuestImage::Dat22510, kPolarEntry).has_value());
+  CHECK(!execution.activeKey(GuestImage::Menu, kPolarEntry));
+  // BOOT comes back with the slot still retired, so the slot has exactly one owner.
+  const auto boot = core.currentImageIdentity(0x80010000u);
+  CHECK(boot.has_value());
+  CHECK(core.imageCatalog().describe(*boot)->name == "boot");
+  CHECK_EQ(core.imageCatalog().describe(*boot)->ranges.size(), 1u);
+  CHECK(core.imageCatalog().describe(*boot)->ranges[0].end == kSlot.begin);
+  CHECK(core.currentImageIdentity(0x80001000u).has_value());
+}
+
+// Everything the reader refuses is something a live title could not have written, and it refuses
+// before anything is restored.
+void test_image_identity_records_refuse_what_no_title_writes() {
+  using crashbash::runtime::BoundImageRecord;
+  const BoundImageRecord resident{GuestImage::Resident, "resident", 7u, {0x1000u, 0x2000u}, {{0x1000u, 0x2000u}}};
+  const auto refused = [](const std::vector<BoundImageRecord> &records) {
+    psx::state::BlobWriter out;
+    crashbash::runtime::writeBoundImages(out, records);
+    psx::state::BlobReader in(out.bytesOut());
+    std::string error;
+    const bool rejected = !crashbash::runtime::readBoundImages(in, error).has_value();
+    return rejected && !error.empty();
+  };
+  CHECK(!refused({resident}));
+  CHECK(refused({}));
+  CHECK(refused({{GuestImage::Boot, "boot", 8u, {0x10000u, 0x10400u}, {{0x10000u, 0x10200u}}}}));
+  CHECK(refused({resident, {GuestImage::Boot, "boot", 8u, {0x10000u, 0x10400u}, {}}}));
+  CHECK(refused(
+      {resident, {GuestImage::Boot, "boot", 8u, {0x10000u, 0x10400u}, {{0x10100u, 0x10300u}, {0x10200u, 0x10400u}}}}));
+  CHECK(refused({resident, {GuestImage::Boot, "boot", 8u, {0x10000u, 0x10400u}, {{0x10000u, 0x10500u}}}}));
+  CHECK(refused({resident, {GuestImage::Boot, "boot", 8u, {0x1F0000u, 0x210000u}, {{0x1F0000u, 0x200000u}}}}));
+  CHECK(refused({resident, resident}));
+  BoundImageRecord unknown = resident;
+  unknown.image = static_cast<GuestImage>(static_cast<std::uint32_t>(GuestImage::Dat28382) + 1u);
+  CHECK(refused({resident, unknown}));
+
+  psx::state::BlobWriter out;
+  crashbash::runtime::writeBoundImages(out, {resident});
+  std::vector<std::uint8_t> truncated = out.bytesOut();
+  truncated.pop_back();
+  psx::state::BlobReader in(truncated);
+  std::string error;
+  CHECK(!crashbash::runtime::readBoundImages(in, error).has_value());
+}
+
 } // namespace
 
 int main() {
@@ -253,5 +346,7 @@ int main() {
   RUN(original_budget_exit_exposes_live_loop_state);
   RUN(bounded_resume_carries_a_long_call_to_its_return);
   RUN(invalid_replacement_preserves_binding_and_cores_are_isolated);
+  RUN(restored_identities_replace_the_session_and_keep_their_retired_ranges);
+  RUN(image_identity_records_refuse_what_no_title_writes);
   return pt_summary();
 }

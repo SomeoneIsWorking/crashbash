@@ -10,6 +10,7 @@
 #include "native_projection.h"
 #include "producer_scope.h"
 #include "render_queue.h"
+#include "render_viewport.h"
 
 #include <algorithm>
 #include <array>
@@ -41,10 +42,6 @@ ModelRenderEnvironment captureRenderEnvironment(const Core &core) {
   return {
       .drawOffsetX = gpu.s_off_x,
       .drawOffsetY = gpu.s_off_y,
-      .drawAreaX0 = gpu.s_da_x0,
-      .drawAreaY0 = gpu.s_da_y0,
-      .drawAreaX1 = gpu.s_da_x1,
-      .drawAreaY1 = gpu.s_da_y1,
       .textureWindowMaskX = gpu.s_tw_mx,
       .textureWindowMaskY = gpu.s_tw_my,
       .textureWindowOffsetX = gpu.s_tw_ox,
@@ -61,8 +58,8 @@ NativeModelSubmitResult submitFixedModel(Core &core,
                                          const ModelDraw *previous,
                                          float alpha,
                                          const ModelRenderEnvironment &environment) {
-  if (!draw.transform.valid || draw.faces.empty() || core.game == nullptr || core.rsub.mode.psxRender() ||
-      !environment.valid) {
+  if (!draw.transform.valid || !draw.viewportValid || draw.faces.empty() || core.game == nullptr ||
+      core.rsub.mode.psxRender() || !environment.valid) {
     return {};
   }
   const ModelTransform transform =
@@ -76,8 +73,9 @@ NativeModelSubmitResult submitFixedModel(Core &core,
       .ofy = transform.projectionY,
       .h = transform.projectionDistance,
   };
-  std::int32_t drawAreaX0 = environment.drawAreaX0;
-  std::int32_t drawAreaX1 = environment.drawAreaX1;
+  // Retail clips this model to the viewport it was submitted under, not to whatever drawing area the
+  // GPU holds when the frame is presented: the menus' arena previews are viewports inside panels.
+  ViewportColumns columns{.x0 = draw.viewportClip.x0, .x1 = draw.viewportClip.x1};
   if (gpu_vk_wide_engine(&core)) {
     // The captured title camera is authored in the native 4:3 framebuffer. Widening adds equal
     // columns around that frame, so preserve any title viewport offset and move its projection
@@ -87,15 +85,20 @@ NativeModelSubmitResult submitFixedModel(Core &core,
     // `wide_ofx - native_w / 2` here even though that is arithmetically equal while both widths are even.
     const std::int32_t margin = gpu_vk_wide_left_margin(&core);
     projection.ofx += margin << 16;
+    columns = widenedViewportColumns(draw.viewportClip, gpu_vk_native_w(&core), margin);
     if (environment.authoredScreenPresentation) {
       // The briefing is one 4:3 composition. Its world, dimmer, border, text, and HUD must share
       // the same centred viewport rather than exposing extra arena columns behind a fixed panel.
-      drawAreaX0 = std::max(drawAreaX0, margin);
-      drawAreaX1 = std::min(drawAreaX1, margin + gpu_vk_native_w(&core) - 1);
+      columns.x0 = std::max(columns.x0, margin);
+      columns.x1 = std::min(columns.x1, margin + gpu_vk_native_w(&core) - 1);
     }
   }
+  const std::int32_t drawAreaX0 = columns.x0 + environment.drawOffsetX;
+  const std::int32_t drawAreaX1 = columns.x1 + environment.drawOffsetX;
+  const std::int32_t drawAreaY0 = draw.viewportClip.y0 + environment.drawOffsetY;
+  const std::int32_t drawAreaY1 = draw.viewportClip.y1 + environment.drawOffsetY;
   RenderQueue &queue = core.game->activeRq();
-  if (drawAreaX0 > drawAreaX1 || environment.drawAreaY0 > environment.drawAreaY1) {
+  if (drawAreaX0 > drawAreaX1 || drawAreaY0 > drawAreaY1) {
     return {};
   }
 
@@ -187,7 +190,9 @@ NativeModelSubmitResult submitFixedModel(Core &core,
     const int clutY = face.textured ? (face.clut >> 6u) & 0x1FFu : 0;
     const int blendMode = face.textured ? (face.texturePage >> 5u) & 3u : face.blendMode;
     const int dither = face.textured ? (face.texturePage >> 9u) & 1u : environment.textureDither;
-    const int sortKey = static_cast<int>(coverage.sortKey);
+    // The authored order is the ordering-table word the face lands in: its viewport's slice plus its
+    // key. The key alone is relative to the slice, and the menus' preview viewports each own one.
+    const int sortKey = draw.orderingSlice + static_cast<int>(coverage.sortKey);
     // The key's ord band: uniform over the FRAME-WIDE key domain (fixedModelSortKeyOrd). The key
     // itself is the authored order, so the carrier needs only to be injective with room for ties --
     // and it takes no per-draw term, or the same key would land in different bands per object.
@@ -220,9 +225,9 @@ NativeModelSubmitResult submitFixedModel(Core &core,
                       environment.textureWindowOffsetX,
                       environment.textureWindowOffsetY,
                       drawAreaX0,
-                      environment.drawAreaY0,
+                      drawAreaY0,
                       drawAreaX1,
-                      environment.drawAreaY1,
+                      drawAreaY1,
                       blendMode,
                       nullptr,
                       sortKey,

@@ -120,6 +120,13 @@ const char *TitleAdapter::discEnvVar() const {
   return "PSXPORT_CRASHBASH_DISC";
 }
 
+psx::state::NativeStatePort *TitleAdapter::nativeState(Core &core) const {
+  if (core.runtime != this || !core.gameCtx) {
+    return nullptr;
+  }
+  return &static_cast<runtime::GuestExecution *>(core.gameCtx)->statePort();
+}
+
 void *TitleAdapter::createContext(Core &core) {
   return new runtime::GuestExecution(core);
 }

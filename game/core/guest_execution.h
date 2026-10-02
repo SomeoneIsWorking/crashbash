@@ -4,14 +4,20 @@
 #include "run_ledger.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 class Core;
+namespace psx::state {
+class NativeStatePort;
+}
 
 namespace crashbash::runtime {
+
+class ImageIdentityState;
 
 // Runtime image identity is part of every override/cache key because Crash Bash reuses guest
 // address ranges for unrelated loaded modules. The psxport adapter resolves these logical images
@@ -31,6 +37,18 @@ enum class GuestImage {
 };
 
 using NativeOverride = void (*)(Core *);
+
+// One authenticated binding as a whole-machine state records it: the logical image, the catalog
+// residency it was published as (name, content identity, published range) and the physical ranges of
+// that residency that no later write has retired. Restoring a state re-establishes exactly these
+// against the restored guest RAM, so identity, generation and native keys agree with the bytes.
+struct BoundImageRecord {
+  GuestImage image = GuestImage::Resident;
+  std::string name;
+  std::uint64_t contentIdentity = 0;
+  GuestAddressRange range;
+  std::vector<GuestAddressRange> residentRanges;
+};
 
 // Per-Core title context. The loader authenticates bytes and activates their shared ImageCatalog
 // residency before binding here, and unbinds before unloading. This owner never authenticates an
@@ -56,6 +74,17 @@ public:
   void retireImagesOverlapping(GuestAddressRange physicalRange);
   std::optional<psx::cpu::NativeKey> activeKey(GuestImage image, std::uint32_t address) const;
 
+  // Every binding with its surviving residency, in publication order (the catalog's own precedence).
+  std::vector<BoundImageRecord> boundImages() const;
+  // TRUE when every active residency on this Core's catalog is one of this context's bindings, which
+  // is what makes replacing the bindings a complete replacement of the Core's image identity.
+  bool ownsEveryActiveResidency() const;
+  // Replace every binding with `records`, as `boundImages` recorded them: retire the current
+  // residencies and their native keys, then publish each record as a FRESH generation in order, bind
+  // it, and retire what its record says no longer survives. Only for records that `boundImages`
+  // produced on this title; the caller has validated them.
+  void restoreBoundImages(const std::vector<BoundImageRecord> &records);
+
   // The one whole-run ledger for this Core. It is a member because this context is the Core's own
   // title state: it is created with the Core, destroyed with it, and every guest-execution fact the
   // ledger prints is observed here. It is a reference, not an owned copy, so the ledger the product
@@ -66,6 +95,9 @@ public:
   const diagnostics::RunLedger &ledger() const {
     return ledger_;
   }
+  // This Core's native state in a whole-machine save state (image_identity_state.h).
+  psx::state::NativeStatePort &statePort();
+
   // ONE bounded host turn of the original body for this override key. It reports that turn's typed
   // exit unchanged: BudgetExhausted is an ordinary outcome, and what to do about it belongs to
   // runGuestCallToReturn below, not to a call site.
@@ -84,6 +116,10 @@ private:
     GuestAddressRange range;
   };
   void removeRegistrations(const Binding &binding);
+  // Subtract `physicalRange` from one binding's residency and retire its native keys inside it.
+  // Returns false when nothing of the residency survives; its owners are then already removed and the
+  // caller erases the binding.
+  bool retireBindingRange(const Binding &binding, GuestAddressRange physicalRange);
   // The run ledger is told the registration and binding counts here, where they change, so its
   // run-end line has a producer instead of reading title state something else may have moved.
   void noteOwnershipCensus();
@@ -92,6 +128,7 @@ private:
   diagnostics::RunLedger ledger_;
   std::vector<Registration> registrations_;
   std::vector<Binding> bindings_;
+  std::unique_ptr<ImageIdentityState> statePort_;
 };
 
 // The ledger belonging to the Core's own title context.

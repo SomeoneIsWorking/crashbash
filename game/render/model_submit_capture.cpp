@@ -8,7 +8,9 @@
 #include "model_recipe_capture.h"
 #include "model_transform_capture.h"
 #include "model_transform_input_diagnostic.h"
+#include "render_viewport.h"
 #include "scene_snapshot.h"
+#include "sprite_render_list.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -23,6 +25,31 @@ constexpr std::uint32_t kBaseDepthBias = 0x800569C8u;
 constexpr std::uint32_t kDepthLimit = 0x800569DEu;
 constexpr std::uint32_t kGlobalFarColor = 0x80056868u;
 constexpr std::uint32_t kGlobalDepthCueFactor = 0x800569ACu;
+constexpr std::uint32_t kActiveViewportRecord = 0x800569A8u;
+constexpr std::uint32_t kRenderList = 0x800569D8u;
+constexpr std::uint32_t kOrderingTablePointer = 0x8005B68Cu;
+constexpr std::uint32_t kDisplayDescriptor = 0x8005B698u;
+
+// The viewport 0x80018B08 last began: the record it published and the slice it pointed the insertion
+// base at. Both are what retail's own leaves read when they clip and insert this model's faces.
+void captureViewport(Core &core, ModelDraw &draw) {
+  const std::uint32_t record = core.mem_r32(kActiveViewportRecord);
+  const std::uint32_t descriptor = core.mem_r32(kDisplayDescriptor);
+  const std::uint32_t renderList = core.mem_r32(kRenderList);
+  const std::uint32_t orderingTable = core.mem_r32(kOrderingTablePointer);
+  if (record == 0 || descriptor == 0 || !spriteRenderListTargetsOrderingTable(renderList, orderingTable)) {
+    return;
+  }
+  const ViewportRecord viewport{
+      .left = static_cast<std::int16_t>(core.mem_r16(record)),
+      .top = static_cast<std::int16_t>(core.mem_r16(record + 2u)),
+      .right = static_cast<std::int16_t>(core.mem_r16(record + 4u)),
+      .bottom = static_cast<std::int16_t>(core.mem_r16(record + 6u)),
+  };
+  draw.viewportClip = viewportClip(viewport, static_cast<std::int16_t>(core.mem_r16(descriptor + 4u)));
+  draw.orderingSlice = orderingTablePosition(renderList, orderingTable, 0);
+  draw.viewportValid = true;
+}
 
 ModelDraw decodeDraw(Core &core,
                      ModelSubmitter submitter,
@@ -52,7 +79,7 @@ ModelDraw decodeDraw(Core &core,
                                  objectFarColor,
                                  static_cast<std::int32_t>(core.mem_r32(kGlobalDepthCueFactor)),
                                  globalFarColor);
-  return ModelDraw{
+  ModelDraw draw{
       .submitter = submitter,
       .object = object,
       .objectFlags = objectFlags,
@@ -68,6 +95,8 @@ ModelDraw decodeDraw(Core &core,
       .depthCueFarColor = cue.farColor,
       .depthCueFactor = cue.factor,
   };
+  captureViewport(core, draw);
+  return draw;
 }
 
 void recordIfRenderable(Core &core, ModelDraw draw) {

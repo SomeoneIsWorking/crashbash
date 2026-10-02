@@ -1,5 +1,7 @@
 #pragma once
 
+#include "render_viewport.h"
+
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -69,6 +71,13 @@ struct ModelDraw {
   std::int16_t depthScale = 0;
   std::array<std::int32_t, 3> depthCueFarColor{};
   std::int16_t depthCueFactor = 0;
+  // The viewport the guest submitted this model under (render_viewport.h): the rectangle retail clips it
+  // to, and the first ordering-table word of the slice its faces are inserted into. A draw whose
+  // published viewport or insertion base is not a guest viewport has `viewportValid` false and is not
+  // produced natively.
+  ViewportClip viewportClip;
+  std::int32_t orderingSlice = 0;
+  bool viewportValid = false;
   ModelTransform transform;
   std::vector<ModelFace> faces;
   std::uint32_t texturedFaces = 0;
@@ -120,10 +129,6 @@ struct SpriteQuadDraw {
 struct ModelRenderEnvironment {
   std::int32_t drawOffsetX = 0;
   std::int32_t drawOffsetY = 0;
-  std::int32_t drawAreaX0 = 0;
-  std::int32_t drawAreaY0 = 0;
-  std::int32_t drawAreaX1 = -1;
-  std::int32_t drawAreaY1 = -1;
   std::int32_t textureWindowMaskX = 0;
   std::int32_t textureWindowMaskY = 0;
   std::int32_t textureWindowOffsetX = 0;

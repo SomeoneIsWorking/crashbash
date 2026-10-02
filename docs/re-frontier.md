@@ -156,7 +156,9 @@ remain diagnostics for finding causes, not completion conditions.
   submitters `0x80019F1C`/`0x8001DD50`, transform `0x8001965C`, source decode
   `0x8001C1E0`/`0x8001C0F0`, and prefill `0x80017EE8`. Sprite owners `0x8002992C`,
   `0x80029D28`, and authored-screen `0x8001A0D8` consume source descriptors. `0x8009440C`
-  proves H is `camera + 0x18`; `0x80018B08` is setup rather than a drawable.
+  proves H is `camera + 0x18`. `0x80018B08` begins a viewport: it publishes its record at
+  `0x800569A8` (640x480-unit clip, centre, OT slice) and the slice base at `0x800569D8`, which the
+  model producer consumes for clip and order (menus' arena previews).
 - where: `game/render/`, `docs/findings/crashbash-packet-pools.md`,
   `docs/findings/render-anchor-inventory.md`
 - gap: Complete visible 4:3, widescreen, and interpolated coverage across the representative gameplay
