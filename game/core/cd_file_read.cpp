@@ -97,11 +97,84 @@ void cdFileReadOwned(Core *core) {
                 destination);
 }
 
+constexpr std::uint32_t kLoadPumpDrainLimit = 1024u;
+// Retail calls the load pump 0x8001231C from eight sites (measured with the decomp pipeline:
+// 0x8001039C, 0x800132EC, 0x80013384, 0x80013454, 0x800134C8, 0x80013538, 0x80016CF8, 0x8001E724).
+// Seven are load-completion LOOPS that run the pump until FUN_80012ffc reports nothing pending, so
+// retail already spends no frames there; 0x8001039C is the only site that runs the pump once per
+// FRAME, and that pacing is the whole of the loading-only wait: the pump's own
+// `DAT_80050628 = 3` inter-read cooldown costs three frames per queued read.
+constexpr std::uint32_t kPerFramePumpReturn = 0x800103A4u;
+
+void loadPumpOwned(Core *core) {
+  // The pump advances the load queue exactly ONE step per call — tick the hard-coded inter-read
+  // cooldown, poll-complete the active read, or start the next queued read — and returns 0. Drain it
+  // to quiescence ONLY at retail's per-frame site, and run only the pump there: at that site retail
+  // calls nothing else, so the two helpers retail pairs with a pump step inside its loops
+  // (0x80010AE8(&frameHeap), the frame-heap work drain, and 0x8002BAE8, the pending-completion
+  // publish) stay with the loop callers that own them. Their call-site return addresses and
+  // two-instruction ticks are the emitted loop-body sites 0x8001E72C and 0x8001E734.
+  //
+  // Draining from the loop callers as well is not merely redundant: measured 2026-10-02, it empties
+  // the queue inside the FIRST pump call, so the loop body never runs, and the Polar Push briefing
+  // stops responding to Cross altogether — no read is ever requested. At the per-frame site the
+  // chain is spread over frames by retail's own cooldown, which is exactly the wait being removed.
+  //
+  // Retail's while condition is (queue head != 0) + cooldown + read-active, i.e. zero exactly when
+  // the three pump-owned words are zero, so read them here instead of calling 0x80012FFC: the
+  // original-call seam only exists at installed owners, and these words are this owner's own state.
+  // A step that leaves the three words unchanged means retail's start gate (0x8002BB80) refused to
+  // begin a read — a real wait the retail pacing would defer to the next frame, so stop and keep that
+  // pacing instead of spinning; the iteration cap bounds the drain outright.
+  //
+  // `continuation` is where the retail pump returns to. Both seams read r[31]: the original-call
+  // seam stops there, and the dispatcher resumes the guest at r[31] when this owner returns.
+  const std::uint32_t continuation = core->r[31];
+  if (continuation == kPerFramePumpReturn) {
+    for (std::uint32_t step = 0; step < kLoadPumpDrainLimit; ++step) {
+      const std::uint32_t cooldown = core->mem_r32(guest::kLoadCooldownWord);
+      const std::uint32_t readActive = core->mem_r32(guest::kLoadReadActiveWord);
+      const std::uint32_t queueHead = core->mem_r32(guest::kLoadQueueHeadWord);
+      if (cooldown == 0u && readActive == 0u && queueHead == 0u) {
+        // Retail's while condition is already zero. The pump body on these three words is a
+        // provable no-op, so run neither it nor its per-step helpers.
+        break;
+      }
+      core->r[31] = continuation;
+      runtime::callOriginal(*core, runtime::GuestImage::Resident, guest::kLoadPump);
+      const std::uint32_t cooldownAfter = core->mem_r32(guest::kLoadCooldownWord);
+      const std::uint32_t readActiveAfter = core->mem_r32(guest::kLoadReadActiveWord);
+      const std::uint32_t queueHeadAfter = core->mem_r32(guest::kLoadQueueHeadWord);
+      if (cooldownAfter == 0u && readActiveAfter == 0u && queueHeadAfter == 0u) {
+        break;
+      }
+      if (cooldown == cooldownAfter && readActive == readActiveAfter && queueHead == queueHeadAfter) {
+        lucent::debug("crashbash-cd",
+                      "load pump stalled with queue head 0x{:08X} cooldown {}; deferring to retail pacing",
+                      queueHeadAfter,
+                      cooldownAfter);
+        break;
+      }
+    }
+  } else {
+    // A load-completion loop: retail's loop body drives this pump to quiescence itself.
+    runtime::callOriginal(*core, runtime::GuestImage::Resident, guest::kLoadPump);
+  }
+  core->r[31] = continuation;
+  // The retail pump returns 0.
+  core->r[2] = 0u;
+}
+
 } // namespace
 
 void registerCdFileReadOverride(Core &core) {
   runtime::registerNativeOverride(
       core, runtime::GuestImage::Resident, guest::kCdFileRead, "CrashBash::CdFileRead", cdFileReadOwned);
+}
+
+void registerLoadPumpDrainOverride(Core &core) {
+  runtime::registerNativeOverride(
+      core, runtime::GuestImage::Resident, guest::kLoadPump, "CrashBash::LoadPumpDrain", loadPumpOwned);
 }
 
 } // namespace crashbash

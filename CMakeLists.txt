@@ -76,6 +76,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/cd_startup.cpp
   game/core/crashbash_boot.cpp
   game/core/crashbash_frame_driver.cpp
+  game/core/crashbash_input_phase.cpp
   game/core/display_frame.cpp
   game/core/gpu_timeout.cpp
   game/core/memory_card_startup.cpp
@@ -175,6 +176,11 @@ if(BUILD_TESTING)
   set_tests_properties(crashbash_title_adapter PROPERTIES
     TIMEOUT 30
     ENVIRONMENT "PSXPORT_CARD=${CMAKE_CURRENT_SOURCE_DIR}/scratch/title-adapter-test/card.mcr")
+  add_executable(crashbash_input_phase_test tests/test_input_phase.cpp)
+  target_include_directories(crashbash_input_phase_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_link_libraries(crashbash_input_phase_test PRIVATE crashbash_seam)
+  set_target_properties(crashbash_input_phase_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+  add_test(NAME crashbash_input_phase COMMAND crashbash_input_phase_test)
   add_executable(crashbash_run_ledger_test tests/test_run_ledger.cpp)
   target_include_directories(crashbash_run_ledger_test PRIVATE game/core game/diagnostics
                              "${PSXPORT_DIR}/tests"

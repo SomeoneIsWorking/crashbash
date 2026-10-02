@@ -1,5 +1,6 @@
 #pragma once
 
+#include "crashbash_input_phase.h"
 #include "game_runtime.h"
 #include "psx_exe_image.h"
 
@@ -34,6 +35,14 @@ public:
   // why a title declares them at all.
   const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   const char *discEnvVar() const override;
+  // The INPUT PHASE pad recordings are keyed on (crashbash_input_phase.h): the boot/logo/menu/match
+  // scene packed with the menu world's active screen, so a .pad stores every press as an offset
+  // from the entry of the screen it was recorded on rather than an absolute frame from boot. Held
+  // BY VALUE in the member below: a phase is a read of guest words, and no process-global can be
+  // what decides which instance answers.
+  std::uint64_t inputPhase(Core &core) const override {
+    return inputPhase_.of(core);
+  }
   // The Core's own image-identity state (runtime::ImageIdentityState), owned by its title context.
   psx::state::NativeStatePort *nativeState(Core &core) const override;
 
@@ -45,6 +54,9 @@ public:
   bool guestVramIsPicture(const Game &game) const override;
   std::unique_ptr<TemporalFramePresentation> createTemporalFramePresentation(Game &game) override;
   std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
+
+private:
+  InputPhase inputPhase_;
 };
 
 } // namespace crashbash

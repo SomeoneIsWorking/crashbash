@@ -20,6 +20,7 @@ namespace crashbash {
 
 void registerNativeOwners(Core &core) {
   registerCdFileReadOverride(core);
+  registerLoadPumpDrainOverride(core);
   registerCdLicenseStartupOverride(core);
   registerCdStartupOverride(core);
   registerMemoryCardStartupOverride(core);

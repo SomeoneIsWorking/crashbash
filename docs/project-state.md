@@ -57,7 +57,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S016 | Representative interactive gameplay passes on the native/dynarec product | partial | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
 | S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
 | S018 | Hosted CI truthfully covers applicable Linux, Windows, macOS, and Android product boundaries | partial | S003 | G001 |
-| S020 | Crash Bash: load operations complete without loading-only waits or presentation; logos cancel through the recovered route | missing | S003 | G004 |
+| S020 | Crash Bash: load operations complete without loading-only waits or presentation; logos cancel through the recovered route | verified | the `kLoadPump` override pairs each pump step with retail's `FUN_80010AE8(&DAT_8004E0F0)` drain and `FUN_8002BAE8()` completion publish through `measuredGuestCall` (call sites 0x8001E734/0x8001E73C); menu and battle loads complete in 3–18 ms; field counts before→after: boot logo→menu 104→30, f1819 handoff 132→30, first handoff 150→34, menu→battle 30 (`arena-before.log` vs `arena-after3.log`, reproduced in `arena-after2.log`); live Polar Push match with HUD and ticking timer (0:38→0:34 over 4 s) in `scratch/screenshots/pp_{q1,m0,m1,m5}.png` | S003 | G004 |
 | S021 | A whole-machine save state restores into any session (other minigame, menu, same match) with image identity, generations and native keys matching the restored RAM | verified — see 2026-10-02 measurements | S003, S015 | G001 |
 
 ### 2026-10-02 measurements
@@ -572,10 +572,28 @@ without game assets.
 
 ### S020 — Crash Bash loading removal
 
-Missing. No load operation has been censused or classified for Crash Bash. Gap: enumerate its load
-issuers and the wait and presentation each drives, then complete each through the title's own load
-mechanics without its loading-only wait, with payload and terminal state compared against retail
-and the absence of loading presentation captured.
+Verified. The load path was censused at the CD/streaming owner: retail's swap drain (`FUN_8001E610`
+body, `0x8001E714`–`0x8001E73C`) pairs every `kLoadPump` step with `FUN_80010AE8(&DAT_8004E0F0)`
+(frame-heap work drain) and `FUN_8002BAE8()` (pending-completion publish at `0x800654C0/0x800654C4`);
+without them a drain leaves consumers waiting on the completion record. The `kLoadPump` native
+override now issues both helpers through `measuredGuestCall` with retail's call sites, arguments,
+and tick counts, preserving the retail loop and removing only the loading-only wait. Evidence:
+menu and battle loads complete in 3–18 ms (`arena-after3.log`); scene-handoff field counts
+(2 fields/frame) fell boot logo→menu 104→30, first menu handoff 150→34, f1819 handoff 132→30,
+and the menu→battle handoff runs 30 fields; a live Polar Push match (Polar Panic) is reached with
+the HUD drawn, the round timer ticking (0:38→0:34 over 4 s), combat applying damage, and round
+results rendering (`scratch/screenshots/pp_q1.png`, `pp_m0.png`, `pp_m1.png`, `pp_m5.png`).
+Reproduced across two runs (`arena-after2.log`, `arena-after3.log`). `polar-push-control.pad` is now
+**phase-keyed v1** (9,302 frames, 19 segments keyed on scene `0x8009F658` + menu screen `0x8009F8A4`
+through `crashbash::InputPhase`, unit-tested in `tests/test_input_phase.cpp`): recorded by replaying
+the former unkeyed 4,547-frame file on a pre-S020 (drain-disabled) build while `padrec` captured the
+served masks with phases, and verified on this build reaching the **live Polar Push match from the
+file alone** (`keyed-mig.log`: `19 phase-keyed segment(s)`, replay complete at 9,096/9,302 frames,
+menu chain `8E28→C52B8→8E28→8E3C→9DF4→A72C→AAB4→8E8C→0` into arena state `0x10013`, shorter
+handoffs at f1724→f1739 and f3202→f3217 survived, no LOAD GAME divergence; match HUD, timer and
+characters in `scratch/s020/keyed_mig_final.png`). The former absolute file diverged at f2048 into
+the LOAD GAME dialog because its transition-window press landed after the collapsed handoff; the
+phase key now drops that press with its segment, which is the fix for that class of divergence.
 
 ## Dynamic migration acceptance
 

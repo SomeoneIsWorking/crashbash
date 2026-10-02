@@ -26,6 +26,20 @@ inline constexpr std::uint32_t kCdSync = 0x8003E6B0u;
 inline constexpr std::uint32_t kCdCommand = 0x8003EBF8u;
 inline constexpr std::uint32_t kMemoryCardStartup = 0x800486DCu;
 
+// The resident load queue's pacing pump. `kLoadPump` advances ONE queue step per call — tick the
+// hard-coded inter-read cooldown, poll-complete the active read, or start the next queued read —
+// and the title pumps it once per frame, so a queued chain costs several frames per file even
+// though this port's disc read (kCdFileRead) completes synchronously. Retail's pending counter at
+// 0x80012FFC, which the scene-machine loading gates read, is (queue head != 0) + cooldown +
+// read-active — zero exactly when the three pump-owned words below are zero. The retail swap path
+// at 0x8001E610 completes a chain by looping `kLoadPump` while that counter is nonzero; the drain
+// owner loops the same way from those words, because the original-call seam only exists at
+// installed owners and 0x80012FFC is ordinary guest code.
+inline constexpr std::uint32_t kLoadPump = 0x8001231Cu;
+inline constexpr std::uint32_t kLoadCooldownWord = 0x80050628u;
+inline constexpr std::uint32_t kLoadReadActiveWord = 0x8005062Cu;
+inline constexpr std::uint32_t kLoadQueueHeadWord = 0x80050634u;
+
 // BOOT overlay logo controller and the resident scene-transition primitive it reaches once the
 // logos have completed. The controller's natural completion requests kBootLogoHandoffState with
 // kBootLogoHandoffFlags; native Start handling uses the same dispatcher-owned request instead of
@@ -72,6 +86,15 @@ inline constexpr std::uint32_t kSceneTargetSlot = 4u;
 inline constexpr std::uint32_t kScenePreviousSlot = 8u;
 inline constexpr std::uint32_t kSceneFlagsSlot = 12u;
 inline constexpr std::uint32_t kSceneClockAgeSlot = 8u;
+
+// The menu world runs a SECOND scene machine over this record: scene 0x8009F720's own update
+// (FUN_80092EDC, in BOOT) ends in `0x8001E610(&DAT_8009F8A4, &DAT_8009F644)` — the retail runner,
+// with the same transition clock as the outer machine — so it is {current, target, previous, flags}
+// exactly as kSceneTransition is. Its CURRENT is the active menu screen's scene struct (SELECT
+// GAME TYPE is 0x800B8E28; each screen has its own), and a screen's accept writes target (+4) and
+// flags (+0xC) through FUN_8001E838/FUN_8001E848 — the two fields kSceneTransitionRequest writes.
+// menu_boundary.cpp measured these same words as "current/pending manager"; they are a scene record.
+inline constexpr std::uint32_t kMenuSceneTransition = 0x8009F8A4u;
 
 inline constexpr std::uint32_t kDisplayFieldsPerFrame = 0x8004E0E0u;
 inline constexpr std::uint32_t kVblankCounter = 0x8006D8DCu;

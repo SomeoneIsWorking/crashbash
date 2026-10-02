@@ -10,14 +10,21 @@ from pathlib import Path
 
 # The migration boundary, counted so it cannot drift silently.
 #
+# 2026-10-02: 28 -> 29 registrations and 16 -> 17 original calls, for ONE addition — the load-pump
+# drain owner on the resident pacing pump 0x8001231C (game/core/cd_file_read.cpp). The shipping
+# disc read is synchronous, so the title's one-call-per-frame queue pacing was the load-only wait;
+# the owner loops the retail pump to quiescence — the same completion route the retail scene-swap
+# path 0x8001E610 already uses — and reads the pump's own three queue words for its drain
+# condition, so the single new original-call site is the pump itself.
+#
 # 2026-09-30: 27 -> 28 registrations and 15 -> 16 original calls, for ONE addition — the read-only
 # scene-machine observer on the retail leaf 0x8001E588 (game/diagnostics/scene_machine.cpp). It was
 # added because the mode question was being read from a word with exactly one writer, so "reached
 # Crashball" and "never left the logo" printed the same line; see docs/issues/0032. Each increment has
 # to name itself here, because a tripwire that is relaxed without a reason is the same defect as one
 # that is never relaxed.
-EXPECTED_OVERRIDE_REGISTRATIONS = 28
-EXPECTED_ORIGINAL_CALLS = 16
+EXPECTED_OVERRIDE_REGISTRATIONS = 29
+EXPECTED_ORIGINAL_CALLS = 17
 SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"})
 ENVIRONMENT_CONFIG_OWNER = Path("packaging/linux/user_paths.cpp")
 DIRECT_STDERR_PATTERN = re.compile(
