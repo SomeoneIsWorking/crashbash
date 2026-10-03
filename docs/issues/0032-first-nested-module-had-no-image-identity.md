@@ -285,7 +285,7 @@ both runs give:
   ball reaches the left goal), so ball and score state are live rather than frozen.
 
 **What is NOT resolved, stated so it is not re-derived as if it were:** the individual store
-instruction behind those words. `tools/probe_addr_refs.py --stores-only` returns **0 sites** for
+instruction behind those words. A `lui`+displacement writer census returns **0 sites** for
 `0x80056ACC`, `0x80056ADC`, `0x8005721C`, `0x801D4048` and `0x801D40FC`, and no 32-bit word in the
 dumped RAM equals any of them or a plausible base, because the guest computes the address as
 base+index in a register. The one base in that band the images materialise by `lui` is `0x80056998`

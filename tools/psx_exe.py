@@ -3,11 +3,11 @@
 
 WHY THIS EXISTS. Three diagnosis tools in this repository read the same file format: the
 boot image (`SCUS_945.70`) plus any other PS-X EXE dumped out of a disc or a DAT. Each
-implemented its own magic check and `<2I` header unpack, and they did not agree. `probe_call_sites.py`
-sliced the declared text length without checking the file was that long, so a truncated dump
-scanned a short word range and reported a smaller denominator over fewer bytes than the header
-claimed — a quietly wrong scan with a denominator attached, which is the exact shape of bug this
-repository has been bitten by twice (see `probe_addr_refs.py`'s module docstring).
+implemented its own magic check and header unpack, and they did not agree. One sliced the declared
+text length without checking the file was that long, so a truncated dump scanned a short word range
+and reported a smaller denominator over fewer bytes than the header claimed — a quietly wrong scan
+with a denominator attached, which is the exact shape of bug this repository has been bitten by
+twice.
 
 One rule, one place: a PS-X EXE is `PS-X EXE` at offset 0, little-endian MIPS words, the text
 address and text length live at 0x18, and the payload starts at `HEADER_BYTES`. A file whose
@@ -16,7 +16,7 @@ as zero, because a scan that silently loses its upper bytes reports a confident 
 
 Raw overlays (the DAT modules) are NOT PS-X EXEs: they carry no address of their own, so they
 have no header to read. Their RAM base lives in `titles/crashbash/<name>_module.json`, never in
-the dump; see `probe_addr_refs.py`/`probe_call_sites.py`, which refuse to invent one.
+the dump; a scan without it reports a denominator and refuses to invent one.
 
     python3 tools/psx_exe.py <exe>
 """

@@ -29,7 +29,7 @@ reusable; this title owns Crash Bash's game-flow interpretation of it.
 | `game/title/` | `crashbash::guest` | `crashbash_guest.h` | The recovered SCUS_945.70 guest facts: addresses, scene/scene-record layouts, arena table and menu flow. Facts only; no behavior. |
 | `packaging/linux/` | `crashbash::appimage` | `launcher_main.cpp`, `install_media.{h,cpp}`, `user_paths.{h,cpp}` | The AppImage launcher's first-run media setup. `user_paths.cpp` is this product's only environment-read boundary. |
 | `platform/android/` | — (Java) | `app/src/main/java/.../CrashBashActivity.java`, `CrashBashMediaImport.java` | Android Activity and SAF media policy. |
-| `tools/` | — (Python) | `provision.py`, `source_policy.py`, `verify_*.py`, `probe_*.py`, `psx_exe.py`, `psxport_fetch.py`, `verify.py` | Provisioning, the source-boundary gate, the product/oracle-boundary verifiers, and `psx_exe.py` — the ONE reader for a provisioned PS-X EXE header, shared by every probe that scans a dumped image. |
+| `tools/` | — (Python) | `provision.py`, `source_policy.py`, `verify_*.py`, `psx_exe.py`, `psxport_fetch.py`, `verify.py` | Provisioning, the source-boundary gate, the CTest-gated product/oracle-boundary verifiers, and `psx_exe.py` — the ONE reader for a provisioned PS-X EXE header. Every tool here is run by a CMake/CTest gate or by the product build; a tool nothing runs is not kept. |
 | `tests/` | — | `test_*.cpp`, `test_*.py` | The title's unit and selftest set, run by CTest as `crashbash_*`. |
 
 ## Who owns it

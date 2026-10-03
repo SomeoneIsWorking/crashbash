@@ -633,7 +633,7 @@ both runs. Measured, with denominators:
 **Citation status, stated precisely.** `0x8005133C` has 10 `lui`+displacement sites across the
 authenticated images and is fully attributable; `0x80063A92` has **0**, because the guest reaches it
 through a base register no `lui` materialises. The movement words are reached the same way:
-`tools/probe_addr_refs.py --stores-only` returns 0 sites for `0x80056ACC`, `0x80056ADC`,
+a `lui`+displacement writer census returns 0 sites for `0x80056ACC`, `0x80056ADC`,
 `0x8005721C`, `0x801D4048` and `0x801D40FC`, and no 32-bit word in the dumped RAM equals any of them
 or a plausible base for them, so the effective address is base+index computed in a register. The one
 base in that band the images do materialise by `lui` is `0x80056998`, at BOOT `0x800825B4` and
@@ -884,5 +884,5 @@ behavior, or native subsystem contracts rather than the retired translation meth
   Interpolation rebuilds midpoint model geometry from consecutive immutable snapshots and remains
   partial until its source families and gameplay coverage are complete.
 
-Detailed provenance remains in `docs/findings/`, `docs/issues/`, and `docs/info/`. Those records are
+Detailed provenance remains in `docs/findings/` and `docs/issues/`. Those records are
 evidence inputs, not permission to restore a generated gameplay path.
