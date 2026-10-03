@@ -64,15 +64,6 @@ struct ModuleOffer {
   std::uint32_t sectors = 0;
 };
 
-// The guest-call census. One entry is one guest or original call carried to its return address; the
-// resume counters are how many of those outlived the single display field one host turn allows.
-struct GuestCallCensus {
-  std::uint64_t completed = 0;
-  std::uint64_t resumed = 0;
-  std::uint32_t deepestTurns = 0;
-  std::uint64_t resumedCycles = 0;
-};
-
 // The measured facts, exposed so a test can assert on the census the report prints instead of on
 // the log text.
 struct RunLedgerFacts {
@@ -91,7 +82,6 @@ struct RunLedgerFacts {
   std::size_t registrations = 0;
   std::size_t boundImages = 0;
   std::vector<std::string> originalCallSites;
-  GuestCallCensus guestCalls;
 };
 
 // The whole-run image, refusal and native-ownership ledger for ONE Core.
@@ -144,8 +134,6 @@ public:
   void noteGuestFault(std::string_view owner, std::uint32_t guestPc, std::string_view detail);
   // One completed guest call, with the host turns it took and the guest cycles it spent. The
   // resume fence's denominator comes from here rather than from a tally beside the resume loop.
-  void noteGuestCall(std::uint32_t turns, std::uint64_t cycles);
-
   const RunLedgerFacts &facts() const {
     return facts_;
   }

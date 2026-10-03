@@ -84,10 +84,9 @@ void CrashBashFrameDriver::deliverDisplayFields(Core &core, std::uint32_t fields
   }
 }
 
-void CrashBashFrameDriver::finishUpdateSlice(Core &core, const psx::cpu::ExecutionResult &result) {
-  if (!psx::cpu::requireGuestReturn(result, "Crash Bash process update")) {
-    std::abort();
-  }
+// The update call above reached its return address: `runGuestCallToReturn` reports a refusal and
+// refuses the run rather than returning, so reaching here IS the update having returned.
+void CrashBashFrameDriver::finishUpdateSlice(Core &core) {
   measuredGuestCall(core, presentFn_, kPresentReturnPc, 4u);
   psx::cpu::accountGuestInstructions(core, 4u);
 }
@@ -155,15 +154,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
     }
     updateFn_ = update;
     presentFn_ = present;
-    finishUpdateSlice(
-        core,
-        runtime::runGuestCallToReturn(
-            core,
-            update,
-            kUpdateReturnPc,
-            "Crash Bash process update",
-            std::nullopt,
-            measuredGuestCallSlice(core, update, kUpdateReturnPc, 4u, psx::cpu::ExecutionBudget::currentTurn(core))));
+    measuredGuestCallSetup(core, kUpdateReturnPc, 4u);
+    runtime::runGuestCallToReturn(core, update, kUpdateReturnPc, "Crash Bash process update", std::nullopt);
+    finishUpdateSlice(core);
   }
 
   reportProgress(core, frame);

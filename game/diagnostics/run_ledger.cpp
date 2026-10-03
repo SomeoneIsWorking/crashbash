@@ -234,17 +234,6 @@ void RunLedger::noteInstalledOverrides(std::size_t registrations, std::size_t bo
   facts_.boundImages = boundImages;
 }
 
-void RunLedger::noteGuestCall(std::uint32_t turns, std::uint64_t cycles) {
-  GuestCallCensus &counts = facts_.guestCalls;
-  ++counts.completed;
-  if (turns <= 1u) {
-    return;
-  }
-  ++counts.resumed;
-  counts.resumedCycles += cycles;
-  counts.deepestTurns = std::max(counts.deepestTurns, turns);
-}
-
 void RunLedger::noteGuestFault(std::string_view owner, std::uint32_t guestPc, std::string_view detail) {
   if (detail.find("Lightrec fallback refused") != std::string_view::npos) {
     ++facts_.fallbackRefusalFaults;

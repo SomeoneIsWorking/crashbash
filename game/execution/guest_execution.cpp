@@ -6,6 +6,7 @@
 #include "image_identity_state.h"
 #include "lightrec_executor.h"
 #include "native_dispatch.h"
+#include "resumable_guest_call.h"
 #include "run_ledger.h"
 
 #include <algorithm>
@@ -24,23 +25,8 @@ GuestExecution &execution(Core &core) {
   return *static_cast<GuestExecution *>(core.gameCtx);
 }
 
-// The fence on a resume, in the unit that gives it meaning. One display field is 564,480 guest
-// cycles, so this is "a call may span N display fields of guest CPU and no more".
-//
-// The worst measured case in this title is the full-frame 15-bit channel swap entered from a native
-// override (MENU entry 0x800B5244 took 7 turns / 6.097 fields; the BOOT logo update 0x8008E5BC took 6
-// turns / 5.677 fields). Both convert a 256 KiB (128-sector) image, the largest single conversion
-// this title's load path performs, so 12 leaves room for a 2x larger image at the same per-pixel
-// cost and still reports a real guest loop within 12 host turns (0.2 s). The deepest turn any
-// completed call needed is printed with the census at run end, so this number is falsifiable from a
-// log rather than trusted.
-constexpr std::uint32_t kGuestCallTurnCap = 12u;
-
-// The guest-call census is this run's ledger fact (`diagnostics::RunLedgerFacts::guestCalls`): the
-// ledger already owns every run-lifetime number this product reports, and there is one per Core.
-const diagnostics::GuestCallCensus &census(Core &core) {
-  return execution(core).ledger().facts().guestCalls;
-}
+// The guest-call census is psxport's (`Core::guestCallCensus()`): every title that makes resumable
+// guest calls measures the same thing, so the counters and the run-end line have one owner there.
 
 double displayFields(const Core &core, std::uint64_t cycles) {
   return static_cast<double>(cycles) / static_cast<double>(psx::cpu::ExecutionBudget::currentTurn(core).cycles);
@@ -70,27 +56,6 @@ const char *imageName(GuestImage image) {
   return "unknown";
 }
 
-void recordCompleted(
-    Core &core, std::uint32_t entry, std::uint32_t returnPc, std::uint32_t turns, std::uint64_t cycles) {
-  execution(core).ledger().noteGuestCall(turns, cycles);
-  if (turns <= 1u) {
-    return;
-  }
-  const diagnostics::GuestCallCensus &counts = census(core);
-  lucent::info("crashbash-guest",
-               "guest call 0x{:08X} to return address 0x{:08X} outlived one host turn: {} turn(s), "
-               "{} guest cycles ({:.3f} display fields). Denominator: {} of {} completed guest call(s) "
-               "have needed a resume; deepest {} turn(s)",
-               entry,
-               returnPc,
-               turns,
-               cycles,
-               displayFields(core, cycles),
-               counts.resumed,
-               counts.completed,
-               counts.deepestTurns);
-}
-
 } // namespace
 
 GuestExecution::GuestExecution(Core &core)
@@ -110,6 +75,12 @@ GuestExecution::~GuestExecution() {
 
 void GuestExecution::removeRegistrations(const Binding &binding) {
   for (const auto &registration : registrations_) {
+    // The EXPLICIT key, not psx::cpu::removeNativeOverride. This title holds a registration against a
+    // generation that a later module may already have displaced at that address, so resolving the
+    // address through the active catalog names the WRONG generation - and its own doc says so: it
+    // refuses a key built against an identity that is no longer resident. Measured by
+    // test_pending_registration_reload_and_wrong_image_refusal, where the Menu registration outlives
+    // the generation it was installed under.
     if (registration.image == binding.image) {
       core_.nativeDispatcher().remove({binding.identity, registration.address});
     }
@@ -135,7 +106,11 @@ void GuestExecution::registerOverride(GuestImage image,
     if (!binding->range.containsPhysical(address) || core_.currentImageIdentity(address) != binding->identity) {
       throw std::invalid_argument("Crash Bash override does not belong to the active authenticated image");
     }
-    if (!core_.nativeDispatcher().install({{binding->identity, address}, name, function})) {
+    // psx::cpu owns the key: an override key is (active image identity, address), and the address
+    // alone does not identify guest code because this title reuses ranges across loaded modules. The
+    // validating form is used because this catalog's failure is a caller error to report, not a
+    // boot-time halt to abort on.
+    if (!psx::cpu::tryInstallNativeOverride(core_, address, name, function)) {
       throw std::logic_error("Crash Bash native override conflicts with an existing runtime owner");
     }
   }
@@ -169,9 +144,11 @@ void GuestExecution::bindAuthenticatedImage(GuestImage image,
   bindings_.push_back(binding);
   noteOwnershipCensus();
   for (const auto &registration : registrations_) {
+    // The catalog activated this generation a line above and the checks at the top of this function
+    // proved every registration of this image lies inside it, so psxport's installer resolves the
+    // address to exactly the identity this binding records. There is one way to install an override.
     if (registration.image == image &&
-        !core_.nativeDispatcher().install(
-            {{identity, registration.address}, registration.name, registration.function})) {
+        !psx::cpu::tryInstallNativeOverride(core_, registration.address, registration.name, registration.function)) {
       lucent::error("crashbash-runtime", "validated image binding failed to install a native owner");
       std::abort();
     }
@@ -196,6 +173,9 @@ bool GuestExecution::retireBindingRange(const Binding &binding, GuestAddressRang
     return false;
   }
   for (const auto &registration : registrations_) {
+    // The EXPLICIT key, not psxport's `removeNativeOverride`: `subtractRange` above has already
+    // retired the residency these addresses lived in, so resolving the address through the active
+    // catalog would find no owner and refuse to remove the very key this loop is retiring.
     if (registration.image == binding.image && physicalRange.containsPhysical(registration.address)) {
       core_.nativeDispatcher().remove({binding.identity, registration.address});
     }
@@ -337,101 +317,88 @@ psx::cpu::ExecutionResult dispatchGuestSlice(Core &core, std::uint32_t address, 
   return psx::cpu::dispatchGuest(core, address, budget);
 }
 
-psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
-                                               std::uint32_t entry,
-                                               std::uint32_t returnPc,
-                                               std::string_view owner,
-                                               const std::optional<psx::cpu::NativeKey> &original,
-                                               psx::cpu::ExecutionResult result) {
-  std::uint64_t cycles = result.cycles;
-  std::uint32_t turns = 1u;
-  while (result.reason == psx::cpu::ExecutionExitReason::BudgetExhausted) {
-    if (result.cycles == 0u || result.guestPc == 0u) {
-      lucent::error("crashbash-guest",
-                    "{}: guest call 0x{:08X} to return address 0x{:08X} exhausted host turn {} with no "
-                    "guest progress at 0x{:08X} after {} cycles: {}",
-                    owner,
-                    entry,
-                    returnPc,
-                    turns,
-                    result.guestPc,
-                    cycles,
-                    result.detail);
-      execution(core).ledger().refuseRun("a guest call exhausted its host turn with no guest progress");
-    }
-    if (turns >= kGuestCallTurnCap) {
-      lucent::error("crashbash-guest",
-                    "{}: guest call 0x{:08X} to return address 0x{:08X} has consumed {} host turn(s) and "
-                    "{} cycles ({:.3f} display fields) without reaching its return address and is still at "
-                    "0x{:08X}: {}. A bounded guest call that needs more than {} display fields does not "
-                    "exist in this run, so this is a guest loop — reported rather than spun on",
-                    owner,
-                    entry,
-                    returnPc,
-                    turns,
-                    cycles,
-                    displayFields(core, cycles),
-                    result.guestPc,
-                    result.detail,
-                    kGuestCallTurnCap);
-      execution(core).ledger().refuseRun("a guest call ran past the host-turn cap without returning");
-    }
-    // A resumed ORIGINAL re-establishes the suppression of its own override from the key. If the image
-    // generation behind that key is no longer the one mapped at the entry, the suppression would
-    // silently apply to nothing and the guest would re-enter the override it is running inside. Every
-    // nested slot in this title is reused by a later module, so this is a reachable state, not a
-    // theoretical one: refuse it loudly instead of resuming into it.
-    if (original) {
-      const auto active = core.currentImageIdentity(entry);
-      if (!active || *active != original->image) {
-        lucent::error("crashbash-guest",
-                      "{}: guest call 0x{:08X} outlived its host turn, but the authenticated image "
-                      "generation behind it is no longer mapped at that address. Its override is no "
-                      "longer suppressed, so resuming would re-enter it from inside the original body",
-                      owner,
-                      entry);
-        execution(core).ledger().refuseRun("a resumed original call lost the image generation behind its override");
-      }
-    }
-    const psx::cpu::ExecutionBudget turn = psx::cpu::ExecutionBudget::currentTurn(core);
-    result = original ? psx::cpu::resumeOriginal(core, *original, result.guestPc, returnPc, turn)
-                      : psx::cpu::resumeGuestToReturn(core, result.guestPc, returnPc, turn);
-    cycles += result.cycles;
-    ++turns;
-  }
-  if (!psx::cpu::requireGuestReturn(result, owner)) {
-    diagnostics::RunLedger &ledger = execution(core).ledger();
-    ledger.noteGuestFault(owner, result.guestPc, result.detail);
-    ledger.refuseRun("a guest call ended in something other than a return");
-  }
-  recordCompleted(core, entry, returnPc, turns, cycles);
-  return result;
+// A refusal from the shared call is this title's to interpret: psx::cpu classifies it and names the
+// reason, and a Crash Bash run REFUSES itself through the ledger, so the run-end report explains why
+// the port stopped instead of the process aborting with no facts.
+void refuseGuestCall(
+    Core &core, std::string_view owner, std::uint32_t entry, std::uint32_t returnPc, const psx::cpu::CallStep &step) {
+  lucent::error("crashbash-guest",
+                "{}: guest call 0x{:08X} to return address 0x{:08X} refused after {} host turn(s) and "
+                "{} cycles ({:.3f} display fields), stopped at 0x{:08X}: {}",
+                owner,
+                entry,
+                returnPc,
+                step.turns,
+                step.cycles,
+                displayFields(core, step.cycles),
+                step.guestPc,
+                step.detail);
+  execution(core).ledger().refuseRun(step.detail);
 }
 
-void reportGuestCallCensus(Core &core, std::string_view why) {
-  const diagnostics::GuestCallCensus &counts = census(core);
-  if (counts.completed == 0u) {
-    lucent::info("crashbash-guest", "run-end ({}): NO guest call completed, so this run measured nothing", why);
-    return;
+// A resumed ORIGINAL re-establishes the suppression of its own override from the key. If the image
+// generation behind that key is no longer the one mapped at the entry, the suppression would
+// silently apply to nothing and the guest would re-enter the override it is running inside. Every
+// nested slot in this title is reused by a later module, so this is a reachable state, not a
+// theoretical one: refuse it instead of resuming into it. Checked on the RESUME, which is the only
+// segment that needs it - the first segment has not outlived its turn yet.
+bool originalStillMapped(Core &core, std::uint32_t entry, const psx::cpu::NativeKey &original, std::string_view owner) {
+  const auto active = core.currentImageIdentity(entry);
+  if (active && *active == original.image) {
+    return true;
   }
-  if (counts.resumed == 0u) {
-    lucent::info("crashbash-guest",
-                 "run-end ({}): {} guest call(s) completed, 0 needed a resume — every call returned inside "
-                 "the one display field its host turn allows",
-                 why,
-                 counts.completed);
+  lucent::error("crashbash-guest",
+                "{}: guest call 0x{:08X} outlived its host turn, but the authenticated image generation "
+                "behind it is no longer mapped at that address. Its override is no longer suppressed, so "
+                "resuming would re-enter it from inside the original body",
+                owner,
+                entry);
+  execution(core).ledger().refuseRun("a resumed original call lost the image generation behind its override");
+  return false;
+}
+
+// The title's half of the run-end guest-call report. The census itself is psxport's
+// (`Core::guestCallCensus()`), but the CAP is this title's number: `kTitleCallTurnCap` is 12 where
+// the framework default is 8, and a cap that no line reports is a cap nobody can falsify from a log.
+// This prints it against the deepest call the run actually measured, so a run that ever approaches
+// the cap is visible before the next one refuses it.
+void reportGuestCallTurnCap(Core &core, std::string_view why) {
+  const std::uint32_t deepest = core.guestCallCensus().deepestTurns();
+  if (deepest == 0u) {
     return;
   }
   lucent::info("crashbash-guest",
-               "run-end ({}): {} guest call(s) completed, {} needed a resume (deepest {} host turn(s) against "
-               "a cap of {}, {} guest cycles over those calls); the other {} finished inside one field",
+               "run-end ({}): this title's guest-call cap is {} display field(s) (psxport's default is "
+               "{}, which is below this title's measured worst case); the deepest call this run measured "
+               "needed {} host turn(s)",
                why,
-               counts.completed,
-               counts.resumed,
-               counts.deepestTurns,
-               kGuestCallTurnCap,
-               counts.resumedCycles,
-               counts.completed - counts.resumed);
+               kTitleCallTurnCap,
+               psx::cpu::kDefaultCallTurns,
+               deepest);
+}
+
+std::uint32_t runGuestCallToReturn(Core &core,
+                                   std::uint32_t entry,
+                                   std::uint32_t returnPc,
+                                   std::string_view owner,
+                                   const std::optional<psx::cpu::NativeKey> &original) {
+  psx::cpu::ResumableGuestCall call;
+  call.begin(core, owner, entry, returnPc, kTitleCallTurnCap);
+  for (;;) {
+    if (original && call.turns() > 0u && !originalStillMapped(core, entry, *original, owner)) {
+      return 0u;
+    }
+    const psx::cpu::CallStep step = call.advance(original);
+    switch (step.outcome) {
+    case psx::cpu::CallOutcome::Returned:
+      return step.value;
+    case psx::cpu::CallOutcome::Suspended:
+      break;
+    case psx::cpu::CallOutcome::Refused:
+      refuseGuestCall(core, owner, entry, returnPc, step);
+      return 0u;
+    }
+  }
 }
 
 void callOriginal(Core &core, GuestImage image, std::uint32_t address) {
@@ -439,14 +406,18 @@ void callOriginal(Core &core, GuestImage image, std::uint32_t address) {
   context.ledger().noteOriginalCall(imageName(image), address);
   const std::uint32_t returnPc = core.r[31];
   const auto key = context.activeKey(image, address);
-  const auto first = context.original(image, address, psx::cpu::ExecutionBudget::currentTurn(core));
+  if (!key || !core.nativeDispatcher().isInstalled(*key)) {
+    context.ledger().noteGuestFault(
+        "Crash Bash original call", address, "no native owner in the current authenticated image generation");
+    context.ledger().refuseRun("a guest call ended in something other than a return");
+    return;
+  }
+  const std::uint32_t value = runGuestCallToReturn(core, address, returnPc, "Crash Bash original call", key);
   lucent::debug("crashbash-original",
-                "target=0x{:08X} exit={} pc=0x{:08X} cycles={} r4=0x{:08X} r5=0x{:08X} r6=0x{:08X} "
+                "target=0x{:08X} r2=0x{:08X} r4=0x{:08X} r5=0x{:08X} r6=0x{:08X} "
                 "r7=0x{:08X} r8=0x{:08X} r16=0x{:08X} r17=0x{:08X} r18=0x{:08X} ra=0x{:08X}",
                 address,
-                psx::cpu::executionExitName(first.reason),
-                first.guestPc,
-                first.cycles,
+                value,
                 core.r[4],
                 core.r[5],
                 core.r[6],
@@ -456,7 +427,6 @@ void callOriginal(Core &core, GuestImage image, std::uint32_t address) {
                 core.r[17],
                 core.r[18],
                 core.r[31]);
-  runGuestCallToReturn(core, address, returnPc, "Crash Bash original call", key, first);
 }
 
 } // namespace crashbash::runtime

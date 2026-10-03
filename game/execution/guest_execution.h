@@ -148,36 +148,45 @@ void retireAuthenticatedImagesForWrite(Core &core, GuestAddressRange physicalRan
 void dispatchGuest(Core &core, std::uint32_t address);
 psx::cpu::ExecutionResult dispatchGuestSlice(Core &core, std::uint32_t address, psx::cpu::ExecutionBudget budget);
 
+// The turn cap for a Crash Bash guest or original call, in display fields.
+//
+// One display field is 564,480 guest cycles, so this is "a call may span N display fields of guest
+// CPU and no more". The worst measured case in this title is the full-frame 15-bit channel swap
+// entered from a native override (MENU entry 0x800B5244 took 7 turns / 6.097 fields; the BOOT logo
+// update 0x8008E5BC took 6 turns / 5.677 fields). Both convert a 256 KiB (128-sector) image, the
+// largest single conversion this title's load path performs, so 12 leaves room for a 2x larger
+// image at the same per-pixel cost and still reports a real guest loop within 12 host turns (0.2 s).
+//
+// This is a TITLE value, not the framework's: `psx::cpu::kDefaultCallTurns` is 8, which is below
+// this title's measured worst case, so every call site states this one. The deepest turn any
+// completed call needed is printed with the census at run end, so it is falsifiable from a log
+// rather than trusted.
+inline constexpr std::uint32_t kTitleCallTurnCap = 12u;
+
 // One guest or original call carried to its return address across as many bounded host turns as it
 // genuinely needs, and NOT one more.
 //
-// `psx::cpu::ExecutionBudget::currentTurn` is ONE display field by construction, and the executor
-// contract makes exceeding it an ORDINARY bounded exit that host code commits, handles, then resumes
-// deliberately. So a finite guest function that needs more than a field is resumed, not aborted: the
-// measured case in this title is the MENU image's full-frame 15-bit channel swap, whose loop body is
-// only `lhu`/`sh` on RAM.
+// The loop, the captured-and-latched return address, the no-progress refusal and the
+// Returned/Suspended/Refused classification are psx::cpu's (`ResumableGuestCall`). What stays here
+// is this title's part: `kTitleCallTurnCap`, the resumed-original image-generation check, and what a
+// refusal MEANS for a Crash Bash run — this port refuses the run through its ledger rather than
+// aborting, so a bounded call that never returns is reported with the rest of the run's facts.
 //
 // `returnPc` is the caller's return address as the FIRST turn saw it, captured before the dispatch:
 // a resume must not adopt the nested `$ra` the guest left behind. `original` names the native key the
 // first turn suppressed, which is the only difference between psx::cpu::resumeOriginal and
 // resumeGuestToReturn and is what keeps a resumed original from re-entering its own override.
-//
-// A resume must not become a hang, so the loop is fenced by what it can MEASURE: a turn that
-// exhausted its budget having consumed no guest cycles and left no guest PC made no progress, and a
-// call that has spent kGuestCallTurnCap display fields without reaching its return address is a guest
-// loop, not finite compute. The deepest turn any completed call needed is printed with the census at
-// run end, so the cap is falsifiable from a log rather than trusted.
-psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
-                                               std::uint32_t entry,
-                                               std::uint32_t returnPc,
-                                               std::string_view owner,
-                                               const std::optional<psx::cpu::NativeKey> &original,
-                                               psx::cpu::ExecutionResult first);
+// Returns the guest's r[2]. A refusal is reported through this title's ledger and refuses the run,
+// so there is no meaningful value in that case and 0 is returned.
+std::uint32_t runGuestCallToReturn(Core &core,
+                                   std::uint32_t entry,
+                                   std::uint32_t returnPc,
+                                   std::string_view owner,
+                                   const std::optional<psx::cpu::NativeKey> &original);
 
-// The run's guest-call census: calls completed, how many of those needed a resume, the deepest call
-// in host turns, and the guest CPU those calls spent. Printed once the host loop is done, so a run in
-// which nothing was ever resumed says so with its denominator instead of leaving silence.
-void reportGuestCallCensus(Core &core, std::string_view why);
+// This title's own turn-cap line beside psxport's census line: the cap value is a title fact, and
+// the census does not know it.
+void reportGuestCallTurnCap(Core &core, std::string_view why);
 
 // Execute the authenticated guest body for the currently active override through Lightrec while
 // suppressing only that override. This is the sole replacement for generated "super" bodies, and it

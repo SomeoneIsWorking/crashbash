@@ -138,24 +138,22 @@ void test_original_budget_exit_exposes_live_loop_state() {
   CHECK_EQ(core.r[8], 0u);
 }
 
-// A host turn boundary the harness supplies directly, so the resume path is exercised without
-// depending on how many cycles a host happens to retire inside one translated segment. The pc is a
-// LIVE mid-function address and the cycle count is non-zero, which is exactly the shape of a real
-// turn the fence accepts; a zero-cycle or zero-PC exit is the one it refuses.
-psx::cpu::ExecutionResult syntheticTurn(std::uint32_t resumePc) {
-  return {psx::cpu::ExecutionExitReason::BudgetExhausted, resumePc, 500u, "synthetic turn boundary"};
-}
-
 // A bounded guest body: a short counted loop, then r[2] = 42 and a return. Deliberately free of nested
-// calls, because a nested `jal` overwrites r[31] and this fixture's whole claim is that the resume
-// ends at the call's OWN return address.
+// calls, because a nested `jal` overwrites r[31] and this fixture's whole claim is that the call ends
+// at its OWN return address.
+//
+// WHAT THIS COVERS NOW. Carrying a call across host turns, latching the return address and
+// classifying the stop are psx::cpu's (`ResumableGuestCall`, exercised by psxport's own
+// `test_resumable_guest_call` and `verify_bounded_resume.py`). What is left to this title is the
+// wrapper's contract: the value it hands back, that the MEASURED return address is what the guest
+// ends at, that the caller's surrounding registers survive, and that an original's override
+// suppression is released when the call returns rather than left leaked.
 //
 // NOT COVERED HERE, and deliberately: that a resumed ORIGINAL suppresses its own override while a
 // plain resume does not. Whether the executor stops at an override address is a translated-block
 // decision, so that difference is not observable from a fixture this size; psxport records the same
-// gap for the primitive (native_dispatch.cpp, "COVERAGE"). What is observable is that both resumes
-// carry a cut call to its return address, which is what was broken.
-void test_bounded_resume_carries_a_long_call_to_its_return() {
+// gap for the primitive (native_dispatch.cpp, "COVERAGE").
+void test_bounded_call_ends_at_its_measured_return_address() {
   Runtime runtime;
   auto game = makeGame(runtime);
   Core &core = game->core;
@@ -179,27 +177,26 @@ void test_bounded_resume_carries_a_long_call_to_its_return() {
   core.r[2] = 0u;
   core.r[8] = 0u;
 
-  // A turn that ended budget-exhausted at a live mid-function pc is resumed to the call's return
-  // address, and the resumed work actually runs: the loop's counter reaches its end value.
-  const auto plain = crashbash::runtime::runGuestCallToReturn(
-      core, kBody, kReturn, "test plain resumed guest call", std::nullopt, syntheticTurn(kBody));
-  CHECK(plain.returned());
+  // The plain call runs to the MEASURED return address and hands back the guest's r[2]; the loop's
+  // counter reaches its end value and the caller's surrounding registers are untouched.
+  const std::uint32_t plain =
+      crashbash::runtime::runGuestCallToReturn(core, kBody, kReturn, "test plain guest call", std::nullopt);
+  CHECK_EQ(plain, 42u);
   CHECK_EQ(core.r[2], 42u);
   CHECK_EQ(core.r[8], 0u);
   CHECK_EQ(core.r[31], kReturn);
   CHECK_EQ(core.r[29], 0x801ff000u);
-  CHECK(plain.cycles > 0u);
 
-  // The same call resumed as the ORIGINAL of a key: that is the other framework entry point, and it
-  // re-establishes the suppression and caller scopes the resume needs.
+  // The same body run as the ORIGINAL of an installed key: that is the other framework entry point,
+  // and it must re-establish the suppression and caller scopes the body needs.
   crashbash::runtime::registerNativeOverride(core, GuestImage::Menu, kEntry, "menu-value", nativeValue);
   const psx::cpu::NativeKey key{image, kEntry};
   core.pending_work = 0;
   core.r[2] = 0u;
   core.r[8] = 0u;
-  const auto original = crashbash::runtime::runGuestCallToReturn(
-      core, kBody, kReturn, "test resumed original", key, syntheticTurn(kBody));
-  CHECK(original.returned());
+  const std::uint32_t original =
+      crashbash::runtime::runGuestCallToReturn(core, kBody, kReturn, "test original call", key);
+  CHECK_EQ(original, 42u);
   CHECK_EQ(core.r[2], 42u);
   CHECK_EQ(core.r[8], 0u);
   CHECK_EQ(core.r[31], kReturn);
@@ -344,7 +341,7 @@ int main() {
   RUN(pending_registration_reload_and_wrong_image_refusal);
   RUN(original_uses_dynarec_and_restores_interception);
   RUN(original_budget_exit_exposes_live_loop_state);
-  RUN(bounded_resume_carries_a_long_call_to_its_return);
+  RUN(bounded_call_ends_at_its_measured_return_address);
   RUN(invalid_replacement_preserves_binding_and_cores_are_isolated);
   RUN(restored_identities_replace_the_session_and_keep_their_retired_ranges);
   RUN(image_identity_records_refuse_what_no_title_writes);

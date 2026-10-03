@@ -72,7 +72,7 @@ private:
   void enterProcessState(Core &core, std::uint32_t state);
   // Requires the completed update and then runs the pair's present. The update itself is carried to
   // its return address by runtime::runGuestCallToReturn, so this only ever sees a completed call.
-  void finishUpdateSlice(Core &core, const psx::cpu::ExecutionResult &result);
+  void finishUpdateSlice(Core &core);
   // Progress reporting. The interesting event is a process-state CHANGE, and a run that never
   // changes state is precisely the failure worth seeing — so the boring case (sitting in one state)
   // is what gets capped, never the transitions. reportProgress() is called unconditionally at the

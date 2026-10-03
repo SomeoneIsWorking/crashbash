@@ -6,6 +6,7 @@
 #include "game.h"
 #include "guest_execution.h"
 #include "hw_bind.h"
+#include "native_boot.h"
 #include "run_ledger.h"
 #include "title_adapter.h"
 
@@ -16,9 +17,6 @@
 #include <iterator>
 #include <memory>
 #include <vector>
-
-// The framework owns the host loop and exposes this one product boundary from native_boot.cpp.
-void native_boot_run(Core *core);
 
 namespace {
 
@@ -88,7 +86,11 @@ int main(int argc, char **argv) {
   // The guest-call denominator beside the framework's other run-end reports: how many calls ran, and
   // how many of those needed more than one display field. A run in which nothing was ever resumed has
   // to say so against that count, or the absence of a resume reads as "nothing was measured".
-  crashbash::runtime::reportGuestCallCensus(core, "after native boot");
+  // psxport reports the guest-call census itself when the frame loop ends (`native_boot.cpp`), so
+  // this title does not repeat it. What the census does NOT know is this title's turn cap, and a cap
+  // that no line reports is a cap nobody can falsify from a log. This prints the cap against the
+  // deepest call the run actually measured.
+  crashbash::runtime::reportGuestCallTurnCap(core, "after native boot");
   ledger.close("after native boot");
   return 0;
 }
