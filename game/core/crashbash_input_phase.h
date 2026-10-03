@@ -10,19 +10,26 @@
 //
 // THE KEY, both halves the guest's own scene records (crashbash_guest.h):
 //
-//   * the OUTER record (kSceneTransition, 0x8009F658) selects boot / logo / the menu world / a
-//     live match: menus run as scene 0x8009F720 and a match runs as 0x8009F480, so the match and
-//     the briefing that loaded it cannot share a segment even though the menu record still holds
-//     the briefing's screen.
+//   * the OUTER record (kSceneTransition, 0x8009F658) is the root scene machine, and its CURRENT is
+//     what separates boot (0x800B9524), every loading handoff (0x800A00DC), the menu world
+//     (0x8009F720) and the LOAD GAME dialog (0x8009F480 — measured 2026-10-02: its outer scene while
+//     the card warning "THERE IS NO CRASH BASH DATA ON THIS MEMORY CARD" is up).
 //   * the MENU record (kMenuSceneTransition, 0x8009F8A4) is the menu world's nested scene machine,
-//     whose current is the active menu screen's scene struct — 0x800B8E28 for SELECT GAME TYPE and
-//     one struct per screen — which is what distinguishes the sub-screens that all run under the
-//     one outer scene.
+//     whose current is the active menu screen's scene struct — 0x800B8E28 for SELECT GAME TYPE,
+//     0x800B8E3C, 0x800B9DF4 character select, 0x800BA72C CHOOSE LEVEL, 0x800BAAB4 VS BATTLE,
+//     0x800B8E8C options — which is what distinguishes the sub-screens that all run under the one
+//     outer scene.
 //
 // Both currents are stable while their screen is: each changes only when the retail scene machine
 // completes a transition. Deliberately NOT the selection cursor (0x800B95F0): it moves on every
 // d-pad press, so a key built from it would re-key on the press itself and every recorded input
 // would land at offset 0 of a brand-new segment.
+//
+// WHAT THE KEY DOES NOT SEPARATE. The Polar Push briefing and the running Polar Push match both
+// measure outer 0x8009F720 with menu 0x00000000, so they share one segment. That is sound for a
+// recording — a press is replayed at its offset from the segment's entry either way — and it is the
+// reason no recording can be cut "at the moment the match starts" from these two words alone; the
+// measured boundary is the P1 record word 0x800AD304 answering a held direction.
 //
 // MASKING. Each half keeps only its low 24 bits, which drops the constant 0x80 KSEG prefix every
 // guest RAM address carries (PSX RAM is 2 MB, so the low 24 bits already distinguish every address
