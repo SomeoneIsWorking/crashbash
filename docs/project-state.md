@@ -42,7 +42,7 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S002 | The retail boot and loaded-image sequence have a recorded first-frame and menu frontier to re-establish through the dynarec | partial | S001, S003 | G001 |
 | S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec with bounded, reason-accounted fallback | partial | S001, shared psxport executor | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct across representative content | partial | S002, S015 | G001, G002, G003 |
-| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the margin census against a 4:3 run is DONE (0 margin objects absent from object memory; guest RAM 524,288/524,288 words identical at frames 2500 and 2800; 12 of 12 census frames match). The cull/limit owner audit is partial: `0x80056ACC` has 3 store sites (resident `0x8001C0C0` and `0x8001C1B8`, both halfword stores off the source-decode base from `0x8001C008`/`0x8001C0F0`, plus `0x8001E188` off `0x8001A918`) and `0x80056ADC` has 2 (`0x8001AC78` off `0x80019CF8`, `0x8001E1C4` off `0x8001A918`), but the pod/movement words `0x801D4048`, `0x801D40FC` and `0x8005721C` return **0** sites because the guest forms base+index, and the only base in that band the images materialise by `lui` is `0x80056998` (BOOT `0x800825B4`/`0x80082624`). Battle, Tournament and Polar Push are unsurveyed | S004 | G002 |
+| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the **cull/limit audit is DONE and the row's three named words were misattributed**: `0x80056AC8+` is the COP2 transform output written by `FUN_8001C0F0` (the software GTE path the native renderer does not use), and the `0x800569xx` band is the UI draw globals (`FUN_80018B08`, BOOT `FUN_80082590`) — `0x800569AC` is the fade byte S020 measured. The limits that ARE horizontal are four, all already widened natively and all off at 4:3: the GPU draw-area clip (framework `gpu_native.cpp` SetDrawAreaBottomRight), the per-draw viewport clip and projection origin (title `native_model_producer.cpp`), and the 2D world quad canvas shift (title `native_sprite_quad_producer.cpp`; `authoredWorldOrder` is set only by the untextured decoder, so no textured world quad is left behind). Measured per arena at 16:9 vs 4:3, guest submission identical in both (Polar Push f511 3 draws/2084 faces and f1023 73/2716; Crashball f2047 42/3171 and f4095 65/3102), margins continuous with no pop-in, HUD anchored to the widened edges. **Not reachable:** `tournament-crate-crush-control.pad` and `pogo-painter-control.pad` are unkeyed and no longer reach a match after S020 (both land on LOAD GAME `0x8009F480`); fixing them is re-recording phase-keyed v1, not a widescreen change | S004 | G002 |
 | S019 | Widescreen anchors the UI: edge HUD elements sit at the widened edges or safe area, centred elements stay centred, nothing stretches | partial — **2026-10-02:** the per-player 3-digit score (BOOT HUD routine `0x800798A4`, digit sites `0x80079EE0/E6C/DF8`) is now classified with the portrait row, so Pogo Painter's scores stay under their portraits; still open — Polar Push's power bars and Crate Crush's wumpa bars are `RQ_OM_DEPTH` model geometry (submitter `0x80019F1C`), so the 2D anchor never sees them (2026-10-02 measurements). the anchoring policy, its per-element classification and its test are DONE and the arithmetic is verified per element (`PSXPORT_DEBUG=uihud`: `anchor=left-edge authored=(32,64) frame=512->684 margin=86 correction=-86`, right-edge `+86`, centred `0`). The 16:9 live-match capture now shows exactly **four** portraits and **four** score groups at the widened edges (P1 sink 55..135 = native 39, P4 sink 825..890 = native 588 = authored 416+172) with the countdown and lives flag still centred, where the pre-fix picture showed eight. That needed the FRAMEWORK seam `GameRuntime::guestPacketPoolWindows()` (psxport `6b5cee55`): without it `OtAttr` was structurally blind for a typed runtime, `GuestPacketFilter` matched nothing, and the guest's own GP0 replay drew a second, centred copy of every HUD element. Two gaps remain: **a 4:3 LIVE-MATCH capture is owed** (the tracked replay's route is host-timing dependent and the 4:3 leg now takes a different route), and **4:3 is not byte-identical to before** — suppression is aspect-independent, so the guest's second copy is gone there too; the two copies coincided in position but not in rasterisation (~34 px of digit ink), so one drawer remains where two drew. See issue 0034 | S005 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
@@ -308,6 +308,58 @@ Gap: frames 2048-3000 are not covered by the per-frame census schedule (it repor
 dwell schedule, last at frame 2047), so the identity result is measured at frames 2500 and 2800 and
 corroborated at 12 census frames reaching frame 2047. The other representative retail modes (Battle,
 Tournament, Polar Push) have not been surveyed under this rule.
+
+**The cull/limit audit, finished 2026-10-03 — and three of its own words withdrawn.** The audit named
+`0x80056ACC` / `0x80056ADC` (store sites `0x8001C0C0`, `0x8001C1B8`, `0x8001E188`, `0x8001AC78`,
+`0x8001E1C4`) plus the pod/movement words `0x801D4048`, `0x801D40FC`, `0x8005721C` resolved through base
+`0x80056998` (BOOT `0x800825B4` / `0x80082624`). Decompiled, none of them is a horizontal cull or a
+screen-rect limit:
+
+| word | what it actually is |
+|---|---|
+| `0x80056AC8` and up (`0x80056ACC` = entry 0's Z, `0x80056ADC` = entry 1's X) | the COP2 transform output buffer. `FUN_8001C0F0` is the GTE routine: it pushes vertices through `copFunction(2, 0x980011)` and stores x/y/z/colour per vertex at `0x80056AC8 + 8n`. It belongs to the software transform path, which the native renderer does not use (`submitFixedModel` refuses `core.rsub.mode.psxRender()`). The store sites the audit listed (`0x8001C0C0`, `0x8001C1B8`) are inside that routine's transform path — `0x8001C1B8` is +200 bytes inside `FUN_8001C0F0` — and the model-decode routine `FUN_8001E188` (`0x8001E188` / `0x8001E1C4`) copies 0x2A-byte model records, not screen rectangles |
+| `0x800569xx` (`0x800569AC`, `0x800569C0/4`, `0x800569DC`) | the UI draw globals. `FUN_80018B08` is the panel drawer (it wrote `_DAT_800569AC`, the fade byte S020 measured at the handoff screen's present), and BOOT `FUN_80082590` zeroes `_DAT_800569C0/4` and publishes `DAT_8009F644` into `_DAT_800569AC` before each `FUN_80018B08` |
+
+The horizontal limits that exist, and their owners — each widened natively, each keyed on
+`gpu_vk_wide_engine` so 4:3 is byte-identical:
+
+1. **GPU draw-area clip** — the guest's horizontal window (GP0 E3/E4). No guest image programs it:
+   a byte scan for `lui rt, 0xE3` across all 8 linked images (resident, BOOT, MENU, DAT22510,
+   DAT28136, DAT28241, DAT28272, DAT28382) returns **0** sites, and a live match's `disp` shows the
+   clip at the full native width. The framework owns the widening (`gpu_native.cpp`,
+   `SetDrawAreaBottomRight`, extends the right clip by the wide width minus THIS game's native width).
+2. **Per-draw viewport clip + projection origin** — `submitFixedModel` (title): `ofx += margin << 16`
+   and `widenedViewportColumns`, with authored-screen presentations clamped back to the centred viewport.
+3. **2D world quads** — `submitSpriteQuad` (title): untextured world-order quads shift by the margin.
+   `authoredWorldOrder` is set in exactly one place (`decodeScreenColorQuad`), which is untextured, so
+   there is no textured world quad left behind at 16:9; textured quads are screen presentation and are
+   clamped/anchored (S019).
+4. **HUD/panel anchoring** — `ui_anchor` / `hud_layout` (title, S019).
+
+**Per-arena evidence, 16:9 against 4:3, mid-match, one route each** (`scratch/s005/`, the
+`aspect=1` / `aspect=0` settings files, `native_width=512 render_width=684` against
+`native_width=512 render_width=512`):
+
+| arena | 16:9 | 4:3 | guest submission, both aspects |
+|---|---|---|---|
+| Polar Push (`polar-push-control.pad`, DAT22510) | `pp_wide_0.png` | `pp_std_0.png` | f511 `3 draws / 2084 faces captured / 721 textured`, f1023 `73 / 2716 / 1968` — identical |
+| Crashball (`crashball-control.pad`) | `cb_wide_0.png` | `cb_std_0.png` | f2047 `42 / 3171`, f4095 `65 / 3102` — identical |
+
+`cb_wide_margins.png` and `pp_wide_margins.png` are the two 172-column margins of the 16:9 frames at
+2× zoom: arena wall, floor, ice and pods continue into both margins with no black gap and no sliced
+or missing object, and the portraits/score groups sit at the widened edges. Vertical framing is
+unchanged (both legs 234 lines, same camera), and nothing stretches (the scores read the same 07/12/10/11).
+
+**Two arenas could not be surveyed, and the reason is a replay, not the renderer.**
+`tournament-crate-crush-control.pad` and `pogo-painter-control.pad` are absolute recordings, and
+S020's collapsed handoffs moved their presses off the screens they were recorded against — the same
+failure the S020 section recorded for the old absolute Polar Push file. Both now stop on the LOAD GAME
+dialog (`0x8009F480`, "THERE IS NO CRASH BASH DATA ON THIS MEMORY CARD") instead of their matches
+(`scratch/s005/pogo_unreachable_0.png`, the Pogo Painter leg replayed to `replay COMPLETE 4655 of 4655` and photographed on the dialog; the Tournament leg behaves the same). Repair is re-recording them phase-keyed v1, the way
+`polar-push-control.pad` was made: the phase keys are what let a file survive a shorter handoff. A
+first attempt at editing the Polar Push file's level-select segment did not move the selection
+(`scratch/s005/polar_variant_probe.png` is still Polar Push), so the level scroll is keyed by a
+different screen than the one edited; the re-record is the open action, tracked with S016 item 4.
 
 ### S006 — Interpolated presentation
 
