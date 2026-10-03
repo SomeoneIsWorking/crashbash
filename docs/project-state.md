@@ -27,8 +27,11 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 5. **S016 / S009–S012**: Polar Push stays qualified (S012); Pogo Painter was re-recorded phase-keyed
    v1 and requalified 2026-10-03. Tournament Crate Crush and Battle Mode Crate Crush were qualified
    on 2026-10-02 with recordings that S020's collapsed handoffs then broke — both tracked files are
-   BROKEN in `replays/flow/README.md` and need a route that starts at the mode screen, because the
-   level cursor reached from the Polar Push route only advances forward (S005 section).
+   BROKEN in `replays/flow/README.md`. The menu's pad bits and cursors are now read from `MENU.BIN`
+   (S005 section): `0x4000` is the confirm button, so the earlier "extra Right press" was an extra
+   confirm stepping the per-mode flow table. Tournament needs a fresh live recording of the
+   tournament screens; Battle Mode Crate Crush needs whichever screen owns the arena choice, which
+   the arena screen's own cursor does not set.
 6. **S015**: all 28 overrides by image identity and the 16 original calls under the differential. The
    live-match leg is already a concrete instance of the case: `0x800B4694` is DAT28136's registered
    callback in one image generation and DAT28241's code in the next, at the same address.
@@ -369,17 +372,47 @@ the guest authenticates `crashbash-usa-dat28272`. Requalified on the dynarec pro
 684, `scratch/s005/pogo_v2_0.png` (inside the match) and `scratch/s005/pogo_v4_0.png` (the SELECT GAME
 TYPE screen the short match returns to, at the same 16:9 widening).
 
-**Crate Crush is still unsurveyed, and the reason is now measured rather than guessed.** The level
-cursor only advances forward: from the Polar Push route, +1 press at CHOOSE LEVEL gives Pogo Painter
-and +4 gives the same arena again, while −1 press (LEFT, 3 frames or 1 frame) cancels back out of the
-screen and loads no arena at all. Crate Crush sits behind that cursor, and the SELECT GAME TYPE screen
-(`0x8009F7200B8E28`) does not respond to injected presses either, so Battle Mode Crate Crush and
-Tournament Crate Crush both need a route that starts at the mode screen. Recordings attempted this
-session: `scratch/s005/rec_bcc.pad`, `rec_bcc2.pad` (both authenticate boot + menu only) and
-`rec_bcc4.pad` (authenticates `dat28272`, the same arena as the Pogo leg). The tracked
-`battle-crate-crush-control.pad` and `tournament-crate-crush-control.pad` stay marked BROKEN in
-`replays/flow/README.md` rather than requalified; the mode-screen route is the open action, tracked
-with S016 item 4.
+**Crate Crush is still unsurveyed. The menu was read out of the image, and my earlier reading of it
+was wrong.** Ghidra on `MENU.BIN` gives the pad word `DAT_80051380` (`0x80051380`) and the exact bits
+each screen tests, and they are the game's own active-high PSX set: Up `0x0010`, Right `0x0020`,
+Down `0x0040`, Left `0x0080`, the back button `0x1000`, and **the confirm button `0x4000`**. So every
+"extra Right press" in the earlier Pogo Painter work was actually an extra confirm, and the reason it
+changed the arena is the flow table, not a cursor: SELECT GAME TYPE (`FUN_800b3ca8`) hands
+`FUN_800b5360(&PTR_PTR_800b8ec0)` a per-mode screen-flow table and Cross advances it one entry
+(`FUN_800b5410`, `FUN_800b5390` steps back), so one more confirm walks one step further into the
+route. The screens are:
+
+| menu state | screen | cursor words | keys |
+|---|---|---|---|
+| `0x800B8E28` | SELECT GAME TYPE | `DAT_800b95f0` `0x800B95F0`, 0 Adventure / 1 Battle / 2 Tournament / 3 Options | Up/Down, Cross confirms |
+| `0x800B8E3C` | player count (`FUN_800b3f7c`) | `DAT_8005a63a` `0x8005A63A`, clamped to 1..4 | Up/Down, Cross/Triangle |
+| `0x800BAAB4` | CHOOSE LEVEL (`FUN_800b81f0`) | `DAT_800baac8` `0x800BAAC8` row and `DAT_800baacc` `0x800BAACC` column, two by two | Left/Right arena, Up/Down level, Cross selects |
+
+The arena screen's own strings are in the image — "PRESS LEFT - RIGHT TO CHANGE ARENA" (`0x800B3658`),
+"PRESS UP - DOWN TO CHANGE LEVEL" (`0x800B367C`), "CHOOSE LEVEL" (`0x800B36B8`) — and it is
+photographed live at `scratch/s005/right_arena.png` showing **POLAR PUSH** / **POLAR PANIC** with the
+selected thumbnail enlarged.
+
+**What still does not work is delivery, not understanding.** The arena screen is up for about 45 guest
+frames and one control-channel read costs about that many, so pressing at it live is a coin toss; the
+workaround is to put the press INSIDE the replay's own segment for that phase, which keeps the phase
+gate aligned. Measured this way, a Left press at `0x800BAAB4` does not move the arena: the polar route
+with segment 9 rewritten to `FF7F 1, FFFF 41, BFFF 3` (its first confirm replaced by Left, same frame
+counts) still authenticates `dat22510`, Polar Push, `replay COMPLETE ... 1394 of 1394`. The same edit
+with 24 idle frames first, and with Right ×4, also stayed on Polar Push. So the arena that loads is
+not set by that cursor in this flow, and the remaining question is which earlier screen owns it.
+
+**Tournament is a mode change, and that route does not exist yet.** Two Down presses at SELECT GAME
+TYPE are what `FUN_800b3ca8` calls TOURNAMENT, and the rewritten segment 5
+(`FFFF 24, FFBF 1, FFFF 10, FFBF 1, FFFF 20, BFFF 3`) was played to the end: it authenticates boot
+and menu only and never reaches a level module, because the tournament flow table
+(`PTR_PTR_800b8ed4`) diverges from the polar route's phases (`0x8009EB84`, `0x800B8EDC`, `0x800B3364`
+…) and the replay stalls on a phase that never arrives. A tournament recording is therefore a fresh
+live recording of the tournament screens, not an edit of the battle one.
+
+Both tracked files stay marked BROKEN in `replays/flow/README.md`. The tooling built for this is
+`scratch/s005/edit_pad.py` (rewrites one phase-keyed segment and reports the authenticated modules)
+and `scratch/s005/arena_probe.py` (parks the game on the arena screen and photographs it).
 
 ### S006 — Interpolated presentation
 
