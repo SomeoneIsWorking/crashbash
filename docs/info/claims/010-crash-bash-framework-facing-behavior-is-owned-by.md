@@ -4,14 +4,14 @@ kind: claim
 status: holds
 created: 2026-08-22
 tags: architecture,runtime
-depends: game/core/crashbash_runtime.cpp, game/core/main.cpp, game/core/game_hooks.cpp, CMakeLists.txt
+depends: game/execution/title_adapter.cpp#TitleAdapter::registerOverrides, game/execution/guest_execution.cpp#GuestExecution, CMakeLists.txt
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 18:30:47
 ---
 
 ## Claim
 
-Crash Bash framework-facing behavior is owned by a process-lifetime derived CrashBashRuntime while GameConfig and GameHooks are bounded compatibility facts only
+Crash Bash framework-facing behavior is owned by a process-lifetime `TitleAdapter` (`game/execution/title_adapter.h`), with `GuestExecution` (`game/execution/guest_execution.h`) as the per-Core title context; the former `CrashBashRuntime`/`GameConfig`/`GameHooks` trio was dissolved when `game/core/` was split into one directory per concept
 
 ## Evidence
 

@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-26
 tags: cdc,timing,interrupt
-depends: tools/verify_cdc_phase_progress.py#judge, psxport.pin
+depends: tools/verify_command_response_timing.py#diagnose, game/disc/cd_file_read.cpp#registerCdFileReadOverride
 ---
 
 ## Claim

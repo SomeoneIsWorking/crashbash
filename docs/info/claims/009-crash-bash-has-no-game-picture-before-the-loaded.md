@@ -4,7 +4,7 @@ kind: claim
 status: falsified
 created: 2026-08-22
 tags: boot,graphics,overlay
-depends: CMakeLists.txt, game/core/recomp_register.cpp, game/recomp_seeds.json, tools/verify_boot.py#judge
+depends: CMakeLists.txt, game/render/native_model_producer.cpp, game/disc/loading_card_skip.cpp
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 14:13:51
 falsified_on: 2026-08-22

@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-22
 tags: loaded-code,boot
-depends: tools/verify_menu_accept.py#judge, game/diagnostics/menu_boundary.cpp, titles/crashbash/dat28136_module.json
+depends: game/diagnostics/menu_boundary.cpp, titles/crashbash/dat28136_module.json, tools/provision.py
 reconfirmed: 2026-08-30
 verified_at: 2026-08-30 04:46:17
 ---

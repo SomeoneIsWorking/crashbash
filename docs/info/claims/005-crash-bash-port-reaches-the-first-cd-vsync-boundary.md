@@ -4,7 +4,7 @@ kind: claim
 status: falsified
 created: 2026-08-21
 tags: boot,harness,irq
-depends: tools/verify_boot.py#judge, game/recomp_seeds.json, game/core/main.cpp, game/core/crashbash_runtime.cpp, psxport.pin
+depends: game/disc/cd_file_read.cpp#registerCdFileReadOverride, game/entry/player_entry.cpp#main, game/execution/title_adapter.cpp#TitleAdapter::bootInit
 reconfirmed: 2026-08-22
 verified_at: 2026-08-22 14:13:50
 falsified_on: 2026-08-22

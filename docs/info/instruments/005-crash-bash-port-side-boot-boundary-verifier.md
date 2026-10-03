@@ -7,7 +7,7 @@ created: 2026-08-21
 
 ## Instrument
 
-Crash Bash `tools/verify_boot.py` deterministic loaded-module/MENU boundary verifier
+RETIRED — Crash Bash `tools/verify_boot.py` deterministic loaded-module/MENU boundary verifier (deleted; claims C005/C007/C009/C012 now anchor on game/disc/cd_file_read.cpp and game/disc/cd_startup.cpp)
 
 ## Validated by
 

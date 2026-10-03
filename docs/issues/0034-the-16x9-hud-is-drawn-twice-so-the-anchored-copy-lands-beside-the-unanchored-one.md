@@ -1,13 +1,14 @@
 # 0034 — the 16:9 HUD is drawn TWICE, so the anchored copy lands beside the unanchored one
 
-**Status:** RESOLVED — framework `6b5cee55` + this title · **Work:** `game/render/ui_anchor.{h,cpp}`,
-`game/render/hud_layout.h`, `game/core/title_adapter.cpp`, `game/render/sprite_quad_capture.cpp`
+**Status:** RESOLVED — framework `6b5cee55` + this title · **Work:**
+`game/render/widescreen/ui_anchor.{h,cpp}`, `game/render/widescreen/hud_layout.h`,
+`game/execution/title_adapter.cpp`, `game/render/sprite_quad_capture.cpp`
 · **State:** S019
 
 ## What was built
 
-The horizontal anchoring policy exists and is verified: `game/render/ui_anchor.h` owns the
-arithmetic, `game/render/hud_layout.h` owns the classification, and
+The horizontal anchoring policy exists and is verified: `game/render/widescreen/ui_anchor.h` owns
+the arithmetic, `game/render/widescreen/hud_layout.h` owns the classification, and
 `tests/test_ui_anchor.cpp` exercises both against the layout read off a live Crashball match. At
 16:9 a left-edge element is corrected by `-margin` (−86 px at 512→684), a centred one by 0, and a
 right-edge one by `+margin` (+86 px). At 4:3 every one of them is 0, so the 4:3 picture is unchanged

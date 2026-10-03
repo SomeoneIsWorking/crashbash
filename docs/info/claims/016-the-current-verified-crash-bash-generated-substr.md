@@ -1,10 +1,11 @@
 ---
 id: C016
 kind: claim
-status: holds
+status: falsified
 created: 2026-08-26
 tags: graphics,re,camera
 depends: tools/inventory_render_anchors.py#build_inventory
+falsified_on: 2026-10-03
 ---
 
 ## Claim
@@ -26,3 +27,9 @@ parsed denominator in addition to the static positive/negative fixtures.
 Regenerating either exact substrate changes its recorded counts/edges, direct inspection of the
 emitted bodies disagrees with the parser, or the selftest accepts a GTE-only, memory-only,
 stale-provenance, or mismatched-denominator negative
+
+## FALSIFIED 2026-10-03
+
+The static recompilation path this claim inventories was deleted (4ffeddc 'Remove Crash Bash static recompilation path') along with its analyzer tools/inventory_render_anchors.py. Guest execution is now the on-demand dynarec, so there is no generated substrate left for this claim to be about.
+
+> Anything that cited this claim as proof must be re-checked. Grep the repo for it.

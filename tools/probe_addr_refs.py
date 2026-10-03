@@ -51,7 +51,7 @@ import pathlib
 import struct
 import sys
 
-PSX_EXE_HEADER_BYTES = 0x800
+import psx_exe
 
 OPCODE_LUI = 0x0F
 OPCODE_ADDIU = 0x09
@@ -93,17 +93,11 @@ class Image:
 
 
 def psx_exe_image(name: str, path: pathlib.Path) -> Image:
-    data = path.read_bytes()
-    if data[:8] != b"PS-X EXE":
-        raise SystemExit(f"REFUSED: {path} is not a PS-X EXE (little-endian header expected)")
-    text_address, text_size = struct.unpack_from("<2I", data, 0x18)
-    body = data[PSX_EXE_HEADER_BYTES : PSX_EXE_HEADER_BYTES + text_size]
-    if len(body) != text_size:
-        raise SystemExit(
-            f"REFUSED: {path} declares {text_size} text byte(s) and carries {len(body)}; "
-            f"the missing bytes were NOT fetched and are not treated as zero"
-        )
-    return Image(name, text_address, body)
+    try:
+        image = psx_exe.read_image(path)
+    except psx_exe.Refused as refusal:
+        raise SystemExit(f"REFUSED: {refusal}") from refusal
+    return Image(name, image.text_address, image.text)
 
 
 def raw_image(name: str, path: pathlib.Path, base: int) -> Image:

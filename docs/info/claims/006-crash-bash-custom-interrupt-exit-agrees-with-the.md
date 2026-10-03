@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-21
 tags: boot,harness,irq
-depends: tools/verify_oracle_irq.py#compare, tools/verify_boot.py#judge, game/recomp_seeds.json, psxport.pin
+depends: tools/verify_oracle_irq.py#compare, game/disc/cd_file_read.cpp#registerCdFileReadOverride
 reconfirmed: 2026-08-24
 verified_at: 2026-08-24 19:37:51
 ---

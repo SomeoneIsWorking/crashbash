@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-27
 tags: graphics,native-renderer,scene-snapshots
-depends: game/render/model_submit_capture.cpp#recordIfRenderable, game/render/scene_snapshot.cpp#SceneSnapshotHistory::beginFrame
+depends: game/render/model_submit_capture.cpp#recordIfRenderable, game/render/fps60/scene_snapshot.cpp#SceneSnapshotHistory::beginFrame
 ---
 
 ## Claim

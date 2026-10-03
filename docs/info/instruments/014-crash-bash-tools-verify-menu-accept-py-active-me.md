@@ -7,7 +7,7 @@ created: 2026-08-30
 
 ## Instrument
 
-Crash Bash tools/verify_menu_accept.py active-menu action verifier
+RETIRED — Crash Bash tools/verify_menu_accept.py active-menu action verifier (deleted; claim C011 now anchors on game/diagnostics/menu_boundary.cpp and tools/provision.py)
 
 ## Validated by
 

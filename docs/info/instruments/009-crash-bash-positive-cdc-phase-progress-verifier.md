@@ -7,7 +7,7 @@ created: 2026-08-25
 
 ## Instrument
 
-Crash Bash `tools/verify_cdc_phase_progress.py` landed-CDC positive-progress verifier
+RETIRED — Crash Bash `tools/verify_cdc_phase_progress.py` landed-CDC positive-progress verifier (deleted; its `depends:` anchors moved to the surviving `tools/verify_command_response_timing.py`)
 
 ## Validated by
 

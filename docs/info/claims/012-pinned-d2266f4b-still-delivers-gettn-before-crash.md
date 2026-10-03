@@ -4,7 +4,7 @@ kind: claim
 status: falsified
 created: 2026-08-22
 tags: cdc,timing,first-frame
-depends: psxport.pin, tools/verify_command_response_timing.py#diagnose, tools/verify_boot.py#judge
+depends: tools/verify_command_response_timing.py#diagnose, game/disc/cd_file_read.cpp#registerCdFileReadOverride
 reconfirmed: 2026-08-24
 verified_at: 2026-08-24 19:37:55
 falsified_on: 2026-08-25

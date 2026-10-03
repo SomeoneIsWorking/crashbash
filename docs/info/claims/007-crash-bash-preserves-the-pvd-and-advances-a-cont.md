@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-21
 tags: boot,cdrom,cdc
-depends: psxport.pin, tools/verify_boot.py#judge
+depends: game/disc/cd_file_read.cpp#registerCdFileReadOverride, game/disc/cd_startup.cpp
 reconfirmed: 2026-08-24
 verified_at: 2026-08-24 19:37:52
 ---

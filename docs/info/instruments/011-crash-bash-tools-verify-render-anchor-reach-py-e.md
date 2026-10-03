@@ -7,7 +7,7 @@ created: 2026-08-26
 
 ## Instrument
 
-Crash Bash tools/verify_render_anchor_reach.py exact live projection-attribution judge
+RETIRED — Crash Bash tools/verify_render_anchor_reach.py exact live projection-attribution judge (deleted)
 
 ## Validated by
 

@@ -7,7 +7,7 @@ created: 2026-08-26
 
 ## Instrument
 
-Crash Bash tools/inventory_render_anchors.py retail projection/control inventory
+RETIRED — Crash Bash tools/inventory_render_anchors.py retail projection/control inventory (deleted with the static recompilation path; its claim C016 is falsified)
 
 ## Validated by
 

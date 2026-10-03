@@ -235,7 +235,8 @@ made here.
 
 `scratch/` (gitignored) holds the instruments, all word-level field tests in the
 style of `tools/probe_call_sites.py` rather than a new disassembler; every site quoted
-above was re-read with `tools/probe_disasm.py`:
+above was re-read with the workspace's Ghidra pipeline
+(`external/psxport/tools/decomp_pipeline.py --image <exe> --function-at 0xADDR`):
 
 - `scratch/cadence/scan_field_global.py` — the `0xE0E0` census, with the lookback
   window and its match count reported.
@@ -248,7 +249,7 @@ above was re-read with `tools/probe_disasm.py`:
   returned 1 of the 2 visible transfers, and 2 of 2 once the sign-extended offset form
   was used for `beq`.
 - `scratch/cadence/view/*.view.exe` — overlays are raw payloads with no PS-X EXE header,
-  so `tools/probe_disasm.py` cannot read them. Each view is the module's own bytes
+  so a PS-X EXE reader cannot read them. Each view is the module's own bytes
   verbatim behind a synthetic 0x800-byte header carrying the load address from
   `titles/crashbash/<name>_module.json`. No guest byte was altered; the provisioned
   inputs under `scratch/bin/` were not touched.
