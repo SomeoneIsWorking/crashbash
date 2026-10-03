@@ -58,7 +58,7 @@ public:
   void bootInit(Core &core) override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &game) const override;
-  std::unique_ptr<TemporalFramePresentation> createTemporalFramePresentation(Game &game) override;
+  std::unique_ptr<psx::frame::TemporalFramePresentation> createTemporalFramePresentation(Game &game) override;
   std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
 
 private:

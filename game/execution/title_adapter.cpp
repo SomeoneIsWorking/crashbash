@@ -159,7 +159,7 @@ bool TitleAdapter::controlCommand(Core &core, const char *cmd, const char *line,
   return frameDriver(core).devArena().handle(core, cmd, line, out);
 }
 
-std::unique_ptr<TemporalFramePresentation> TitleAdapter::createTemporalFramePresentation(Game &game) {
+std::unique_ptr<psx::frame::TemporalFramePresentation> TitleAdapter::createTemporalFramePresentation(Game &game) {
   return std::make_unique<render::InterpolatedScenePresentation>(game);
 }
 std::unique_ptr<FrameDriver> TitleAdapter::createFrameDriver(Game &game) {

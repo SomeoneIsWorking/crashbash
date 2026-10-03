@@ -402,13 +402,13 @@ if(BUILD_TESTING)
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_model_frame_source COMMAND crashbash_model_frame_source_test)
-  add_executable(
-    crashbash_model_transform_math_test
-    tests/test_model_transform_math.cpp
-    game/render/model_transform_capture.cpp
-  )
+  # `model_transform_capture.cpp` reaches its per-Core state through `frameDriver(core)`, whose owner
+  # is the frame driver itself, so this target needs the seam objects rather than the execution
+  # library alone. The capture source itself is already in the seam and is NOT named again here:
+  # naming it a second time is a duplicate definition at link, not a second copy of the owner.
+  add_executable(crashbash_model_transform_math_test tests/test_model_transform_math.cpp)
   target_include_directories(crashbash_model_transform_math_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
-  target_link_libraries(crashbash_model_transform_math_test PRIVATE crashbash_guest_execution)
+  target_link_libraries(crashbash_model_transform_math_test PRIVATE crashbash_seam)
   set_target_properties(
     crashbash_model_transform_math_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
@@ -429,13 +429,12 @@ if(BUILD_TESTING)
     NAME crashbash_model_transform_input_diagnostic
     COMMAND crashbash_model_transform_input_diagnostic_test
   )
-  add_executable(
-    crashbash_polar_push_contact_test
-    tests/test_polar_push_contact.cpp
-    game/gameplay/polar_push_contact.cpp
-  )
+  # Same owner reach-through as the transform-math test above: `polar_push_contact.cpp` reads its
+  # census through `frameDriver(core)`, so the seam supplies the owner and the gameplay source is
+  # not named again.
+  add_executable(crashbash_polar_push_contact_test tests/test_polar_push_contact.cpp)
   target_include_directories(crashbash_polar_push_contact_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
-  target_link_libraries(crashbash_polar_push_contact_test PRIVATE crashbash_guest_execution)
+  target_link_libraries(crashbash_polar_push_contact_test PRIVATE crashbash_seam)
   set_target_properties(
     crashbash_polar_push_contact_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON

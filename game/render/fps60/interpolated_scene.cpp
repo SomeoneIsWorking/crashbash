@@ -143,7 +143,7 @@ long InterpolatedScenePresentation::buildMidpoint(Core &core,
   return midpointQueue_->n;
 }
 
-void InterpolatedScenePresentation::buildPresentationStream(CapturedFrameView frame, bool replaceModels) {
+void InterpolatedScenePresentation::buildPresentationStream(psx::frame::CapturedFrameView frame, bool replaceModels) {
   presentationStream_.clear();
   const std::size_t midpointCount = replaceModels ? static_cast<std::size_t>(midpointQueue_->n) : 0u;
   presentationStream_.reserve(frame.items.size() + midpointCount);
@@ -183,9 +183,9 @@ void InterpolatedScenePresentation::buildPresentationStream(CapturedFrameView fr
   }
 }
 
-void InterpolatedScenePresentation::present(FramePresentationBackend &backend,
+void InterpolatedScenePresentation::present(psx::frame::FramePresentationBackend &backend,
                                             Core &core,
-                                            CapturedFrameView frame,
+                                            psx::frame::CapturedFrameView frame,
                                             int guestFields) {
   SceneSnapshotHistory &history = frameDriver(core).sceneSnapshots();
   const bool extraFrame = active(core) && guestFields == 2 && history.temporalPairValid();

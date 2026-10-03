@@ -25,17 +25,20 @@ inline bool canInterpolateModelFace(const ModelFace &previous, const ModelFace &
 // present/pacing operations; this decorator only replaces the native model block with a midpoint
 // rebuilt from the two completed title snapshots. Screen-space and not-yet-native layers remain the
 // captured current frame, so enabling 60 Hz never advances simulation or reads guest state at present.
-class InterpolatedScenePresentation final : public TemporalFramePresentation {
+class InterpolatedScenePresentation final : public psx::frame::TemporalFramePresentation {
 public:
   explicit InterpolatedScenePresentation(Game &game);
   ~InterpolatedScenePresentation() override;
 
-  void present(FramePresentationBackend &backend, Core &core, CapturedFrameView frame, int guestFields) override;
+  void present(psx::frame::FramePresentationBackend &backend,
+               Core &core,
+               psx::frame::CapturedFrameView frame,
+               int guestFields) override;
 
 private:
   bool active(const Core &core) const;
   long buildMidpoint(Core &core, const SceneSnapshot &previous, const SceneSnapshot &current);
-  void buildPresentationStream(CapturedFrameView frame, bool replaceModels);
+  void buildPresentationStream(psx::frame::CapturedFrameView frame, bool replaceModels);
 
   Game &game_;
   std::unique_ptr<RenderQueue> midpointQueue_;
