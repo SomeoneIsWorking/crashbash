@@ -1,29 +1,3 @@
-// ui_anchor.h — THE ONE horizontal anchoring policy for Crash Bash's authored screen-space UI.
-//
-// WHY THIS EXISTS. Widescreen widens the canvas from the guest's 512 columns to 684. Everything that
-// is a PROJECTION moves by itself, because the projection's horizontal centre moved. Nothing that
-// is a FIXED 4:3 layout moves by itself, because the guest authored it against 512 — so the
-// framework's queue answers every 2D producer with one rule, "authored 4:3 x is CENTRED in the wide
-// frame" (`RQ_2D_AUTHORED_4_3`, psxport `render_queue.h` / `rq_2d_xform`), and centring is the
-// right answer for exactly one class of element. It is the wrong answer for the rest, and it is
-// wrong in a way no capture of the world can show:
-//
-//   * the four per-player panels are the CORNER panels. Their portraits are authored at x = 32,
-//     128, 320 and 416 of 512 — 32 px inside the left edge and 32 px inside the right one. Centred,
-//     they slide 86 px INTO the arena the widening just revealed and stop being corner panels;
-//   * a right-hand element has to move by the FULL widening (172 px), not by half, or its distance
-//     from the right edge doubles.
-//
-// The second reason this is one owner and not a per-producer constant: the arithmetic is three
-// lines, and three lines copied into each producer is several places to be wrong and no place that
-// can be tested. The CLASS is a fact about the ELEMENT, so it is declared where the element is
-// authored — `hud_layout.h` — and the arithmetic is here.
-//
-// IT IS A PRESENTATION CHANGE AND NOTHING ELSE. `place` takes an authored x and returns a drawn x;
-// it neither reads nor writes guest memory, and it is not allowed to. The HUD quads this places are
-// the PORT's own decoded draw records (`SpriteQuadDraw`) on the way to the rasterizer, and the
-// guest's own Moby/sprite records are untouched. At 4:3 every entry point here is the identity, so
-// the 4:3 picture is unchanged by construction rather than by a saved copy.
 #pragma once
 
 #include <cstdint>
@@ -33,9 +7,22 @@ struct Core;
 
 namespace crashbash::render::ui_anchor {
 
-// The class of element. It is a property of the LAYOUT and never of the current aspect: a panel
-// that is edge-anchored at 4:3 is edge-anchored at 16:9. Asking the aspect is what produces a HUD
-// that migrates across the screen when the setting changes.
+// The class of element, and the ONE horizontal anchoring policy for Crash Bash's authored
+// screen-space UI. It is a property of the LAYOUT and never of the current aspect: an element that
+// is edge-anchored at 4:3 is edge-anchored at 16:9, and asking the aspect is what produces a HUD that
+// migrates across the screen when the setting changes.
+//
+// The framework already answers every 2D producer with one rule, "authored 4:3 x is CENTRED in the
+// wide frame" (`RQ_2D_AUTHORED_4_3`, psxport `render_queue.h` / `rq_2d_xform`). That is right for a
+// title, countdown, banner or text block, and wrong for the rest: the per-player panels are the
+// corner panels (portraits authored at x = 32/128/320/416 of 512, 32 px inside each edge), and a
+// right-hand element has to move by the FULL widening rather than by half. The arithmetic below is
+// therefore one owner rather than three lines copied into each producer, and the class is declared
+// where the element is authored (`hud_layout.h`).
+//
+// It is a PRESENTATION change and nothing else: `place` takes an authored x and returns a drawn x,
+// reads no guest memory, writes none, and returns the AUTHORED width in every class, so nothing
+// stretches. At 4:3 every entry point is the identity.
 enum class Anchor : std::uint8_t {
   // Authored distance to the LEFT edge is preserved: the drawn x equals the authored x, so the
   // element keeps the same inset from the widened frame's left edge.
@@ -159,14 +146,10 @@ constexpr std::optional<std::int32_t> offset(Anchor anchor, const Frame &frame) 
 // The correction to apply to an x the FRAMEWORK has ALREADY shifted by its centring rule.
 //
 // Every sprite quad this title submits goes through psxport's 2D layout transform, which shifts an
-// authored 4:3 x by the margin before it reaches the rasterizer. So an anchored element needs the
-// DIFFERENCE between its own class and the class that transform already applied — not its own
-// offset, or it would move twice. At 4:3 both are zero and the correction is the identity; at 16:9
-// a left-edge element gets `-margin` (back to its authored inset from the new left edge), a
-// centred one gets 0 (it is already centred, which is correct), and a right-edge one gets `+margin`.
-//
-// It is a correction and not a replacement precisely so the two halves of the same HUD cannot
-// disagree: this owner never has to fight the framework's rule, it only states the difference.
+// authored 4:3 x by the margin before it reaches the rasterizer, so an anchored element needs the
+// DIFFERENCE between its own class and the class that transform already applied. At 4:3 both are
+// zero; at 16:9 a left-edge element gets `-margin`, a centred one 0, a right-edge one `+margin`. It
+// is a correction and not a replacement so the two halves of one HUD cannot disagree.
 constexpr std::optional<std::int32_t> correction(Anchor anchor, const Frame &frame) {
   const std::optional<std::int32_t> own = offset(anchor, frame);
   if (!own) {

@@ -131,14 +131,11 @@ private:
   std::unique_ptr<ImageIdentityState> statePort_;
 };
 
-// The ledger belonging to the Core's own title context.
-//
-// WHY A LOOKUP EXISTS HERE, given every other feeder takes its ledger as a parameter. psxport
-// installs the context from `Core`'s constructor (runtime/psx/core.cpp), BEFORE the product has a
-// Core to build a ledger for, so the context cannot be handed one at construction. It is also the
-// only per-Core handle the framework gives: a native override receives a bare `Core *`, and a
-// CD-read completion has a signature the framework owns. This returns the ledger of THAT Core's
-// context — it is a lookup of a member, not a singleton, and two Cores still have two ledgers.
+// The ledger belonging to the Core's own title context. psxport installs the context from `Core`'s
+// constructor, BEFORE the product has a Core to build a ledger for, so the context cannot be handed
+// one at construction, and it is the only per-Core handle the framework gives: a native override
+// receives a bare `Core *`, and a CD-read completion has a signature the framework owns. This
+// returns the ledger of THAT Core's context — a lookup of a member, not a singleton.
 diagnostics::RunLedger &runLedgerFor(Core &core);
 
 // Retained native owners all use this same context and shared dispatcher.
@@ -154,25 +151,22 @@ psx::cpu::ExecutionResult dispatchGuestSlice(Core &core, std::uint32_t address, 
 // One guest or original call carried to its return address across as many bounded host turns as it
 // genuinely needs, and NOT one more.
 //
-// WHY. `psx::cpu::ExecutionBudget::currentTurn` is ONE display field by construction
-// (33'868'800/60 = 564,480 cycles, execution_exit.cpp), and the executor contract makes exceeding it
-// an ORDINARY bounded exit that host code "commits and handles, then resumes deliberately"
-// (psxport/AGENTS.md Executor contract; docs/faithful-execution.md). So a finite guest function that
-// needs more than a field is resumed, not aborted: the measured case in this title is the MENU
-// image's full-frame 15-bit channel swap, whose loop body is only `lhu`/`sh` on RAM.
+// `psx::cpu::ExecutionBudget::currentTurn` is ONE display field by construction, and the executor
+// contract makes exceeding it an ORDINARY bounded exit that host code commits, handles, then resumes
+// deliberately. So a finite guest function that needs more than a field is resumed, not aborted: the
+// measured case in this title is the MENU image's full-frame 15-bit channel swap, whose loop body is
+// only `lhu`/`sh` on RAM.
 //
 // `returnPc` is the caller's return address as the FIRST turn saw it, captured before the dispatch:
-// a resume must not adopt the nested `$ra` the guest left behind, which is a different address and
-// would end the call in the wrong place. `original` names the native key the first turn suppressed,
-// if any — that is the only difference between psx::cpu::resumeOriginal and resumeGuestToReturn,
-// and it is what keeps a resumed original from re-entering its own override.
+// a resume must not adopt the nested `$ra` the guest left behind. `original` names the native key the
+// first turn suppressed, which is the only difference between psx::cpu::resumeOriginal and
+// resumeGuestToReturn and is what keeps a resumed original from re-entering its own override.
 //
-// A resume must not become a hang, so the loop is fenced by what it can MEASURE:
-//   1. a turn that exhausted its budget having consumed no guest cycles, and left no guest PC, made
-//      no progress, so resuming it could only repeat that segment — a fact about the exit;
-//   2. a call that has spent kGuestCallTurnCap display fields of guest CPU without reaching its
-//      return address is a guest loop, not finite compute. That half IS a policy, so it is stated
-//      in display fields, set from the measured worst case in this title, and reported per call.
+// A resume must not become a hang, so the loop is fenced by what it can MEASURE: a turn that
+// exhausted its budget having consumed no guest cycles and left no guest PC made no progress, and a
+// call that has spent kGuestCallTurnCap display fields without reaching its return address is a guest
+// loop, not finite compute. The deepest turn any completed call needed is printed with the census at
+// run end, so the cap is falsifiable from a log rather than trusted.
 psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
                                                std::uint32_t entry,
                                                std::uint32_t returnPc,
@@ -183,7 +177,7 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
 // The run's guest-call census: calls completed, how many of those needed a resume, the deepest call
 // in host turns, and the guest CPU those calls spent. Printed once the host loop is done, so a run in
 // which nothing was ever resumed says so with its denominator instead of leaving silence.
-void reportGuestCallCensus(std::string_view why);
+void reportGuestCallCensus(Core &core, std::string_view why);
 
 // Execute the authenticated guest body for the currently active override through Lightrec while
 // suppressing only that override. This is the sole replacement for generated "super" bodies, and it

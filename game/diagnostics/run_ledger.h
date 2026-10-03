@@ -10,10 +10,8 @@ class Core;
 
 namespace crashbash::diagnostics {
 
-// How the run ended. `Refused` is not a rare corner: it is the case whose numbers nobody has, so
-// the ledger is emitted on it exactly as it is on a clean finish. Measured 2026-09-12: the run that
-// published MENU generation 4 died inside an original call and "the process did not shut down
-// normally, it did not print translated/fallback denominators" (docs/issues/0028).
+// How the run ended. `Refused` is not a rare corner: it is the case whose numbers nobody has, so the
+// ledger is emitted on it exactly as it is on a clean finish.
 //
 // WHAT THIS LEDGER IS NOT. It does not report the dynarec's own numbers. psxport's
 // `runtime/cpu/execution_ledger.h` prints translated and executed blocks and instructions, cache
@@ -66,6 +64,15 @@ struct ModuleOffer {
   std::uint32_t sectors = 0;
 };
 
+// The guest-call census. One entry is one guest or original call carried to its return address; the
+// resume counters are how many of those outlived the single display field one host turn allows.
+struct GuestCallCensus {
+  std::uint64_t completed = 0;
+  std::uint64_t resumed = 0;
+  std::uint32_t deepestTurns = 0;
+  std::uint64_t resumedCycles = 0;
+};
+
 // The measured facts, exposed so a test can assert on the census the report prints instead of on
 // the log text.
 struct RunLedgerFacts {
@@ -84,6 +91,7 @@ struct RunLedgerFacts {
   std::size_t registrations = 0;
   std::size_t boundImages = 0;
   std::vector<std::string> originalCallSites;
+  GuestCallCensus guestCalls;
 };
 
 // The whole-run image, refusal and native-ownership ledger for ONE Core.
@@ -114,11 +122,8 @@ public:
   void report(RunOutcome outcome, std::string_view why);
 
   // This product's ONE refusal route: report the ledger for the run being refused, then abort.
-  //
-  // WHY IT IS A MEMBER AND NOT A LOG LINE. `std::abort()` does not unwind, so a destructor cannot
-  // report on this path, and a run that dies is precisely the run whose image census and refusal
-  // sites are missing. Every title refusal goes through here so the ledger exists for the runs that
-  // failed, not only for the ones that worked.
+  // `std::abort()` does not unwind, so a destructor cannot report on this path, and a run that dies
+  // is precisely the run whose image census and refusal sites are missing.
   [[noreturn]] void refuseRun(std::string_view why);
 
   // Fact feeders. Each is called where the fact happens, so the run-end numbers have a visible
@@ -137,6 +142,9 @@ public:
   // the runtime admits an admitted fallback inside one `lightrec_execute` call and hands back an
   // ordinary result, and refuses a refused one as a typed fault carrying the offending guest PC.
   void noteGuestFault(std::string_view owner, std::uint32_t guestPc, std::string_view detail);
+  // One completed guest call, with the host turns it took and the guest cycles it spent. The
+  // resume fence's denominator comes from here rather than from a tally beside the resume loop.
+  void noteGuestCall(std::uint32_t turns, std::uint64_t cycles);
 
   const RunLedgerFacts &facts() const {
     return facts_;

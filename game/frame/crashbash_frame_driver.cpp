@@ -95,11 +95,10 @@ void CrashBashFrameDriver::finishUpdateSlice(Core &core, const psx::cpu::Executi
 void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   // A control-channel developer request runs HERE, at the frame boundary, and through the game's own
   // entry. The player path never arms one; nothing below this line knows the command exists.
-  DevArena::applyArmed(core, game_.pad, frame);
-  // psxport's per-frame CPU/frame-time profiler is owned by Game and is off unless the `perf` log
-  // channel is enabled. Nothing called it before this: the instrument existed, the channel worked,
-  // and a run produced no timing line at all — which reads exactly like "the profiler measured
-  // nothing", so the frame-time percentiles were unavailable for this title rather than absent.
+  devArena_.applyArmed(core, game_.pad, frame);
+  // psxport's per-frame CPU/frame-time profiler, owned by Game and off unless the `perf` log
+  // channel is enabled. This driver brackets the frame for it, so `PSXPORT_DEBUG=perf` reports this
+  // title's phase partition.
   game_.perf.frameBegin();
   game_.timing.logicFrame = frame;
   game_.timing.frameTick();

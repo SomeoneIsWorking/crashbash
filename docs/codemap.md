@@ -3,55 +3,151 @@
 This map records responsibility and placement only. Intent lives in `docs/project-goals.md`, factual
 capability state in `docs/project-state.md`, and evidence order in `docs/re-frontier.md`.
 
-| Responsibility | Current owner / location | New responsibility goes |
-| --- | --- | --- |
-| Player launch and portable provisioning | `run.sh`, `bootstrap.py`, `game/core/player_entry.cpp`, `pyproject.toml`, `uv.lock` | `run.sh` remains a slim shim; `bootstrap.py` authenticates/provisions the user image and resolves the framework, while `player_entry.cpp` owns the thin runtime composition and enters psxport's native boot/frame loop |
-| Packaged first-run media setup | Linux: `packaging/linux/`, `packaging/appimage.py`; Android: `platform/android/.../CrashBashMediaImport.java` | Linux owns native Browse/XDG setup; `packaging/linux/user_paths.cpp` is its sole C++ environment-read boundary and Lucent owns diagnostics; Android title policy owns identity validation and promotion; Lucent owns reusable bounded staging, ZIP safety, and platform lifecycle behavior |
-| PSX execution engine | `external/psxport` (the workspace's live framework checkout) | psxport owns the per-`Core` maintained Lightrec integration, CPU synchronization, bounded exits, executable-memory invalidation, and runtime diagnostics |
-| Gameplay execution policy | `game/core/title_adapter.h`, `game/core/guest_execution.{h,cpp}`, `game/core/frame_guest_call.{h,cpp}`, `game/core/native_owner_set.{h,cpp}` | `crashbash_guest_execution` is the single adapter library shared by the native seam and module tests. `GuestExecution` owns the per-Core title context, pending native registrations, authenticated image-generation bindings, overlap retirement, and exact-key suspended original calls. `FrameGuestCall` owns one bounded outer process call across host turns and resumes a nested original before ordinary guest execution. `TitleAdapter` in `game/core/title_adapter.{h,cpp}` composes these with the authenticated resident loader and native frame/presentation owners |
-| Test-only interpreter | Separately built psxport test target, including diagnostics | psxport test ownership only; never linked into, selected by, or entered from the Crash Bash gameplay target |
-| Retail disc, executable, and loaded-image identity | `tools/provision.py`, `tools/loaded_module.py`, `titles/crashbash/`; `game/core/resident_image.{h,cpp}`, `authenticated_module_image.{h,cpp}`, `boot_image.{h,cpp}`, `menu_image.{h,cpp}`, `image_content_identity.h`, and identity templates | Title manifests own exact identity. CMake derives non-executable identity metadata; the resident loader verifies and loads the whole executable, then publishes only the CRT0-audited pre-BSS code interval. The common module owner authenticates completed BOOT and MENU guest-RAM payloads using exact title specs before publishing generations. The runtime executor keys blocks and overrides by authenticated image generation plus guest address |
-| Native override installation | 30 title-owned calls to `runtime::registerNativeOverride` across `game/core/`, `game/diagnostics/`, and `game/render/` (30/18 counted by `tools/source_policy.py`); `GuestExecution` in `game/core/guest_execution.{h,cpp}` | Keep behavior in its cohesive title owner; registrations may precede image residency, while publishing and original calls require the bound generation to match the shared image catalog |
-| Calls to original guest behavior | 17 title-owned calls to `runtime::callOriginal` | The thin adapter suppresses only the current override and executes the authenticated guest body through Lightrec |
-| Image identity in save states | `game/core/image_identity_state.{h,cpp}` (the title's `NativeStatePort`), owned per Core by `GuestExecution` (`boundImages` / `restoreBoundImages`) | A state records every binding's surviving ranges; restore re-publishes them as fresh generations after RAM through psxport's `NativeStatePort::restored` |
-| Loaded-image replacement and executable writes | psxport image catalog and executor, `game/core/guest_execution.{h,cpp}`, `game/core/cd_file_read.{h,cpp}`, `game/core/authenticated_module_image.{h,cpp}`, `game/core/nested_module_image.{h,cpp}` | Every mapped CD sector subtracts overwritten bytes from authenticated image coverage and retires native keys at overwritten entries before copying bytes, preserving untouched fragments under the same generation. Completed BOOT and MENU reads authenticate guest RAM and bind fresh generations; psxport invalidates affected translated blocks. The five nested overlays that reuse the 0x800B32B4 slot are published by `NestedModuleImage`, which holds their tracked specifications and offers a completed read to the same `completeModuleImageRead`; without it a nested load left its own code with no image identity and the executor refused it as a typed fault (issue 0032) |
-| Native verification and Linux CI | `tools/verify.py`, `.github/workflows/ci.yml`, shared `port.consumer_verify` and `.github/actions/setup-linux` in that checkout | The title selects its native artifact and complete `crashbash_` test set; shared owners configure Ninja, resolve dependency policy, build, run CTest, and inspect the execution boundary. CI consumes the same setup action without copying packages or dependency revisions |
-| Product source policy | `tools/source_policy.py`, `tools/verify_native_ownership.py`, `tools/probe_addr_refs.py`, `tests/test_source_policy.py` | Reject the deleted translator, generated corpus, static dispatcher, legacy adapter, direct C/C++ stderr, and C/C++ environment reads outside the named path/config owner. `probe_addr_refs.py` resolves every load/store whose EFFECTIVE ADDRESS is a given main-RAM value across all 8 linked images, for questions a word census cannot answer; its `--selftest` reproduces the issue 0031 cadence census as its positive control |
-| Runtime composition | `game/core/title_adapter.{h,cpp}`, `game/core/guest_execution.{h,cpp}`, `CMakeLists.txt` | The direct `GameRuntime` creates and destroys `GuestExecution`; the authenticated loader activates the shared image catalog then binds title identity, and unbinds before unload. Guest dispatch and original-call execution remain shared psxport responsibilities |
-| Native-owner composition | `game/core/native_owner_set.{h,cpp}`, `game/core/title_adapter.cpp` | Keep the complete 18-owner installation list in the owner set; the direct adapter supplies its Core and installs the BIOS memory-card device before any title boot behavior |
-| Typed resident ownership facts | `game/core/crashbash_guest.h`, `game/core/title_adapter.cpp` | Guest entry points and process-state addresses live in the guest declaration; the direct adapter exposes `GuestProgramImage` and `PlatformHlePlan`. Shared `crt0_audit` checks the recovered boot group against authenticated resident bytes before applying it |
-| Finite boot and lifetime ownership | `game/core/crashbash_boot.{h,cpp}` | The one-shot retail `0x8002718C` / `0x80010158` prefix stays here; repeating work belongs to `CrashBashFrameDriver`; guest VSync/frame suspension uses bounded executor exits |
-| Native frame/process/display ownership | `game/core/crashbash_frame_driver.{h,cpp}`, `game/core/display_frame.{h,cpp}` | The driver owns measured input/audio/simulation/render/present order and a single presentation commit; it never delegates frame ownership to guest VSync. It also brackets the frame for psxport's `Game::perf` profiler, which nothing in the title called before 2026-09-30 — the phases are a partition, so the per-field SPU advance stays inside `GameLogic` and the `Audio` slot is 0.00 by construction |
-| Controller hardware and title pad semantics | psxport SIO0/VBlank/interrupt/timer owners; `game/input/`; `docs/findings/crashbash-pad-sio.md` | Reusable hardware behavior remains in psxport; Crash Bash owns its game-flow interpretation, touch layout, and acceptance scenarios |
-| Synchronous GPU timeout and transfer ownership | `game/core/gpu_timeout.{h,cpp}` | Keep the finite native operation here; any call to the retail body goes through the scoped dynarec original-call API |
-| Developer arena request | `game/core/dev_arena.{h,cpp}`, consumed by `CrashBashFrameDriver::stepFrame`, reached from `TitleAdapter::controlCommand`; menu-flow and arena-table facts in `game/core/crashbash_guest.h` | The control channel only ARMS a request and the frame driver advances it at a frame boundary through the game's OWN menu flow: `FUN_800B5360` is called with the ADDRESS of the flow-table entry that requests SELECT BATTLE TYPE (located in the resident MENU image), the arena is selected by holding the guest's own `DAT_8005a64a`/`DAT_8005a64b` cursor, and every remaining screen is its own accept driven as a Cross press on the title's pad. No guest phase, timer or scene word is written by the host, and no player input reaches this surface. Verified one shot each into Crate Crush, Polar Push and Pogo at 16:9 |
-| Loading-card presentation | `game/core/loading_card_skip.{h,cpp}`, measured addresses in `game/core/crashbash_guest.h` | The guest's LOADING card (`FUN_80018B08`, reached only from BOOT's two handoff screen presents) is loading-only presentation and is retired at those two measured call sites; the handoff's own level present, transition-clock fade word, build lifecycle and scene requests stay on the guest's bodies, and every other caller of the card routine (the menu screens' own panels) runs the original |
-| Synchronous CD startup and file reads | `game/core/cd_startup.{h,cpp}`, `game/core/cd_file_read.{h,cpp}`, `game/core/boot_image.{h,cpp}`, `game/core/menu_image.{h,cpp}`, measured addresses in `game/core/crashbash_guest.h` | Crash Bash owns title-specific handshakes and descriptor-relative reads; each sector write applies image retirement through the per-Core memory mapping, and exact complete BOOT and MENU reads call their publication owner before success is reported. psxport owns reusable CD behavior; any original call uses the dynarec boundary |
-| Disc/license startup | `game/core/cd_license_startup.{h,cpp}` | The title owner binds the authenticated medium to measured `SCUS_945.70` layout and enters the retail passed/idle state without guest delay clocks |
-| Memory-card startup | `game/core/memory_card_startup.{h,cpp}` | Preserve measured critical-section, BIOS/vector, device, and event semantics; original guest behavior runs only through the scoped dynarec call |
-| Polar Push contact/effect update | `game/core/polar_push_contact.{h,cpp}` | DAT22510 `0x800C0888` contact traversal, motion, effects, and denominators stay here; frame/presentation ownership stays in `CrashBashFrameDriver` |
-| Whole-run execution and image ledger | `game/diagnostics/run_ledger.{h,cpp}` (library `crashbash_run_ledger`), fed by `game/core/authenticated_module_image.cpp`, `game/core/resident_image.cpp`, and `game/core/guest_execution.cpp`; armed and closed in `game/core/player_entry.cpp` | The ledger OWNS the run-end report and is the only place this product states translated/executed blocks, cache hits and misses, invalidations, budget exits, interpreter fallbacks by reason, original calls, and the image-publication census. It CONSUMES psxport's `ExecutorCounters` rather than counting execution itself, and it records the runtime's invalidation and translation DELTA across each publication so a claim that a replaced range was retired is the runtime's number. `refuseRun` is the product's one refusal route, so a run that dies still reports; the title's execution-boundary refusals route through it, and framework-internal aborts do not yet (issue 0033) |
-| Nested MENU diagnostics | `game/diagnostics/menu_boundary.{h,cpp}` | Observers remain title-local; original MENU/DAT bodies execute through the scoped dynarec call; reusable diagnostic transport belongs in psxport |
-| Retail scene machine (boot / menu / attract / gameplay selection) | guest facts in `game/core/crashbash_guest.h`; read-only observer `game/diagnostics/scene_machine.{h,cpp}` on the retail leaf `0x8001E588`; live-scene reporting in `CrashBashFrameDriver::reportProgress` | The scene record at `0x8009F658` and its clock at `0x8009F644` are GUEST-OWNED: observed and reported, never written. `kAppModeVtable` (`0x8004E0DC`) is the shell's own root scene with one writer and is not a mode selector — see issue 0032 |
-| Input phase for pad recording and replay | `game/core/crashbash_input_phase.{h,cpp}` (`crashbash::InputPhase::of`), composed by `TitleAdapter::inputPhase`; unit test `tests/test_input_phase.cpp` | The title owns only phase identity: pack the guest scene record `0x8009F658` with the active menu screen `0x8009F8A4` in 24-bit halves so the KSEG prefix can never reach the unkeyed sentinel. psxport's padrec and pad-phase-replay own segment persistence, phase matching, and frame emission |
-| Native renderer factory policy | `TitleAdapter::titleRenderCapabilities`, psxport renderer policy | Crash Bash owns its Authored face-order default; shared renderer configuration and persisted player overrides remain in psxport |
-| Native scene snapshots and interpolation | `game/render/scene_snapshot.{h,cpp}`, `game/render/interpolated_scene.{h,cpp}`, owned by `CrashBashFrameDriver` | Immutable per-tick state and temporal continuity stay here; no guest RAM mutation or projected-output interpolation |
-| Native model capture, transform, and production | `game/render/model_submit_capture.{h,cpp}`, `model_transform_capture.{h,cpp}`, `native_model_producer.{h,cpp}`, `model_face_coverage.{h,cpp}` | Extend only from proven game-state inputs; original guest calls use the dynarec API; GTE/OT/GP0/framebuffer output remains diagnostic-only |
-| Guest viewports (clip and OT slice) | `game/render/render_viewport.{h,cpp}` (clip arithmetic and widened columns), `sprite_render_list.h` (frame-wide OT position), captured per model in `model_submit_capture.cpp` | A producer clips to the viewport its draw was submitted under and orders by OT word (slice + bin), never by present-time GPU state or a slice-relative bin |
-| Model recipe and animation-bank decode | `game/render/model_recipe_capture.{h,cpp}`, `model_frame_source.{h,cpp}` | Direct `0x2000`, two-level `0x5000`, and indexed `0x1000`/`0x4000` families share the source resolver; unsupported families require proven source records |
-| Native sprite/HUD production | `game/render/sprite_quad_capture.{h,cpp}`, `sprite_quad_decode.{h,cpp}`, `native_sprite_quad_producer.{h,cpp}` | Source descriptors, XY/RGB, offsets, scale, fade, blend, texture, and authored ordering stay in these owners. The submit leaves are shared, so an element's identity is the CALLER (`ra` at override entry), not the descriptor pointer, which moves per loaded module |
-| Screen-space UI horizontal anchoring | `game/render/ui_anchor.{h,cpp}` (arithmetic), `game/render/hud_layout.h` (the guest HUD families and each one's anchor class) | The CLASS is a fact about the element, declared where it is authored and never asked of the aspect. `place` takes an authored x and returns a drawn x; it reads no guest memory and writes none, and returns the AUTHORED width in every class, so nothing stretches. The correction is the difference from the framework's `RQ_2D_AUTHORED_4_3` centring, which is what keeps the two halves of one HUD from disagreeing. The class needs the title's guest packet-pool declaration (`TitleAdapter::guestPacketPoolWindows`), because the guest's own GP0 replay draws the same elements and only `OtAttr` attribution lets the filter suppress that copy |
-| Native camera and projection | `game/render/model_transform_capture.{h,cpp}`, psxport native projection | Captured camera/transform inputs stay title-owned; aspect policy widens projection/viewport/scissor without patching guest projected coordinates |
-| Native face ordering | psxport `RenderQueue::resolveKeyOrderFaces`, selected by title capabilities | Frame-wide authored order remains the single reusable owner; no title-local sorter, depth bias, or face skip |
-| Retail packet and transform diagnostics | `game/render/model_packet_identity_diagnostic.{h,cpp}`, `model_transform_input_diagnostic.{h,cpp}` | Evidence-only observation remains separate from product render inputs and cannot select an execution engine |
-| Product and oracle-boundary verification | `tools/verify_native_ownership.py`, `verify_oracle_irq.py`, `verify_read_completion.py`, `verify_command_response_timing.py` | Add runtime checks at the shipping native/dynarec boundary; comparisons use an independent emulator or separately built test target, including diagnostics, never the removed static product |
-| Provisioning and launcher contract tests | `tests/` | Positive, mismatch, refusal, precedence, ambiguity, bounds, and atomic-publication cases continue to exercise the shipping provisioning owner |
-| Retail render-anchor evidence | `docs/findings/render-anchor-inventory.md` | Preserve recorded address/ancestry evidence only; any new attribution comes from binary analysis or dynarec observation rather than emitted guest source |
-| Heap packet-pool and 2D attribution facts | psxport packet diagnostics, `docs/findings/crashbash-packet-pools.md` | Move the measured descriptor globals into a narrow typed fact group when the title adapter consumes them; diagnostics may observe packets, but product rendering consumes only decoded source state |
-| Representative gameplay inputs | `replays/flow/` and the recorded Crashball, Battle, Tournament, Polar Push, and Pogo Painter scenarios | Keep bounded, controllable scenarios here; require nonzero Lightrec execution, active native owners, visible correctness, audio/timing, and per-host frame-time evidence before gameplay is declared verified |
-| Project facts and atomic work | `docs/project-state.md`, `docs/re-frontier.md`, `docs/issues/`, `docs/info/` | Capability facts go to state, evidence order to the frontier, atomic work to issues, and falsifiable claims/instrument trust to info |
+## The rule
 
-Host composition, frame interpolation, camera policy, native rendering, and feature UI remain separate
-project-owned responsibilities with narrow interfaces. New behavior enters the smallest cohesive owner
-rather than expanding the future entry point or title adapter into a subsystem container; this codemap must be
-updated in the same change whenever responsibility moves or a new subsystem is introduced.
+Every first-party C++ file lives under `game/<concept>/`, and the directory name IS the concept.
+A new owner goes in the directory of the thing it owns, never in a neighbour's, and never in a new
+"common" directory. The framework (`external/psxport`, the workspace's live checkout) owns everything
+reusable; this title owns Crash Bash's game-flow interpretation of it.
+
+## Directories
+
+| Directory | Namespace | Files | One-line responsibility |
+| --- | --- | --- | --- |
+| `game/entry/` | — (process entry) | `player_entry.cpp` | `main`: read the executable, install `TitleAdapter`, bind the per-Core devices, enter psxport's native boot/frame loop, close the ledger. Nothing else; it composes, it does not implement. |
+| `game/execution/` | `crashbash`, `crashbash::runtime` | `title_adapter.{h,cpp}`, `guest_execution.{h,cpp}`, `image_identity_state.{h,cpp}`, `native_owner_set.{h,cpp}`, `image_content_identity.h`, `executable_identity.h.in`, `module_image_identity.h.in` | The typed psxport boundary: `TitleAdapter` (the `GameRuntime` the framework drives), `GuestExecution` (per-Core title context: override registrations, authenticated image bindings, original calls), `ImageIdentityState` (those bindings in a save state), `NativeOwnerSet` (the complete installation list), and the CMake-derived identity metadata. |
+| `game/boot/` | `crashbash` | `crashbash_boot.{h,cpp}`, `boot_object_callbacks.{h,cpp}`, `boot_logo_skip.{h,cpp}`, `memory_card_startup.{h,cpp}`, `resident_image.{h,cpp}`, `boot_image.{h,cpp}`, `menu_image.{h,cpp}`, `authenticated_module_image.{h,cpp}`, `nested_module_image.{h,cpp}` | Everything that runs once at power-on: the finite retail boot prefix, the BOOT overlay's object callbacks and logo controller, BIOS memory-card startup, and the authenticated publication of the resident executable, BOOT and MENU (plus `NestedModuleImage` for the five overlays that reuse MENU's load slot). |
+| `game/disc/` | `crashbash` | `cd_startup.{h,cpp}`, `cd_license_startup.{h,cpp}`, `cd_file_read.{h,cpp}`, `loading_card_skip.{h,cpp}` | The disc: the measured SCUS_945.70 startup handshake, licence startup, the synchronous file read that also retires authenticated images per sector write, the load-pump drain, and the retirement of the loading-card presentation at its two measured call sites. |
+| `game/frame/` | `crashbash` | `crashbash_frame_driver.{h,cpp}`, `display_frame.{h,cpp}`, `gpu_timeout.{h,cpp}`, `measured_guest_call.h` | The frame turn: `CrashBashFrameDriver` owns one measured input→audio→simulation→render→present order and the single presentation commit; `registerDisplayFrameOverride` is the guest's own frame call it is invoked from; `registerGpuTimeoutOverrides` is the synchronous GPU timeout/transfer; `measuredGuestCall` is the one way a native owner calls a guest body. |
+| `game/input/` | `crashbash`, `crashbash::input` | `crashbash_input_phase.{h,cpp}`, `crashbash_touch_controls.{h,cpp}` | `InputPhase` (which screen is taking input — the key a `.pad` recording is keyed on) and `CrashBashTouchControls` (the authored landscape touch overlay for Android). |
+| `game/render/` | `crashbash::render` | `model_submit_capture`, `model_transform_capture`, `model_depth_scale_capture`, `model_recipe_capture`, `model_frame_source`, `sprite_quad_capture`, `sprite_quad_decode`, `sprite_render_list.h`, `render_viewport.{h,cpp}`, `native_model_producer`, `native_sprite_quad_producer`, `model_face_coverage`, `model_material_diagnostic`, `model_face_pixel_diagnostic`, `model_packet_identity_diagnostic`, `model_transform_input_diagnostic` | Native picture production: capture decoded game state at the guest's own submit leaves, resolve recipes/animation banks, clip to the viewport the draw was submitted under, and submit natively. The four `*_diagnostic` files observe rendered output as evidence and select no execution path. |
+| `game/render/widescreen/` | `crashbash::render::ui_anchor`, `crashbash::render::hud_layout` | `ui_anchor.{h,cpp}`, `hud_layout.h` | The one horizontal anchoring policy (`ui_anchor`) and the guest's HUD families with each one's anchor class (`hud_layout`). Presentation only: no guest memory is read or written. |
+| `game/render/fps60/` | `crashbash::render` | `scene_snapshot.{h,cpp}`, `interpolated_scene.{h,cpp}` | Immutable per-tick scene snapshots and the 60 fps in-between built from two completed snapshots. Simulation is never advanced and guest state is never read at present time. |
+| `game/gameplay/` | `crashbash::polar` | `polar_push_contact.{h,cpp}` | The DAT22510 native owner of Polar Push contact traversal, motion and effects. Frame and presentation ownership stay in `CrashBashFrameDriver`. |
+| `game/debug/` | `crashbash::debug` | `dev_arena.{h,cpp}` | The developer `arena` control-channel command. It ARMS a request; the frame driver advances it through the game's own menu flow. No player input reaches it. |
+| `game/diagnostics/` | `crashbash::diagnostics` | `run_ledger.{h,cpp}`, `scene_machine.{h,cpp}`, `menu_boundary.{h,cpp}` | `RunLedger` owns the run-end report; `registerSceneMachine` and `registerMenuBoundary` are read-only observers of guest-owned state. |
+| `game/title/` | `crashbash::guest` | `crashbash_guest.h` | The recovered SCUS_945.70 guest facts: addresses, scene/scene-record layouts, arena table and menu flow. Facts only; no behavior. |
+| `packaging/linux/` | `crashbash::appimage` | `launcher_main.cpp`, `install_media.{h,cpp}`, `user_paths.{h,cpp}` | The AppImage launcher's first-run media setup. `user_paths.cpp` is this product's only environment-read boundary. |
+| `platform/android/` | — (Java) | `app/src/main/java/.../CrashBashActivity.java`, `CrashBashMediaImport.java` | Android Activity and SAF media policy. |
+| `tools/` | — (Python) | `provision.py`, `source_policy.py`, `verify_*.py`, `probe_*.py`, `psxport_fetch.py`, `verify.py` | Provisioning, the source-boundary gate, and the product/oracle-boundary verifiers. |
+| `tests/` | — | `test_*.cpp`, `test_*.py` | The title's unit and selftest set, run by CTest as `crashbash_*`. |
+
+## Who owns it
+
+Each chain names the class and the method at every hop. `psxport:` marks a framework hop.
+
+### The frame turn
+
+`main` (`game/entry/player_entry.cpp`) → `psxport_install_game(runtime)` → `psxport:native_boot_run(core)`
+→ `psxport:FrameLoopShell::prepareProduct` → the loop's `psxport:FrameLoopShell::step(core, frame)` →
+**`CrashBashFrameDriver::stepFrame`** (the title's single frame owner) → the guest process state's
+update/present pair → the guest's own `DisplayFrame` override →
+`CrashBashFrameDriver::deliverDisplayFields` → back at the driver tail, one
+`Game::presentation.commit(core, fields, game.temporalPresentation.get())` → `psxport:GpuState` fence
+advances once, which `FrameLoopShell::step` asserts.
+
+- `stepFrame` never delegates frame ownership to guest VSync. It brackets the frame for
+  `Game::perf`, and its phases are a **partition**, not a nest: the per-field SPU advance stays
+  inside the GameLogic span, so the `audio` slot reports 0.00 by construction.
+- **While a blocking load or presentation blocks**: it is still `CrashBashFrameDriver::stepFrame`.
+  There is no second loop and no second input pump in this title. The blocking work is reached from
+  `deliverDisplayFields` → `runtime::dispatchGuest(core, guest::kVblankRoot)` or from a
+  `measuredGuestCall`, and each of those is a bounded executor exit the driver resumes itself; a
+  guest call needing more than one display field is resumed by
+  `crashbash::runtime::runGuestCallToReturn` under the `kGuestCallTurnCap` fence. Host input is not
+  re-pumped here because `Game::pad.serviceFrame()` already ran at the top of `stepFrame` and
+  psxport's `Pad::pollHostInput` is the single host pump.
+
+### Host input → guest pad buffer
+
+`psxport:psx::input::HostInput` (the SDL/gamepad mask) → `psxport:Pad::pollHostInput` (the one host
+pump) → `psxport:Pad::serviceFrame` at the top of `CrashBashFrameDriver::stepFrame`, which resolves
+forced / REPL / replay input and records or replays the frame → `psxport:Pad::fillBuffer` writes the
+standard digital packet into the guest's VBlank slot.
+
+- **Recording/replay key**: `crashbash::InputPhase::of(core)`, returned by
+  `TitleAdapter::inputPhase`. psxport owns segment persistence and phase matching.
+- **Movie / skip and any other consumer of button edges**: `psxport:Pad::sampleButtonEdges` /
+  `pressedButton`. The guest's own state machine decides what an edge means; nothing here consumes
+  or suppresses game input. This title has no movie player, so the logo cancel it does own is
+  `crashbash::boot_logo_skip` (Start/Cross through the scene lifecycle, never a timer).
+- **Debug control channel**: `psxport:DbgServer::service` at the loop tail →
+  `psxport:DbgServerInternals::handleCommand` → `GameRuntime::controlCommand` →
+  **`TitleAdapter::controlCommand`** → `crashbash::debug::DevArena::handle`. The command only arms
+  a request; `CrashBashFrameDriver::stepFrame` advances it through `DevArena::applyArmed` using the
+  title's own pad (`Pad::driveTap`), which is the same path a player's press takes.
+
+### Guest draw → presentation
+
+Guest submit leaf (`0x8001965C` model / `0x800193A8` packet / the 2D quad leaves) →
+`registerModelSubmitCaptureOverrides` / `registerSpriteQuadCaptureOverride` decode the call into a
+`render::ModelDraw` / `render::SpriteQuadDraw` and `CrashBashFrameDriver::sceneSnapshots().record(...)`
+stores it immutably → `registerDisplayFrameOverride` calls `render::submitFixedModels(core,
+snapshots.presentable())` and `render::submitSpriteQuads(core, snapshots.current(), orderingTable)` →
+the guest's own OT walk submits the frame to psxport's native queue →
+`Game::presentation.commit(...)` →
+`crashbash::render::InterpolatedScenePresentation::present` (the 60 fps in-between; it rebuilds only
+the native model block from the two completed snapshots and never advances simulation) →
+`psxport:GpuState` presents.
+
+- **Real field vs in-between**: `psxport:GpuState::s_interpolated_frames` is the second counter; the
+  `frame` control-channel line reports `frame=`, `interp=`, `total=` so a 60 Hz claim cannot be read
+  off the real-field count alone.
+- **Widescreen**: a projection/viewport/scissor change, not a captured-input change.
+  `render::native_model_producer` widens the clip columns through `render::widenedViewportColumns`,
+  `render::native_sprite_quad_producer` shifts the 2D canvas, and every fixed 4:3 screen-space
+  element is corrected through `crashbash::render::ui_anchor::correctionAndReport` with the class
+  declared by `crashbash::render::hud_layout::anchorFor`. Guest memory is untouched.
+- **A frame that presented nothing** (`deliveredFields_ == 0`) goes to
+  `Game::presentation.commitUnpresented` and `SceneSnapshotHistory::markUnpresented`, so a temporal
+  pair is never built from a stale snapshot.
+
+### CD / streaming
+
+Guest CD call → `registerCdStartupOverride` / `registerCdLicenseStartupOverride` /
+`registerCdFileReadOverride` (all in `game/disc/`) → the descriptor-relative read writes sectors
+into guest RAM, and each sector write calls `crashbash::retireImagesForCdSectorWrite` →
+`crashbash::runtime::retireAuthenticatedImagesForWrite` → `GuestExecution::retireImagesOverlapping`,
+which subtracts the overwritten bytes from the authenticated generation and retires the native keys
+at overwritten entries → the completed read is offered to the publication owners
+(`isBootImageRead`/`isMenuImageRead`/`NestedModuleImage::offer`) → `completeModuleImageRead`
+authenticates guest RAM and publishes a fresh generation →
+`GuestExecution::bindAuthenticatedImage` → `crashbash::diagnostics::RunLedger::noteImagePublication`.
+
+- The five nested overlays reuse the `0x800B32B4` slot, so a publication here necessarily retires the
+  previous occupant; `NestedModuleImage` exists because without it a nested load would leave its own
+  code with no image identity, which the executor refuses as a typed fault.
+- The retail load queue's pacing pump (`0x8001231C`) is drained to quiescence by
+  `registerLoadPumpDrainOverride`, from the pump's own three queue words. That is the whole of the
+  title's loading-removal policy; the LOADING card is retired separately by
+  `registerLoadingCardSkipOverride` at its two measured call sites.
+
+### Audio
+
+The guest's own SPU writes in the VBlank root the frame driver dispatches
+(`deliverDisplayFields` → `psxport:dispatchGuest(kVblankRoot)`); `Game::spu_audio.frame()` advances the
+host SPU once per delivered field. There is no title-owned mixer: XA/XADPCM playback and the Beetle
+SPU are psxport's (`psxport:xa_bind`, `spu_bind`, `xa_*`), and `PSXPORT_NOAUDIO` is the silent-run
+switch. The frame-time `audio` slot is 0.00 by construction (see the frame turn above), not measured.
+
+### The debug / control channel
+
+`psxport:DbgServer` (loopback TCP, started by `psxport:native_boot_run`; always on unless the port is
+taken) → `handleCommand`: framework commands first (`r/w/regs/press/shot/dumpram/step/play/state/
+session/frame`), then `GameRuntime::controlCommand` → `TitleAdapter::controlCommand` →
+`crashbash::debug::DevArena::handle`. The run-end numbers come from
+`crashbash::diagnostics::RunLedger` (fed from `GuestExecution`, the publication owners and
+`player_entry.cpp`), and a refusal goes through `RunLedger::refuseRun`, the product's one refusal
+route, so a run that dies still reports.
+
+## Placement rules for new work
+
+- A native override belongs in the directory of the thing it replaces, next to its sibling overrides,
+  and is added to `game/execution/native_owner_set.cpp` — never registered somewhere else.
+- A guest address or a guest-struct layout belongs in `game/title/crashbash_guest.h` as an
+  `inline constexpr`; nothing else declares a guest address.
+- A pure screen-space policy belongs in `game/render/widescreen/`, a temporal one in
+  `game/render/fps60/`, and neither may read or write guest memory.
+- A run-lifetime number belongs in `diagnostics::RunLedger` as a fact with a feeder at the site the
+  fact happens, not as a tally beside the code that produces it.
+- This codemap is updated in the same change whenever responsibility moves or a new owner appears.

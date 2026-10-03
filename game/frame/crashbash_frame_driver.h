@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dev_arena.h"
 #include "execution_exit.h"
 #include "game_runtime.h"
 #include "scene_snapshot.h"
@@ -22,6 +23,12 @@ public:
   void deliverDisplayFields(Core &core, std::uint32_t fields);
 
   render::SceneSnapshotHistory &sceneSnapshots();
+
+  // The developer arena request the control channel arms and this driver applies. Owned here, so the
+  // armed request and the frame that advances it are the same object.
+  debug::DevArena &devArena() {
+    return devArena_;
+  }
 
 private:
   static inline constexpr std::uint32_t kUpdateReturnPc = 0x80027144u;
@@ -52,6 +59,7 @@ private:
   std::uint32_t appModeChanges_ = 0;
   std::uint32_t scene_ = 0;
   std::uint32_t sceneChanges_ = 0;
+  debug::DevArena devArena_;
   render::SceneSnapshotHistory sceneSnapshots_;
 };
 

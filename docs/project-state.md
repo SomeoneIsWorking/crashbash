@@ -497,7 +497,7 @@ Missing capability: Add durable, controllable hybrid-product scenarios for every
 covered by the four retained gameplay routes.
 
 Developer route (verified 2026-10-03): the control-channel-only `arena <id> [battle|tournament]` command
-(`game/core/dev_arena.cpp`, Tomba! 2 `dev_warp` pattern) enters a match at a frame boundary through
+(`game/debug/dev_arena.cpp`, Tomba! 2 `dev_warp` pattern) enters a match at a frame boundary through
 the menu's own flow step `FUN_800B5360` on the located battle flow run and the guest's own accepts;
 `arena 1/2/3/10 battle` entered Crate Crush, Polar Push, a crate arena and Pogo live at 16:9.
 
@@ -516,7 +516,7 @@ Evidence: the surviving title sources contain 28 registrations through the singl
 scoped `runtime::callOriginal` boundary. `tools/verify_native_ownership.py` reports both denominators
 and its test suite proves forbidden old paths are detected.
 
-Implementation: `game/core/guest_execution.{h,cpp}` now supplies the per-Core adapter. Native owners
+Implementation: `game/execution/guest_execution.{h,cpp}` now supplies the per-Core adapter. Native owners
 can register before their module is resident. The authenticated loader supplies the logical image,
 shared catalog identity/generation, and complete physical range; registration publication and original
 calls reject a mismatched residency. Original calls use shared scoped suppression, and replacement or
@@ -532,7 +532,7 @@ format checks; source policy retained the 27-registration / 15-original-call den
 
 The direct `TitleAdapter` now composes the per-Core execution context, all native owners, BIOS memory-card
 device publication, native frame driver, and immutable-scene interpolation presenter. The new
-`game/core/player_entry.cpp` composes that adapter with the heap-owned `Game`, authenticates the
+`game/entry/player_entry.cpp` composes that adapter with the heap-owned `Game`, authenticates the
 resident executable, binds per-Core hardware owners, and enters `native_boot_run`. Its resident loader
 hashes the entire executable against metadata derived from `titles/crashbash/executable.json`, loads that
 same byte span through shared `loadPsxExeImage`, and binds the returned generation. Failed authentication
@@ -738,7 +738,7 @@ Measured 2026-10-03: the handoff's own work is done by f468 (state 4→7→9, `D
 frames after it are the scene transition clock `FUN_8001E598` on `0x8009F644` — −0x300 from `0x700`
 to 0, then +0x300 to `0x1000` until `FUN_8001E610`'s age gate admits the destination. That clock is
 the authored fade for EVERY transition in the game (the world scene's own enter `0x80092CAC` arms
-−0x300 again), so it stays; what shipped was the card, drawn on top of it. `game/core/loading_card_skip.{h,cpp}`
+−0x300 again), so it stays; what shipped was the card, drawn on top of it. `game/disc/loading_card_skip.{h,cpp}`
 now retires the card at those two measured call sites and runs every other caller of `FUN_80018B08` —
 the menu screens draw their own panels through it — on the guest's own body. The handoff therefore
 presents the level the guest has built, and the authored fade carries it to black and into the next

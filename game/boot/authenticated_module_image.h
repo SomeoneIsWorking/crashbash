@@ -22,17 +22,13 @@ struct AuthenticatedModuleSpec {
   std::uint32_t entry;
 };
 
-// The entry word is a SECOND, independent content witness, and only some modules carry one.
-//
-// MEASURED 2026-09-27, from the provisioned overlays. BOOT's payload begins with its own three
-// function pointers, and its manifest records entry_pointer_offset 0 -> 0x80092BDC; MENU records
-// 0x6270 -> 0x800B5244. The five nested gameplay overlays record `null` for BOTH fields, and that is
-// a measured property of those images rather than a gap in the manifest: DAT28272's first eight words
-// decode as ASCII ("BREATH", "JUMP", "DAZE", "WIN" — the animation-state name table the project
-// state doc already attributes to this module), and DAT22510/DAT28136/DAT28241/DAT28382 are the same
-// shape. A module whose header is a string table has no table-of-contents pointer to compare, so for
-// those modules the SHA-256 over the whole payload is the ENTIRE content witness, and the
-// authentication log says which witness it used rather than implying a second one existed.
+// The entry word is a SECOND, independent content witness, and only some modules carry one. BOOT's
+// payload begins with its own three function pointers (manifest entry_pointer_offset 0 ->
+// 0x80092BDC) and MENU records 0x6270 -> 0x800B5244. The five nested gameplay overlays record
+// `null` for BOTH fields because their payload headers are ASCII name tables rather than a table of
+// contents — DAT28272's first eight words decode as "BREATH", "JUMP", "DAZE", "WIN" — so for those
+// modules the SHA-256 over the whole payload is the ENTIRE content witness and the authentication
+// log says which witness it used.
 //
 // A zero `entry` is therefore a stated absence, not a placeholder: `hasEntryWitness` is a property of
 // the specification the manifest produced, and nothing infers one.

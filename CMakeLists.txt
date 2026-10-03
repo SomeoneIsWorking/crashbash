@@ -27,7 +27,7 @@ string(JSON CRASHBASH_EXECUTABLE_SIZE GET "${CRASHBASH_EXECUTABLE_MANIFEST}" fil
 string(JSON CRASHBASH_EXECUTABLE_ENTRY GET "${CRASHBASH_EXECUTABLE_MANIFEST}" header entry)
 string(JSON CRASHBASH_EXECUTABLE_TEXT GET "${CRASHBASH_EXECUTABLE_MANIFEST}" header text_address)
 string(JSON CRASHBASH_EXECUTABLE_TEXT_SIZE GET "${CRASHBASH_EXECUTABLE_MANIFEST}" header text_size)
-configure_file(game/core/executable_identity.h.in title_metadata/executable_identity.h @ONLY)
+configure_file(game/execution/executable_identity.h.in title_metadata/executable_identity.h @ONLY)
 
 function(configure_crashbash_module_identity module_name)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "titles/crashbash/${module_name}_module.json")
@@ -54,7 +54,7 @@ function(configure_crashbash_module_identity module_name)
     set(MODULE_ENTRY 0)
   endif()
   set(MODULE_NAME "${module_name}")
-  configure_file(game/core/module_image_identity.h.in "title_metadata/${module_name}_image_identity.h" @ONLY)
+  configure_file(game/execution/module_image_identity.h.in "title_metadata/${module_name}_image_identity.h" @ONLY)
 endfunction()
 
 configure_crashbash_module_identity(boot)
@@ -65,28 +65,46 @@ configure_crashbash_module_identity(dat28241)
 configure_crashbash_module_identity(dat28382)
 configure_crashbash_module_identity(dat22510)
 
+# Every first-party header root. Each game/<subsystem> directory owns one concept; this list is what
+# lets a source name a header without naming the directory it lives in.
+set(CRASHBASH_TITLE_INCLUDE_DIRS
+  game/boot
+  game/debug
+  game/diagnostics
+  game/disc
+  game/entry
+  game/execution
+  game/frame
+  game/gameplay
+  game/input
+  game/render
+  game/render/fps60
+  game/render/widescreen
+  game/title
+)
+
 set(CRASHBASH_SEAM_SOURCES
-  game/core/boot_object_callbacks.cpp
-  game/core/boot_logo_skip.cpp
-  game/core/authenticated_module_image.cpp
-  game/core/nested_module_image.cpp
-  game/core/boot_image.cpp
-  game/core/cd_file_read.cpp
-  game/core/loading_card_skip.cpp
-  game/core/cd_license_startup.cpp
-  game/core/cd_startup.cpp
-  game/core/crashbash_boot.cpp
-  game/core/crashbash_frame_driver.cpp
-  game/core/crashbash_input_phase.cpp
-  game/core/dev_arena.cpp
-  game/core/display_frame.cpp
-  game/core/gpu_timeout.cpp
-  game/core/memory_card_startup.cpp
-  game/core/menu_image.cpp
-  game/core/native_owner_set.cpp
-  game/core/title_adapter.cpp
-  game/core/resident_image.cpp
-  game/core/polar_push_contact.cpp
+  game/boot/boot_object_callbacks.cpp
+  game/boot/boot_logo_skip.cpp
+  game/boot/authenticated_module_image.cpp
+  game/boot/nested_module_image.cpp
+  game/boot/boot_image.cpp
+  game/disc/cd_file_read.cpp
+  game/disc/loading_card_skip.cpp
+  game/disc/cd_license_startup.cpp
+  game/disc/cd_startup.cpp
+  game/boot/crashbash_boot.cpp
+  game/frame/crashbash_frame_driver.cpp
+  game/input/crashbash_input_phase.cpp
+  game/debug/dev_arena.cpp
+  game/frame/display_frame.cpp
+  game/frame/gpu_timeout.cpp
+  game/boot/memory_card_startup.cpp
+  game/boot/menu_image.cpp
+  game/execution/native_owner_set.cpp
+  game/execution/title_adapter.cpp
+  game/boot/resident_image.cpp
+  game/gameplay/polar_push_contact.cpp
   game/diagnostics/menu_boundary.cpp
   game/diagnostics/scene_machine.cpp
   game/input/crashbash_touch_controls.cpp
@@ -100,14 +118,14 @@ set(CRASHBASH_SEAM_SOURCES
   game/render/model_recipe_capture.cpp
   game/render/model_transform_capture.cpp
   game/render/model_transform_input_diagnostic.cpp
-  game/render/interpolated_scene.cpp
+  game/render/fps60/interpolated_scene.cpp
   game/render/native_model_producer.cpp
   game/render/native_sprite_quad_producer.cpp
   game/render/render_viewport.cpp
-  game/render/scene_snapshot.cpp
+  game/render/fps60/scene_snapshot.cpp
   game/render/sprite_quad_capture.cpp
   game/render/sprite_quad_decode.cpp
-  game/render/ui_anchor.cpp
+  game/render/widescreen/ui_anchor.cpp
 )
 
 find_package(SDL3 REQUIRED)
@@ -135,9 +153,10 @@ set_target_properties(
     CXX_STANDARD_REQUIRED ON
 )
 
-add_library(crashbash_guest_execution STATIC game/core/guest_execution.cpp game/core/image_identity_state.cpp)
+add_library(crashbash_guest_execution STATIC game/execution/guest_execution.cpp
+                                            game/execution/image_identity_state.cpp)
 set_target_properties(crashbash_guest_execution PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-target_include_directories(crashbash_guest_execution PUBLIC game/core)
+target_include_directories(crashbash_guest_execution PUBLIC game/execution game/boot game/title game/disc)
 target_link_libraries(crashbash_guest_execution PUBLIC psxport)
 
 # The whole-run ledger is its own owner, and its own library, because BOTH the execution seam
@@ -152,14 +171,14 @@ target_link_libraries(crashbash_guest_execution PUBLIC crashbash_run_ledger)
 
 add_library(crashbash_seam OBJECT ${CRASHBASH_SEAM_SOURCES})
 set_target_properties(crashbash_seam PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-target_include_directories(crashbash_seam PRIVATE game/core game/diagnostics game/input game/render "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+target_include_directories(crashbash_seam PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS} "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
 target_link_libraries(crashbash_seam PUBLIC crashbash_guest_execution)
 add_custom_target(crashbash_scaffold DEPENDS crashbash_seam psxport)
 
 # The native/dynarec player entry is deliberately thin: title authentication and per-Core setup
 # stay in the title owners while psxport owns the bounded host frame loop.
-add_executable(crashbash_port game/core/player_entry.cpp $<TARGET_OBJECTS:crashbash_seam>)
-target_include_directories(crashbash_port PRIVATE game/core game/diagnostics game/input game/render
+add_executable(crashbash_port game/entry/player_entry.cpp $<TARGET_OBJECTS:crashbash_seam>)
+target_include_directories(crashbash_port PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
                            "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
 target_link_libraries(crashbash_port PRIVATE crashbash_guest_execution psxport)
 set_target_properties(
@@ -171,7 +190,7 @@ set_target_properties(
 )
 if(BUILD_TESTING)
   add_executable(crashbash_title_adapter_test tests/test_title_adapter.cpp)
-  target_include_directories(crashbash_title_adapter_test PRIVATE game/core game/render "${PSXPORT_DIR}/tests" "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_include_directories(crashbash_title_adapter_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS} "${PSXPORT_DIR}/tests" "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_title_adapter_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_title_adapter_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_title_adapter COMMAND crashbash_title_adapter_test)
@@ -179,37 +198,40 @@ if(BUILD_TESTING)
     TIMEOUT 30
     ENVIRONMENT "PSXPORT_CARD=${CMAKE_CURRENT_SOURCE_DIR}/scratch/title-adapter-test/card.mcr")
   add_executable(crashbash_input_phase_test tests/test_input_phase.cpp)
-  target_include_directories(crashbash_input_phase_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_include_directories(crashbash_input_phase_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS} "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_input_phase_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_input_phase_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_input_phase COMMAND crashbash_input_phase_test)
   add_executable(crashbash_run_ledger_test tests/test_run_ledger.cpp)
-  target_include_directories(crashbash_run_ledger_test PRIVATE game/core game/diagnostics
+  target_include_directories(crashbash_run_ledger_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
                              "${PSXPORT_DIR}/tests"
                              "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_run_ledger_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_run_ledger_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_run_ledger COMMAND crashbash_run_ledger_test)
   add_executable(crashbash_boot_image_test tests/test_boot_image.cpp)
-  target_include_directories(crashbash_boot_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
-                             "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_include_directories(crashbash_boot_image_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
+                           "${PSXPORT_DIR}/tests"
+                           "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_boot_image_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_boot_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_boot_image COMMAND crashbash_boot_image_test)
   add_executable(crashbash_menu_image_test tests/test_menu_image.cpp)
-  target_include_directories(crashbash_menu_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
-                             "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
+  target_include_directories(crashbash_menu_image_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
+                           "${PSXPORT_DIR}/tests"
+                           "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_menu_image_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_menu_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_menu_image COMMAND crashbash_menu_image_test)
   add_executable(crashbash_nested_module_image_test tests/test_nested_module_image.cpp)
-  target_include_directories(crashbash_nested_module_image_test PRIVATE game/core "${PSXPORT_DIR}/tests"
+  target_include_directories(crashbash_nested_module_image_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
+                                                                    "${PSXPORT_DIR}/tests"
                                                                     "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_nested_module_image_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_nested_module_image_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_nested_module_image COMMAND crashbash_nested_module_image_test)
   add_executable(crashbash_guest_execution_test tests/test_guest_execution.cpp)
-  target_include_directories(crashbash_guest_execution_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_include_directories(crashbash_guest_execution_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS} "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_guest_execution_test PRIVATE crashbash_guest_execution)
   set_target_properties(crashbash_guest_execution_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
   add_test(NAME crashbash_guest_execution COMMAND crashbash_guest_execution_test)
@@ -218,7 +240,8 @@ if(BUILD_TESTING)
   # absent" branch: a gate that registers nothing when its corpus is missing is the green zero this
   # workspace has been bitten by, and a test that cannot run must read as a failure, not a pass.
   add_executable(crashbash_scene_machine_test tests/test_scene_machine.cpp)
-  target_include_directories(crashbash_scene_machine_test PRIVATE game/core "${PSXPORT_DIR}/tests"
+  target_include_directories(crashbash_scene_machine_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS}
+                                                                  "${PSXPORT_DIR}/tests"
                                                                   "${CMAKE_CURRENT_BINARY_DIR}/title_metadata")
   target_link_libraries(crashbash_scene_machine_test PRIVATE crashbash_seam)
   set_target_properties(crashbash_scene_machine_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
@@ -231,7 +254,7 @@ if(BUILD_TESTING)
     tests/test_crashbash_touch_controls.cpp
     game/input/crashbash_touch_controls.cpp
   )
-  target_include_directories(crashbash_touch_controls_test PRIVATE game/input)
+  target_include_directories(crashbash_touch_controls_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_touch_controls_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
@@ -240,9 +263,9 @@ if(BUILD_TESTING)
   add_executable(
     crashbash_scene_snapshot_test
     tests/test_scene_snapshot.cpp
-    game/render/scene_snapshot.cpp
+    game/render/fps60/scene_snapshot.cpp
   )
-  target_include_directories(crashbash_scene_snapshot_test PRIVATE game/render)
+  target_include_directories(crashbash_scene_snapshot_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_scene_snapshot_test PRIVATE psxport)
   set_target_properties(
     crashbash_scene_snapshot_test
@@ -254,35 +277,35 @@ if(BUILD_TESTING)
     tests/test_sprite_quad_decode.cpp
     game/render/sprite_quad_decode.cpp
   )
-  target_include_directories(crashbash_sprite_quad_decode_test PRIVATE game/render)
+  target_include_directories(crashbash_sprite_quad_decode_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_sprite_quad_decode_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_sprite_quad_decode COMMAND crashbash_sprite_quad_decode_test)
   add_executable(crashbash_sprite_render_list_test tests/test_sprite_render_list.cpp)
-  target_include_directories(crashbash_sprite_render_list_test PRIVATE game/render)
+  target_include_directories(crashbash_sprite_render_list_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_sprite_render_list_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_sprite_render_list COMMAND crashbash_sprite_render_list_test)
   add_executable(crashbash_render_viewport_test tests/test_render_viewport.cpp game/render/render_viewport.cpp)
-  target_include_directories(crashbash_render_viewport_test PRIVATE game/render)
+  target_include_directories(crashbash_render_viewport_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_render_viewport_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_render_viewport COMMAND crashbash_render_viewport_test)
   add_executable(crashbash_ui_anchor_test tests/test_ui_anchor.cpp)
-  target_include_directories(crashbash_ui_anchor_test PRIVATE game/render)
+  target_include_directories(crashbash_ui_anchor_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_ui_anchor_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
   )
   add_test(NAME crashbash_ui_anchor COMMAND crashbash_ui_anchor_test)
   add_executable(crashbash_render_capabilities_test tests/test_render_capabilities.cpp)
-  target_include_directories(crashbash_render_capabilities_test PRIVATE game/core "${PSXPORT_DIR}/tests")
+  target_include_directories(crashbash_render_capabilities_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS} "${PSXPORT_DIR}/tests")
   target_link_libraries(crashbash_render_capabilities_test PRIVATE psxport)
   set_target_properties(
     crashbash_render_capabilities_test
@@ -294,7 +317,7 @@ if(BUILD_TESTING)
     tests/test_model_face_coverage.cpp
     game/render/model_face_coverage.cpp
   )
-  target_include_directories(crashbash_model_face_coverage_test PRIVATE game/render)
+  target_include_directories(crashbash_model_face_coverage_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_face_coverage_test PRIVATE psxport)
   set_target_properties(
     crashbash_model_face_coverage_test
@@ -306,7 +329,7 @@ if(BUILD_TESTING)
     tests/test_model_depth_scale_capture.cpp
     game/render/model_depth_scale_capture.cpp
   )
-  target_include_directories(crashbash_model_depth_scale_capture_test PRIVATE game/core game/render)
+  target_include_directories(crashbash_model_depth_scale_capture_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_depth_scale_capture_test PRIVATE crashbash_guest_execution)
   set_target_properties(
     crashbash_model_depth_scale_capture_test
@@ -318,7 +341,7 @@ if(BUILD_TESTING)
     tests/test_model_face_pixel_diagnostic.cpp
     game/render/model_face_pixel_diagnostic.cpp
   )
-  target_include_directories(crashbash_model_face_pixel_diagnostic_test PRIVATE game/render)
+  target_include_directories(crashbash_model_face_pixel_diagnostic_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_face_pixel_diagnostic_test PRIVATE psxport)
   set_target_properties(
     crashbash_model_face_pixel_diagnostic_test
@@ -330,7 +353,7 @@ if(BUILD_TESTING)
     tests/test_model_material_diagnostic.cpp
     game/render/model_material_diagnostic.cpp
   )
-  target_include_directories(crashbash_model_material_diagnostic_test PRIVATE game/render)
+  target_include_directories(crashbash_model_material_diagnostic_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_material_diagnostic_test PRIVATE psxport)
   set_target_properties(
     crashbash_model_material_diagnostic_test
@@ -343,7 +366,7 @@ if(BUILD_TESTING)
     game/render/model_face_coverage.cpp
     game/render/model_packet_identity_diagnostic.cpp
   )
-  target_include_directories(crashbash_model_packet_identity_diagnostic_test PRIVATE game/core game/render)
+  target_include_directories(crashbash_model_packet_identity_diagnostic_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_packet_identity_diagnostic_test PRIVATE crashbash_guest_execution)
   set_target_properties(
     crashbash_model_packet_identity_diagnostic_test
@@ -360,7 +383,7 @@ if(BUILD_TESTING)
     game/render/model_material_diagnostic.cpp
     game/render/model_recipe_capture.cpp
   )
-  target_include_directories(crashbash_model_recipe_capture_test PRIVATE game/render)
+  target_include_directories(crashbash_model_recipe_capture_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_recipe_capture_test PRIVATE psxport)
   set_target_properties(
     crashbash_model_recipe_capture_test
@@ -372,7 +395,7 @@ if(BUILD_TESTING)
     tests/test_model_frame_source.cpp
     game/render/model_frame_source.cpp
   )
-  target_include_directories(crashbash_model_frame_source_test PRIVATE game/render)
+  target_include_directories(crashbash_model_frame_source_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   set_target_properties(
     crashbash_model_frame_source_test
     PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON
@@ -383,7 +406,7 @@ if(BUILD_TESTING)
     tests/test_model_transform_math.cpp
     game/render/model_transform_capture.cpp
   )
-  target_include_directories(crashbash_model_transform_math_test PRIVATE game/core game/render)
+  target_include_directories(crashbash_model_transform_math_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_transform_math_test PRIVATE crashbash_guest_execution)
   set_target_properties(
     crashbash_model_transform_math_test
@@ -395,7 +418,7 @@ if(BUILD_TESTING)
     tests/test_model_transform_input_diagnostic.cpp
     game/render/model_transform_input_diagnostic.cpp
   )
-  target_include_directories(crashbash_model_transform_input_diagnostic_test PRIVATE game/core game/render)
+  target_include_directories(crashbash_model_transform_input_diagnostic_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_transform_input_diagnostic_test PRIVATE psxport)
   set_target_properties(
     crashbash_model_transform_input_diagnostic_test
@@ -408,9 +431,9 @@ if(BUILD_TESTING)
   add_executable(
     crashbash_polar_push_contact_test
     tests/test_polar_push_contact.cpp
-    game/core/polar_push_contact.cpp
+    game/gameplay/polar_push_contact.cpp
   )
-  target_include_directories(crashbash_polar_push_contact_test PRIVATE game/core)
+  target_include_directories(crashbash_polar_push_contact_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_polar_push_contact_test PRIVATE crashbash_guest_execution)
   set_target_properties(
     crashbash_polar_push_contact_test

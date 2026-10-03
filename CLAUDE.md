@@ -44,7 +44,7 @@ they do not define presentation completion. Boot, logos, menus, attract loops, a
 representative gameplay and cannot establish product completion.
 
 The host structure is project-owned and split by cohesive responsibility. The old host composition
-was removed with its legacy runtime adapter. `game/core/title_adapter.{h,cpp}` composes the direct typed
+was removed with its legacy runtime adapter. `game/execution/title_adapter.{h,cpp}` composes the direct typed
 psxport boundary; boot, frame, device, diagnostics, and render responsibilities remain in dedicated
 modules with narrow interfaces. Do not grow the future entry point or runtime adapter into a monolith.
 

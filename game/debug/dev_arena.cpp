@@ -9,7 +9,7 @@
 #include <cstring>
 #include <lucent/log.h>
 
-namespace crashbash {
+namespace crashbash::debug {
 namespace {
 
 // The guest's own six-byte level table, whose first halfword is the level type the arena setup
@@ -92,12 +92,6 @@ Entry findEntry(Core &core, std::uint32_t arena, std::uint32_t wantedMode) {
 }
 
 } // namespace
-
-DevArena::Request DevArena::request_{};
-
-void DevArena::reset() {
-  request_ = Request{};
-}
 
 bool DevArena::handle(Core &core, const char *cmd, const char *line, std::FILE *out) {
   if (std::strcmp(cmd, "arena") != 0) {
@@ -386,4 +380,4 @@ void DevArena::applyArmed(Core &core, Pad &pad, std::uint32_t frame) {
   }
 }
 
-} // namespace crashbash
+} // namespace crashbash::debug

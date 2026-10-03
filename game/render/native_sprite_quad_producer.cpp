@@ -97,10 +97,8 @@ void submitSpriteQuad(Core &core,
   const int anchoredShift = horizontalCorrection(core, draw, logicFrame, authoredScreenPresentation);
   // THE CLIP TRAVELS WITH THE ELEMENT. The framework's 2D transform shifts the submitted draw area by
   // the same margin it shifts the vertices, and this element's vertices were just moved BACK by the
-  // margin the anchoring applied. Leaving the clip behind clips the element against a rectangle that
-  // no longer bounds it: at 16:9 a left-edge panel authored at x = 32 was cut at x = 86, so two
-  // thirds of the corner panel the widening was supposed to reveal never reached the screen. Both
-  // numbers are in the element's own authored space, so they are corrected together.
+  // margin the anchoring applied, so the clip must move with them. Both numbers are in the element's
+  // own authored space, so they are corrected together.
   drawAreaX0 += anchoredShift;
   drawAreaX1 += anchoredShift;
   int xs[4]{};

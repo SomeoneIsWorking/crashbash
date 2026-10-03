@@ -5,7 +5,6 @@
 #include "crashbash_boot.h"
 #include "crashbash_frame_driver.h"
 #include "crashbash_guest.h"
-#include "dev_arena.h"
 #include "executable_identity.h"
 #include "game.h"
 #include "guest_execution.h"
@@ -98,21 +97,19 @@ const PlatformHlePlan *TitleAdapter::platformHlePlan() const {
   return &kPlatformPlan;
 }
 
-// THE 2D PACKET POOL, as the six guest globals the retail renderer publishes.
+// THE 2D PACKET POOL, as the guest globals the retail renderer publishes.
 //
-// The retail renderer does not use a fixed packet arena: `0x800274FC` and `0x800276C4` each call the
-// guest heap allocator for `requested_size + 0x1800` and publish inclusive base / exclusive end for
-// one parity, and `0x800272AC` alternates between the two. So the window is declared in psxport's
-// LIVE form — two pointer-global pairs — and the bounds are re-read whenever the guest rewrites a
-// global, which is what tracks a pool the game reallocates. The heap ADDRESSES are deliberately not
-// here: the measured frame-2500 bounds were `[0x801F97E8,0x801FEFE8)` and `[0x801F3FD0,0x801F97D0)`,
-// which are observed values, not title constants.
+// The retail renderer uses no fixed packet arena: `0x800274FC` and `0x800276C4` each call the guest
+// heap allocator for `requested_size + 0x1800` and publish inclusive base / exclusive end for one
+// parity, and `0x800272AC` alternates between the two. The window is therefore declared in
+// psxport's LIVE form — two pointer-global pairs — and the bounds are re-read whenever the guest
+// rewrites a global, which is what tracks a pool the game reallocates. The heap ADDRESSES are
+// deliberately not here: they are observed values, not title constants.
 //
-// WHY A DECLARATION MATTERS AT ALL. psxport's OtAttr attributes a guest packet to the producer that
-// wrote it only inside this window, and `GuestPacketFilter` suppresses only what OtAttr attributes.
-// With no window declared the filter matched nothing and answered "not owned" for every packet — so
-// the title's own native HUD producer could not stop the guest's copy of the same HUD being replayed,
-// and at 16:9 the two appeared side by side. See docs/issues/0034.
+// The declaration is what makes OtAttr able to attribute a guest packet to the producer that wrote
+// it, and `GuestPacketFilter` suppresses only what OtAttr attributes. With no window declared the
+// filter matches nothing, and the guest's own GP0 replay draws a second, centred copy of every HUD
+// element the native producer also draws.
 const GuestPacketPoolWindows *TitleAdapter::guestPacketPoolWindows() const {
   return &kPacketPoolWindows;
 }
@@ -159,7 +156,7 @@ bool TitleAdapter::guestVramIsPicture(const Game &) const {
 bool TitleAdapter::controlCommand(Core &core, const char *cmd, const char *line, FILE *out) {
   // The title's own control-channel surface. Only the developer's `arena` command lives here today;
   // player-facing commands and player input never reach it.
-  return DevArena::handle(core, cmd, line, out);
+  return frameDriver(core).devArena().handle(core, cmd, line, out);
 }
 
 std::unique_ptr<TemporalFramePresentation> TitleAdapter::createTemporalFramePresentation(Game &game) {

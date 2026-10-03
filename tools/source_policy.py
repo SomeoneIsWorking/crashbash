@@ -11,7 +11,7 @@ from pathlib import Path
 # The migration boundary, counted so it cannot drift silently.
 #
 # 2026-10-03: 29 -> 30 registrations and 17 -> 18 original calls, for ONE addition — the
-# loading-card skip owner on the resident card draw 0x80018B08 (game/core/loading_card_skip.cpp).
+# loading-card skip owner on the resident card draw 0x80018B08 (game/disc/loading_card_skip.cpp).
 # The LOADING card is the handoff scene's own presentation of a wait this port does not have: the
 # card draw is reached only from BOOT's two handoff screen presents (measured call sites 0x80094248
 # and 0x80094188), so the owner retires the card there and runs every other caller — the menu screens
@@ -19,7 +19,7 @@ from pathlib import Path
 # original-call site.
 #
 # 2026-10-02: 28 -> 29 registrations and 16 -> 17 original calls, for ONE addition — the load-pump
-# drain owner on the resident pacing pump 0x8001231C (game/core/cd_file_read.cpp). The shipping
+# drain owner on the resident pacing pump 0x8001231C (game/disc/cd_file_read.cpp). The shipping
 # disc read is synchronous, so the title's one-call-per-frame queue pacing was the load-only wait;
 # the owner loops the retail pump to quiescence — the same completion route the retail scene-swap
 # path 0x8001E610 already uses — and reads the pump's own three queue words for its drain

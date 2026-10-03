@@ -59,14 +59,12 @@ inline constexpr std::uint32_t kInitialStatePresent = 0x80010278u;
 // second, nested scene object. kAppModeVtable holds the POINTER to it; the three handlers are its
 // words +0/+4/+8 and +0x10 is the arena the scene owns.
 //
-// MEASURED, and this corrects the reading issue 0032 recorded: this pointer is the shell's OWN
-// scene and is not a mode selector. Its single writer is `0x800101CC` (`sw $s0, -0x1f24($v0)` in
-// the resident application main, with $s0 = 0x80078C90 = BOOT's load address), and that one write
-// happens before any mode exists. BOOT's own update `0x80092BA0` is
-// `func_0x8001e598(&DAT_8009f644); func_0x8001e610(&DAT_8009f658,&DAT_8009f644)` — i.e. the mode
-// machine is the SCENE MACHINE below, and 0x80078C90 is the permanent root scene whose update runs
-// it. So a run that never changes this pointer has told us nothing about boot / menu / gameplay,
-// which is what the frame driver used to report.
+// kAppModeVtable is the shell's OWN root scene and is NOT a mode selector: its single writer is
+// `0x800101CC` in the resident application main, with $s0 = 0x80078C90 (BOOT's load address), and
+// that one write happens before any mode exists. BOOT's own update `0x80092BA0` is
+// `func_0x8001e598(&DAT_8009f644); func_0x8001e610(&DAT_8009f658,&DAT_8009f644)` — so the mode
+// machine is the SCENE MACHINE below and 0x80078C90 is the permanent root scene whose update runs
+// it. Reading it tells you nothing about boot, menu or gameplay.
 inline constexpr std::uint32_t kAppModeVtable = 0x8004E0DCu;
 
 // The scene machine that actually selects boot / menu / attract / gameplay. `0x8001E610` reads it

@@ -44,7 +44,7 @@ std::vector<std::uint8_t> readExecutable(const std::filesystem::path &path, std:
 } // namespace
 
 int main(int argc, char **argv) {
-  static crashbash::TitleAdapter runtime;
+  crashbash::TitleAdapter runtime;
   psxport_install_game(runtime);
 
   const std::filesystem::path executable =
@@ -62,9 +62,7 @@ int main(int argc, char **argv) {
   Core &core = game->core;
   // The run's ledger, owned by the Core's title context and reached through the runtime object this
   // product composed. It exists before the executable is loaded, because loading it is itself a
-  // publication this run must account for, and it is closed on every return path below. The report
-  // names the outcome, so a run that ends through `refuseRun` and one that returns from the frame
-  // loop are told apart.
+  // publication this run must account for, and it is closed on every return path below.
   crashbash::diagnostics::RunLedger &ledger = runtime.runLedger(core);
   const auto loaded = runtime.loadExecutable(core, bytes);
   if (!loaded) {
@@ -90,7 +88,7 @@ int main(int argc, char **argv) {
   // The guest-call denominator beside the framework's other run-end reports: how many calls ran, and
   // how many of those needed more than one display field. A run in which nothing was ever resumed has
   // to say so against that count, or the absence of a resume reads as "nothing was measured".
-  crashbash::runtime::reportGuestCallCensus("after native boot");
+  crashbash::runtime::reportGuestCallCensus(core, "after native boot");
   ledger.close("after native boot");
   return 0;
 }

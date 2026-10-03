@@ -27,29 +27,20 @@ GuestExecution &execution(Core &core) {
 // The fence on a resume, in the unit that gives it meaning. One display field is 564,480 guest
 // cycles, so this is "a call may span N display fields of guest CPU and no more".
 //
-// MEASURED in this title over 400 native frames (`PSXPORT_NATIVE_FRAMES=400`, log in
-// scratch/afterfix/run.log): 30,751 guest calls completed, and exactly 3 of them outlived a host
-// turn. All three are the same work — a full-frame 15-bit channel swap entered from a native
-// override — and they bracket it: MENU entry 0x800B5244 took 7 turns / 3,441,400 cycles / 6.097
-// fields, and the BOOT logo update 0x8008E5BC took 6 turns / 3,204,494 cycles / 5.677 fields twice.
-// Both convert a 256 KiB (128-sector) image, the largest single conversion this title's own load
-// path performs, so 12 leaves room for a 2x larger image at the same per-pixel cost and still
-// reports a real guest loop within 12 host turns (0.2 s) instead of spinning on it. The deepest turn
-// any completed call needed is printed with the census at run end, so this number is falsifiable
-// from a log, not trusted.
+// The worst measured case in this title is the full-frame 15-bit channel swap entered from a native
+// override (MENU entry 0x800B5244 took 7 turns / 6.097 fields; the BOOT logo update 0x8008E5BC took 6
+// turns / 5.677 fields). Both convert a 256 KiB (128-sector) image, the largest single conversion
+// this title's load path performs, so 12 leaves room for a 2x larger image at the same per-pixel
+// cost and still reports a real guest loop within 12 host turns (0.2 s). The deepest turn any
+// completed call needed is printed with the census at run end, so this number is falsifiable from a
+// log rather than trusted.
 constexpr std::uint32_t kGuestCallTurnCap = 12u;
 
-// Run-lifetime diagnostic tally, NOT execution state: the resume loop keeps no cross-call record and
-// nothing in the execution path reads or writes a Core through it. It exists so the run-end line can
-// name a denominator. This product creates exactly one Core (game/core/player_entry.cpp).
-struct GuestCallCensus {
-  std::uint64_t completed = 0;
-  std::uint64_t resumed = 0;
-  std::uint32_t deepestTurns = 0;
-  std::uint64_t resumedCycles = 0;
-};
-
-GuestCallCensus census;
+// The guest-call census is this run's ledger fact (`diagnostics::RunLedgerFacts::guestCalls`): the
+// ledger already owns every run-lifetime number this product reports, and there is one per Core.
+const diagnostics::GuestCallCensus &census(Core &core) {
+  return execution(core).ledger().facts().guestCalls;
+}
 
 double displayFields(const Core &core, std::uint64_t cycles) {
   return static_cast<double>(cycles) / static_cast<double>(psx::cpu::ExecutionBudget::currentTurn(core).cycles);
@@ -81,15 +72,11 @@ const char *imageName(GuestImage image) {
 
 void recordCompleted(
     Core &core, std::uint32_t entry, std::uint32_t returnPc, std::uint32_t turns, std::uint64_t cycles) {
-  ++census.completed;
+  execution(core).ledger().noteGuestCall(turns, cycles);
   if (turns <= 1u) {
     return;
   }
-  ++census.resumed;
-  census.resumedCycles += cycles;
-  if (turns > census.deepestTurns) {
-    census.deepestTurns = turns;
-  }
+  const diagnostics::GuestCallCensus &counts = census(core);
   lucent::info("crashbash-guest",
                "guest call 0x{:08X} to return address 0x{:08X} outlived one host turn: {} turn(s), "
                "{} guest cycles ({:.3f} display fields). Denominator: {} of {} completed guest call(s) "
@@ -99,9 +86,9 @@ void recordCompleted(
                turns,
                cycles,
                displayFields(core, cycles),
-               census.resumed,
-               census.completed,
-               census.deepestTurns);
+               counts.resumed,
+               counts.completed,
+               counts.deepestTurns);
 }
 
 } // namespace
@@ -421,29 +408,30 @@ psx::cpu::ExecutionResult runGuestCallToReturn(Core &core,
   return result;
 }
 
-void reportGuestCallCensus(std::string_view why) {
-  if (census.completed == 0u) {
+void reportGuestCallCensus(Core &core, std::string_view why) {
+  const diagnostics::GuestCallCensus &counts = census(core);
+  if (counts.completed == 0u) {
     lucent::info("crashbash-guest", "run-end ({}): NO guest call completed, so this run measured nothing", why);
     return;
   }
-  if (census.resumed == 0u) {
+  if (counts.resumed == 0u) {
     lucent::info("crashbash-guest",
                  "run-end ({}): {} guest call(s) completed, 0 needed a resume — every call returned inside "
                  "the one display field its host turn allows",
                  why,
-                 census.completed);
+                 counts.completed);
     return;
   }
   lucent::info("crashbash-guest",
                "run-end ({}): {} guest call(s) completed, {} needed a resume (deepest {} host turn(s) against "
                "a cap of {}, {} guest cycles over those calls); the other {} finished inside one field",
                why,
-               census.completed,
-               census.resumed,
-               census.deepestTurns,
+               counts.completed,
+               counts.resumed,
+               counts.deepestTurns,
                kGuestCallTurnCap,
-               census.resumedCycles,
-               census.completed - census.resumed);
+               counts.resumedCycles,
+               counts.completed - counts.resumed);
 }
 
 void callOriginal(Core &core, GuestImage image, std::uint32_t address) {

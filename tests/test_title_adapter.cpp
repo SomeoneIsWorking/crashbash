@@ -54,7 +54,7 @@ void test_native_composition_preserves_picture_device_and_boot_contracts() {
   CHECK(game->platform_hle.lookup(crashbash::guest::kCdSync) == cd_sync_stock_sync);
   CHECK(game->platform_hle.lookup(crashbash::guest::kCdSearchFile) == cd_searchfile_stock_sync);
   // 30 as of 2026-10-03: the loading-card skip owner on the resident card draw 0x80018B08
-  // (game/core/loading_card_skip.cpp). tools/source_policy.py carries the same denominator, so the
+  // (game/disc/loading_card_skip.cpp). tools/source_policy.py carries the same denominator, so the
   // two cannot disagree.
   CHECK_EQ(context(game->core).registeredOverrideCount(), 30u);
   CHECK(game->hle.deviceFind("bu") != 0u);

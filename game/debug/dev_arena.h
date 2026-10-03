@@ -6,13 +6,14 @@
 class Core;
 class Pad;
 
-namespace crashbash {
+namespace crashbash::debug {
 
 // A title-owned control-channel request to enter an arena, and the owner that applies it.
 //
 // Modelled on Tomba! 2's `dev_warp`: the control channel only ARMS a request, and the frame driver
 // applies it at a frame boundary by running the game's OWN menu flow — never by writing a phase, a
-// scene pointer or a timer into guest RAM.
+// scene pointer or a timer into guest RAM. The request lives in this instance, which the
+// `CrashBashFrameDriver` owns, so arming and applying cannot be two different pieces of state.
 //
 // The flow is the one a player walks: SELECT GAME TYPE's accept installs the mode's screen-flow table
 // through `FUN_800b5360`, the menu machine walks that flow to SELECT BATTLE TYPE, and that screen's
@@ -28,14 +29,12 @@ namespace crashbash {
 class DevArena {
 public:
   // Returns true when `cmd` was this title's command and the reply has been written to `out`.
-  static bool handle(Core &core, const char *cmd, const char *line, std::FILE *out);
+  bool handle(Core &core, const char *cmd, const char *line, std::FILE *out);
 
   // Called by the frame driver at every frame boundary. Advances an armed request one step. `pad`
   // is the title's own controller: the attract demo is left with a real Start press through it,
   // never by writing guest input state.
-  static void applyArmed(Core &core, Pad &pad, std::uint32_t frame);
-
-  static void reset();
+  void applyArmed(Core &core, Pad &pad, std::uint32_t frame);
 
 private:
   enum class ArenaMode : std::uint32_t {
@@ -88,7 +87,7 @@ private:
   // battle flow except SELECT BATTLE TYPE is advanced by the game's own accept, which is a Cross
   // press on the pad — the same press a player makes, through the same input path.
   static inline constexpr std::uint32_t kFlowPressStride = 30u;
-  static Request request_;
+  Request request_{};
 };
 
-} // namespace crashbash
+} // namespace crashbash::debug
