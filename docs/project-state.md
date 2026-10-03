@@ -27,11 +27,9 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 5. **S016 / S009–S012**: Polar Push stays qualified (S012); Pogo Painter was re-recorded phase-keyed
    v1 and requalified 2026-10-03. Tournament Crate Crush and Battle Mode Crate Crush were qualified
    on 2026-10-02 with recordings that S020's collapsed handoffs then broke — both tracked files are
-   BROKEN in `replays/flow/README.md`. The menu's pad bits and cursors are now read from `MENU.BIN`
-   (S005 section): `0x4000` is the confirm button, so the earlier "extra Right press" was an extra
-   confirm stepping the per-mode flow table. Tournament needs a fresh live recording of the
-   tournament screens; Battle Mode Crate Crush needs whichever screen owns the arena choice, which
-   the arena screen's own cursor does not set.
+   requalified 2026-10-03 (S005 section). The menu's pad bits and cursors are read from `MENU.BIN`:
+   `0x4000` is the confirm button, and the arena the loader reads is chosen on SELECT BATTLE TYPE
+   (`0x800BA72C`), not on the arena screen.
 6. **S015**: all 28 overrides by image identity and the 16 original calls under the differential. The
    live-match leg is already a concrete instance of the case: `0x800B4694` is DAT28136's registered
    callback in one image generation and DAT28241's code in the next, at the same address.
@@ -48,14 +46,14 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S002 | The retail boot and loaded-image sequence have a recorded first-frame and menu frontier to re-establish through the dynarec | partial | S001, S003 | G001 |
 | S003 | The gameplay product executes every non-native guest path through psxport's pinned Lightrec dynarec with bounded, reason-accounted fallback | partial | S001, shared psxport executor | G001 |
 | S004 | Crash Bash graphics are produced natively from decoded game state and look correct across representative content | partial | S002, S015 | G001, G002, G003 |
-| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the **cull/limit audit is DONE and the row's three named words were misattributed**: `0x80056AC8+` is the COP2 transform output written by `FUN_8001C0F0` (the software GTE path the native renderer does not use), and the `0x800569xx` band is the UI draw globals (`FUN_80018B08`, BOOT `FUN_80082590`) — `0x800569AC` is the fade byte S020 measured. The limits that ARE horizontal are four, all already widened natively and all off at 4:3: the GPU draw-area clip (framework `gpu_native.cpp` SetDrawAreaBottomRight), the per-draw viewport clip and projection origin (title `native_model_producer.cpp`), and the 2D world quad canvas shift (title `native_sprite_quad_producer.cpp`; `authoredWorldOrder` is set only by the untextured decoder, so no textured world quad is left behind). Measured per arena at 16:9 vs 4:3, guest submission identical in both (Polar Push f511 3 draws/2084 faces and f1023 73/2716; Crashball f2047 42/3171 and f4095 65/3102), margins continuous with no pop-in, HUD anchored to the widened edges. **Arenas:** Polar Push and Crashball surveyed at 16:9 and 4:3 with identical guest submission; Pogo Painter surveyed at 16:9 after its replay was re-recorded phase-keyed v1 and requalified (15 segments, 5305/5305, `dat28272`); Battle Mode Crate Crush and Tournament Crate Crush still unreachable — the level cursor only advances forward from the Polar Push route and the mode screen takes no injected press, so those two need a new route (replay work, not a widescreen change) | S004 | G002 |
+| S005 | The native camera supports wider aspect ratios without changing vertical framing, with every title-owned horizontal cull or screen-rect limit overridden natively so the margins show what the view would: margin objects drawn from object memory, margin-only objects animated port-side, guest memory untouched | partial — the **cull/limit audit is DONE and the row's three named words were misattributed**: `0x80056AC8+` is the COP2 transform output written by `FUN_8001C0F0` (the software GTE path the native renderer does not use), and the `0x800569xx` band is the UI draw globals (`FUN_80018B08`, BOOT `FUN_80082590`) — `0x800569AC` is the fade byte S020 measured. The limits that ARE horizontal are four, all already widened natively and all off at 4:3: the GPU draw-area clip (framework `gpu_native.cpp` SetDrawAreaBottomRight), the per-draw viewport clip and projection origin (title `native_model_producer.cpp`), and the 2D world quad canvas shift (title `native_sprite_quad_producer.cpp`; `authoredWorldOrder` is set only by the untextured decoder, so no textured world quad is left behind). Measured per arena at 16:9 vs 4:3, guest submission identical in both (Polar Push f511 3 draws/2084 faces and f1023 73/2716; Crashball f2047 42/3171 and f4095 65/3102), margins continuous with no pop-in, HUD anchored to the widened edges. **Arenas:** all four reachable arenas surveyed at 16:9 — Polar Push and Crashball at 16:9 *and* 4:3 with identical guest submission (Polar Push f511 3 draws/2084 faces, f1023 73/2716; Crashball f2047 42/3171, f4095 65/3102), Pogo Painter (`dat28272`), Battle Mode Crate Crush (`dat28382`, `scratch/s005/crate_v1_0.png`) and Tournament Crate Crush (`dat28382`, `scratch/s005/tourn_v2_0.png`); margins continuous with no pop-in and the HUD on the widened edges in every one | S004 | G002 |
 | S019 | Widescreen anchors the UI: edge HUD elements sit at the widened edges or safe area, centred elements stay centred, nothing stretches | partial — **2026-10-02:** the per-player 3-digit score (BOOT HUD routine `0x800798A4`, digit sites `0x80079EE0/E6C/DF8`) is now classified with the portrait row, so Pogo Painter's scores stay under their portraits; still open — Polar Push's power bars and Crate Crush's wumpa bars are `RQ_OM_DEPTH` model geometry (submitter `0x80019F1C`), so the 2D anchor never sees them (2026-10-02 measurements). the anchoring policy, its per-element classification and its test are DONE and the arithmetic is verified per element (`PSXPORT_DEBUG=uihud`: `anchor=left-edge authored=(32,64) frame=512->684 margin=86 correction=-86`, right-edge `+86`, centred `0`). The 16:9 live-match capture now shows exactly **four** portraits and **four** score groups at the widened edges (P1 sink 55..135 = native 39, P4 sink 825..890 = native 588 = authored 416+172) with the countdown and lives flag still centred, where the pre-fix picture showed eight. That needed the FRAMEWORK seam `GameRuntime::guestPacketPoolWindows()` (psxport `6b5cee55`): without it `OtAttr` was structurally blind for a typed runtime, `GuestPacketFilter` matched nothing, and the guest's own GP0 replay drew a second, centred copy of every HUD element. Two gaps remain: **a 4:3 LIVE-MATCH capture is owed** (the tracked replay's route is host-timing dependent and the 4:3 leg now takes a different route), and **4:3 is not byte-identical to before** — suppression is aspect-independent, so the guest's second copy is gone there too; the two copies coincided in position but not in rasterisation (~34 px of digit ink), so one drawer remains where two drew. See issue 0034 | S005 | G002 |
 | S006 | Native camera and world transforms render between simulation ticks | partial | S004 | G003 |
 | S007 | Deterministic diagnostics compare reached hybrid-product boundaries with independent retail behavior and prove both answers | partial | S001, S003 | G001, G002, G003 |
 | S008 | The retail game modes are reachable and playable end to end on the hybrid product | partial | S002, S003, S004, S015 | G001 |
 | S009 | The Crashball gameplay scenario reaches a live match and accepts player control | verified | recorded behavior; **requalified on Lightrec 2026-09-30** — `replays/flow/crashball-control.pad` drives a live match, guest movement words are proven against an idle control leg, 0 fallback (S016, issue 0032) | G001 |
-| S010 | Battle Mode Crate Crush reaches a live match and accepts player control | verified | recorded behavior; dynarec requalification in S016 | G001 |
-| S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | qualified on Lightrec 2026-10-02 — that recording reached a live DAT28382 match and replayed deterministically, but **S020's collapsed handoffs broke the tracked file, which no longer reaches the match and is marked BROKEN in `replays/flow/README.md`; the route must now start at SELECT GAME TYPE**; measured then: from one saved match state the P1 record word `0x800AD304` holds -2082 for 18 idle frames and moves -2945 under Left then -1668 under Right (heading `0x801DD510` swings to ±4096), 0 of 524,288 words differ at the shared start | G001 |
+| S010 | Battle Mode Crate Crush reaches a live match and accepts player control | verified | **requalified 2026-10-03** — the arena is chosen on SELECT BATTLE TYPE (`0x800BA72C`), which writes the arena the loader reads (`DAT_8009e5dc` → arena table `0x8004DDD0`); one Left there on the Polar Push route (the recorded Left-then-Right cancel each other) authenticates `crashbash-usa-dat28382`, and `replays/flow/battle-crate-crush-control.pad` replays phase-keyed v1 with **9,239 of 9,239 frames delivered**; 16:9 mid-match `scratch/s005/crate_v1_0.png` | G001 |
+| S011 | Tournament Mode reaches its first live Crate Crush match and accepts player control | verified | **re-recorded and requalified 2026-10-03** — SELECT GAME TYPE takes two Down presses (`DAT_800b95f0 == 2`, `FUN_800b3ca8`) and the tournament flow table `PTR_PTR_800b8ed4` runs players → characters → `0x8009EB84` → match; `replays/flow/tournament-crate-crush-control.pad` is phase-keyed v1, 12 segments, **9,240 of 9,240 frames delivered with `crashbash-usa-dat28382` authenticating**, 16:9 mid-match `scratch/s005/tourn_v2_0.png`; it replaces the 2026-10-02 recording that S020's collapsed handoffs broke; measured then: from one saved match state the P1 record word `0x800AD304` holds -2082 for 18 idle frames and moves -2945 under Left then -1668 under Right (heading `0x801DD510` swings to ±4096), 0 of 524,288 words differ at the shared start | G001 |
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | **requalified on Lightrec 2026-10-02** — the match faulted `ambiguous code-image identity` at `0x800CBA64` because `dat22510_module.json` said 70 sectors while retail reads 71 (sector 71 continues the module's halfword table), so DAT22510 never published; manifest corrected to 71 sectors / `0x23800` / sha256 `7477dd74…`, re-recorded v1 `polar-push-control.pad` reaches the live match, P1 `0x800AD304` holds -2018 idle and moves -2800 under Left then -308 under Right | G001 |
 | S013 | The remaining retail modes are reachable and playable | partial — **2026-10-02: Pogo Painter (Pogo Pandemonium) plays on Lightrec**: `replays/flow/pogo-painter-control.pad` reaches a live DAT28272 match and P1 paints squares under held directions (captured; the idle leg stays on its start square). On a fresh card Battle offers Crate Crush, Polar Push, Pogo Pandemonium and Ballistix; Tank Wars, Crash Dash and Medieval Mayhem show retail's own LOCKED page and need Adventure progress on the card, which is the next route. Earlier notes: every `replays/flow/*.pad` was a pre-v1 raw recording the runtime REFUSES, so S009-S012 had been running with the pad at rest; all four are now v1 and the Crashball route drives a live 4-player match again. Battle Mode is reachable and playable end to end (SELECT BATTLE TYPE -> briefing -> a live 4-player Crate Crush round with the player moving under held input), and the Adventure island carousel pans correctly across its signs. **The earlier per-character-availability theory for the island carousel is REFUTED by the console oracle**: on a settled island the reference holds the same `0x8005A6F8..0x8005A717` all zero, the same index `0x8005A677 = 0xFF`, the same `0x8005A618 & 0x2000 = false`, and shows no "press X" prompt, so the closed gate is retail's normal rest state and not our defect. `PSXPORT_WWATCH`'s reported `pc` cannot attribute a store (it is neither the block entry nor the store: the block at the reported PC contains no store to the watched range), and the store's own PC exists only inside lightrec's emitter-side store observer, not at the runtime `ops->sw` callback | S008 | G001 |
 | S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S003 | G001 |
@@ -393,24 +391,39 @@ The arena screen's own strings are in the image — "PRESS LEFT - RIGHT TO CHANG
 photographed live at `scratch/s005/right_arena.png` showing **POLAR PUSH** / **POLAR PANIC** with the
 selected thumbnail enlarged.
 
-**What still does not work is delivery, not understanding.** The arena screen is up for about 45 guest
-frames and one control-channel read costs about that many, so pressing at it live is a coin toss; the
-workaround is to put the press INSIDE the replay's own segment for that phase, which keeps the phase
-gate aligned. Measured this way, a Left press at `0x800BAAB4` does not move the arena: the polar route
-with segment 9 rewritten to `FF7F 1, FFFF 41, BFFF 3` (its first confirm replaced by Left, same frame
-counts) still authenticates `dat22510`, Polar Push, `replay COMPLETE ... 1394 of 1394`. The same edit
-with 24 idle frames first, and with Right ×4, also stayed on Polar Push. So the arena that loads is
-not set by that cursor in this flow, and the remaining question is which earlier screen owns it.
+**The arena the loader reads is `DAT_8009e5dc` (`0x8009E5DC`), and the screen that writes it is SELECT
+BATTLE TYPE at state `0x800BA72C`, not the arena screen.** `--refs 0x8009E5DC` on `BOOT.BIN` shows the
+scene dispatcher `FUN_8007f314` writing it from the scene parameter and `FUN_800793e8` reading it as an
+index into the six-byte arena table at `0x8004DDD0` (whose first halfword is the arena's level type
+`0x103`, `0x106`, `0x109`, `0x10A`, `0x10B`, `0x10D`, `0x10E`, `0x104`, `0x107`, `0x108`), and the same
+run of memory holds the arena names (`CRATE CRUSH` `0x8004C78C`, `POGO PANDEMONIUM` `0x8004C7A4`,
+`BALLISTIX` `0x8004C7B8`). In `MENU.BIN` the value is filled by `FUN_800b7ef4` from the cursor pair
+`DAT_8005a64a` / `DAT_8005a64b` of that screen, which is why moving the cursor on the *arena* screen
+(`0x800BAAB4`, `DAT_800baac8` / `DAT_800baacc`) changed nothing: measured, every variant of that
+segment — Left ×1 and ×4, Right ×4, each delivered inside the phase-keyed segment so the gate stays
+aligned — still authenticated `dat22510`, Polar Push.
 
-**Tournament is a mode change, and that route does not exist yet.** Two Down presses at SELECT GAME
-TYPE are what `FUN_800b3ca8` calls TOURNAMENT, and the rewritten segment 5
-(`FFFF 24, FFBF 1, FFFF 10, FFBF 1, FFFF 20, BFFF 3`) was played to the end: it authenticates boot
-and menu only and never reaches a level module, because the tournament flow table
-(`PTR_PTR_800b8ed4`) diverges from the polar route's phases (`0x8009EB84`, `0x800B8EDC`, `0x800B3364`
-…) and the replay stalls on a phase that never arrives. A tournament recording is therefore a fresh
-live recording of the tournament screens, not an edit of the battle one.
+**One Left on `0x800BA72C` is Crate Crush.** The Polar Push route already presses Left then Right on
+that screen, and those two cancel; dropping the Right leaves one Left, and the guest then authenticates
+`crashbash-usa-dat28382` — Crate Crush — with `replay COMPLETE: all 13 segment(s) consumed, 1390 of 1390
+recorded frame(s) delivered`. That segment rewrite became `battle-crate-crush-control.pad`, recorded
+fresh and requalified: **9,239 of 9,239 frames, `dat28382`, 16:9 mid-match `scratch/s005/crate_v1_0.png`**
+(native 512 → render 684, four portraits on the widened top edge, timer centred, arena continuous into
+both margins).
 
-Both tracked files stay marked BROKEN in `replays/flow/README.md`. The tooling built for this is
+**Tournament is the same mode screen with one more Down, and its own flow table.** `DAT_800b95f0 == 2`
+at SELECT GAME TYPE is TOURNAMENT (`FUN_800b3ca8`), and the mode hands `PTR_PTR_800b8ed4`, whose entries
+are `0x800B8E3C` (players), `0x800B9DF4` (characters), `0x8009EB84`, `0x800B8E8C` (match) — the battle
+route's `0x800BA72C` and `0x800BAAB4` screens are not in it, which is why an earlier edit of the
+battle file alone stalled and authenticated boot + menu only. With SELECT GAME TYPE taking two Down
+presses, the segment after the character screen re-keyed onto `0x0009F72009EB84` with a confirm, and
+the arena segment dropped, the route reaches the tournament match and authenticates
+`crashbash-usa-dat28382`. Recorded fresh and requalified as `tournament-crate-crush-control.pad`:
+**12 segments, 9,240 of 9,240 frames delivered, `dat28382`, 16:9 mid-match
+`scratch/s005/tourn_v2_0.png`** (timer 0:59 and the tournament-only "PRESS ✕ BUTTON TO FORCE VICTORY"
+banner). `scratch/s005/tourn_build.py` builds it from the battle file using those handlers.
+
+Both tracked files are requalified in `replays/flow/README.md`. The tooling built for this is
 `scratch/s005/edit_pad.py` (rewrites one phase-keyed segment and reports the authenticated modules)
 and `scratch/s005/arena_probe.py` (parks the game on the arena screen and photographs it).
 
