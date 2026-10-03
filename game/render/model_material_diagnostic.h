@@ -64,12 +64,24 @@ ModelColorCueInputs resolveModelColorCueInputs(bool objectCueEnabled,
 std::uint32_t applyModelDpcs(std::uint32_t sourceColor, const ModelColorCueInputs &inputs);
 ModelMaterialSemantics decodeModelMaterialSemantics(std::uint16_t material, std::uint32_t effectiveSubmitFlags);
 
-void beginModelMaterialDiagnosticFrame();
-void observeModelMaterialFace(const ModelDraw &draw,
-                              const ModelFace &face,
-                              const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
-                              std::uint32_t sortKey);
-const ModelMaterialFrameCensus &modelMaterialFrameCensus();
-void reportModelMaterialDiagnosticFrame(std::uint32_t frame);
+// The per-frame material evidence. Diagnostic only: it observes what the native producer decided and
+// never supplies it rendering state. One instance per frame-driver, so the census belongs to the run
+// that measured it rather than to the process.
+class MaterialDiagnostic {
+public:
+  void beginFrame();
+  void observe(const ModelDraw &draw,
+               const ModelFace &face,
+               const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
+               std::uint32_t sortKey);
+  void reportFrame(std::uint32_t frame);
+
+  const ModelMaterialFrameCensus &frameCensus() const {
+    return census_;
+  }
+
+private:
+  ModelMaterialFrameCensus census_{};
+};
 
 } // namespace crashbash::render

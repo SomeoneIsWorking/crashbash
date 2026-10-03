@@ -8,8 +8,6 @@
 namespace crashbash::render {
 namespace {
 
-thread_local ModelTransformInputCensus census;
-
 std::array<std::uint32_t, 5> packRotation(const ModelRotation &rotation) {
   return {{
       static_cast<std::uint16_t>(rotation[0][0]) |
@@ -109,7 +107,8 @@ ModelTransformInputComparison compareModelTransformInputs(const ModelTransform &
   return comparison;
 }
 
-void observeInstalledModelTransformInputs(const ModelTransform &expected, ModelSubmitter submitter) {
+void TransformInputDiagnostic::observe(const ModelTransform &expected, ModelSubmitter submitter) {
+  ModelTransformInputCensus &census = census_;
   const ModelTransformInputComparison comparison = compareModelTransformInputs(expected, readInstalledInputs());
   std::uint32_t &compared = submitter == ModelSubmitter::Standard ? census.standardCompared : census.alternateCompared;
   std::uint32_t &matched = submitter == ModelSubmitter::Standard ? census.standardMatched : census.alternateMatched;
@@ -121,10 +120,6 @@ void observeInstalledModelTransformInputs(const ModelTransform &expected, ModelS
   if (!comparison.matches() && census.firstMismatch.firstMismatch == ModelTransformInputMismatch::None) {
     census.firstMismatch = comparison;
   }
-}
-
-const ModelTransformInputCensus &modelTransformInputCensus() {
-  return census;
 }
 
 } // namespace crashbash::render

@@ -52,9 +52,19 @@ struct ModelTransformInputCensus {
 ModelTransformInputComparison compareModelTransformInputs(const ModelTransform &expected,
                                                           const InstalledModelTransformInputs &installed);
 
-// Diagnostic only: samples the GTE control inputs installed by the retained retail super and records
-// whether they agree with the title-owned source capture. It never supplies product rendering state.
-void observeInstalledModelTransformInputs(const ModelTransform &expected, ModelSubmitter submitter);
-const ModelTransformInputCensus &modelTransformInputCensus();
+// Samples the GTE control inputs installed by the retained retail super and records whether they
+// agree with the title-owned source capture. Diagnostic only: it never supplies product rendering
+// state, and one instance belongs to the frame driver whose run it measures.
+class TransformInputDiagnostic {
+public:
+  void observe(const ModelTransform &expected, ModelSubmitter submitter);
+
+  const ModelTransformInputCensus &census() const {
+    return census_;
+  }
+
+private:
+  ModelTransformInputCensus census_{};
+};
 
 } // namespace crashbash::render

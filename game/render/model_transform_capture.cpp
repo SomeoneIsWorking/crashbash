@@ -1,6 +1,7 @@
 #include "model_transform_capture.h"
 
 #include "core.h"
+#include "crashbash_frame_driver.h"
 #include "guest_execution.h"
 
 #include <algorithm>
@@ -22,15 +23,6 @@ constexpr std::uint32_t kRamBegin = 0x80000000u;
 constexpr std::uint32_t kRamEnd = 0x80200000u;
 constexpr std::uint32_t kScratchpadBegin = 0x1F800000u;
 constexpr std::uint32_t kScratchpadEnd = 0x1F800400u;
-
-struct PendingTransform {
-  Core *core = nullptr;
-  std::uint32_t object = 0;
-  ModelTransform transform;
-};
-
-thread_local PendingTransform pending;
-thread_local ModelTransformCaptureCensus census;
 
 bool guestRange(std::uint32_t address, std::uint32_t size) {
   const bool ram = address >= kRamBegin && address <= kRamEnd && size <= kRamEnd - address;
@@ -70,14 +62,17 @@ ModelRotation readRotation(Core &core, std::uint32_t address) {
   return rotation;
 }
 
-void modelTransformComposer(Core *core) {
+} // namespace
+
+void ModelTransformCapture::compose(Core &core) {
+  ModelTransformCaptureCensus &census = census_;
   ++census.attempts;
-  const std::uint32_t object = core->r[4];
-  const std::uint32_t output = core->mem_r32(core->r[29] + 0x10u);
-  runtime::callOriginal(*core, runtime::GuestImage::Resident, kModelTransformComposer);
+  const std::uint32_t object = core.r[4];
+  const std::uint32_t output = core.mem_r32(core.r[29] + 0x10u);
+  runtime::callOriginal(core, runtime::GuestImage::Resident, kModelTransformComposer);
 
   census.lastOutput = output;
-  if (pending.core != core || pending.object != object) {
+  if (pending_.core != &core || pending_.object != object) {
     ++census.pendingMismatch;
     return;
   }
@@ -85,10 +80,10 @@ void modelTransformComposer(Core *core) {
     ++census.invalidOutput;
     return;
   }
-  const std::uint32_t rotation = core->mem_r32(output);
-  const std::uint32_t translation = core->mem_r32(output + 4u);
-  const std::uint32_t camera = core->mem_r32(kCameraGlobalsPointer);
-  const std::uint32_t horizontalProjectionScale = core->mem_r32(kHorizontalProjectionScalePointer);
+  const std::uint32_t rotation = core.mem_r32(output);
+  const std::uint32_t translation = core.mem_r32(output + 4u);
+  const std::uint32_t camera = core.mem_r32(kCameraGlobalsPointer);
+  const std::uint32_t horizontalProjectionScale = core.mem_r32(kHorizontalProjectionScalePointer);
   census.lastRotation = rotation;
   census.lastTranslation = translation;
   census.lastCamera = camera;
@@ -111,35 +106,35 @@ void modelTransformComposer(Core *core) {
   }
 
   ModelTransform transform{};
-  transform.rotation = readRotation(*core, rotation);
+  transform.rotation = readRotation(core, rotation);
   for (std::uint32_t row = 0; row < 3; ++row) {
-    transform.translation[row] =
-        translation == 0 ? 0 : static_cast<std::int32_t>(core->mem_r32(translation + row * 4u));
+    transform.translation[row] = translation == 0 ? 0 : static_cast<std::int32_t>(core.mem_r32(translation + row * 4u));
   }
-  const std::int16_t centerX = static_cast<std::int16_t>(core->mem_r16(output + 8u));
-  const std::int16_t centerY = static_cast<std::int16_t>(core->mem_r16(output + 10u));
-  const std::int16_t horizontalScale = static_cast<std::int16_t>(core->mem_r16(horizontalProjectionScale + 4u));
-  transform.projectionDistance = static_cast<std::uint16_t>(core->mem_r32(camera + 0x18u));
+  const std::int16_t centerX = static_cast<std::int16_t>(core.mem_r16(output + 8u));
+  const std::int16_t centerY = static_cast<std::int16_t>(core.mem_r16(output + 10u));
+  const std::int16_t horizontalScale = static_cast<std::int16_t>(core.mem_r16(horizontalProjectionScale + 4u));
+  transform.projectionDistance = static_cast<std::uint16_t>(core.mem_r32(camera + 0x18u));
   transform.projectionX =
       static_cast<std::int32_t>((static_cast<std::int64_t>(centerX) * horizontalScale / 0x280) << 16);
   transform.projectionY = static_cast<std::int32_t>(signedHalf(centerY)) << 16;
   transform.valid = transform.projectionDistance != 0;
-  pending.transform = transform;
+  pending_.transform = transform;
   census.captured += transform.valid ? 1u : 0u;
 }
 
-void alternateModelTransformComposer(Core *core) {
+void ModelTransformCapture::composeAlternate(Core &core) {
+  ModelTransformCaptureCensus &census = census_;
   ++census.attempts;
-  const std::uint32_t object = core->r[4];
-  const std::uint32_t callFlags = core->r[6];
-  runtime::callOriginal(*core, runtime::GuestImage::Resident, kAlternateModelTransformComposer);
+  const std::uint32_t object = core.r[4];
+  const std::uint32_t callFlags = core.r[6];
+  runtime::callOriginal(core, runtime::GuestImage::Resident, kAlternateModelTransformComposer);
 
-  if (pending.core != core || pending.object != object) {
+  if (pending_.core != &core || pending_.object != object) {
     ++census.pendingMismatch;
     return;
   }
-  const std::uint32_t camera = core->mem_r32(kCameraGlobalsPointer);
-  const std::uint32_t horizontalProjectionScale = core->mem_r32(kHorizontalProjectionScalePointer);
+  const std::uint32_t camera = core.mem_r32(kCameraGlobalsPointer);
+  const std::uint32_t horizontalProjectionScale = core.mem_r32(kHorizontalProjectionScalePointer);
   const std::uint32_t viewRotation = (callFlags & 0x00200000u) == 0 ? camera + 0x74u : kAlternateViewRotation;
   census.lastOutput = object;
   census.lastRotation = viewRotation;
@@ -152,35 +147,34 @@ void alternateModelTransformComposer(Core *core) {
     return;
   }
 
-  const ModelRotation view = readRotation(*core, viewRotation);
+  const ModelRotation view = readRotation(core, viewRotation);
   ModelTransform transform{};
-  if ((core->mem_r32(object) & 0x20000000u) == 0) {
-    transform.rotation = composeModelRotations(view, readRotation(*core, object + 0x30u));
+  if ((core.mem_r32(object) & 0x20000000u) == 0) {
+    transform.rotation = composeModelRotations(view, readRotation(core, object + 0x30u));
   } else {
-    transform.rotation = readRotation(*core, camera + 0x98u);
+    transform.rotation = readRotation(core, camera + 0x98u);
   }
   const std::array<std::int32_t, 3> relative{
-      wrapSubtract(core->mem_r32(object + 4u), core->mem_r32(camera + 0x0Cu)),
-      wrapSubtract(core->mem_r32(object + 8u), core->mem_r32(camera + 0x10u)),
-      wrapSubtract(core->mem_r32(object + 0x0Cu), core->mem_r32(camera + 0x14u)),
+      wrapSubtract(core.mem_r32(object + 4u), core.mem_r32(camera + 0x0Cu)),
+      wrapSubtract(core.mem_r32(object + 8u), core.mem_r32(camera + 0x10u)),
+      wrapSubtract(core.mem_r32(object + 0x0Cu), core.mem_r32(camera + 0x14u)),
   };
   transform.translation = transformLargeModelTranslation(view, relative);
   for (std::uint32_t component = 0; component < transform.translation.size(); ++component) {
     transform.translation[component] = wrapAdd(
-        transform.translation[component], static_cast<std::int32_t>(core->mem_r32(camera + 0x88u + component * 4u)));
+        transform.translation[component], static_cast<std::int32_t>(core.mem_r32(camera + 0x88u + component * 4u)));
   }
-  const auto horizontalScale = static_cast<std::int16_t>(core->mem_r16(horizontalProjectionScale + 4u));
-  transform.projectionDistance = static_cast<std::uint16_t>(core->mem_r32(camera + 0x18u));
-  const auto centerX = static_cast<std::int32_t>(core->mem_r32(kProjectionCenterX));
-  const auto centerY = static_cast<std::int32_t>(core->mem_r32(kProjectionCenterY));
+  const auto horizontalScale = static_cast<std::int16_t>(core.mem_r16(horizontalProjectionScale + 4u));
+  transform.projectionDistance = static_cast<std::uint16_t>(core.mem_r32(camera + 0x18u));
+  const auto centerX = static_cast<std::int32_t>(core.mem_r32(kProjectionCenterX));
+  const auto centerY = static_cast<std::int32_t>(core.mem_r32(kProjectionCenterY));
   transform.projectionX = static_cast<std::int32_t>(
       static_cast<std::uint32_t>((static_cast<std::int64_t>(centerX) * horizontalScale) / 0x280) << 16u);
   transform.projectionY = static_cast<std::int32_t>(static_cast<std::uint32_t>(centerY / 2) << 16u);
   transform.valid = transform.projectionDistance != 0;
-  pending.transform = transform;
+  pending_.transform = transform;
   census.captured += transform.valid ? 1u : 0u;
 }
-} // namespace
 
 ModelRotation composeModelRotations(const ModelRotation &left, const ModelRotation &right) {
   ModelRotation result{};
@@ -220,22 +214,30 @@ std::array<std::int32_t, 3> transformLargeModelTranslation(const ModelRotation &
   return result;
 }
 
-void resetModelTransformCapture(Core &core, std::uint32_t object) {
-  pending = PendingTransform{.core = &core, .object = object};
+void ModelTransformCapture::reset(Core &core, std::uint32_t object) {
+  pending_ = Pending{.core = &core, .object = object};
 }
 
-bool takeModelTransformCapture(Core &core, std::uint32_t object, ModelTransform &out) {
-  if (pending.core != &core || pending.object != object || !pending.transform.valid) {
+bool ModelTransformCapture::take(Core &core, std::uint32_t object, ModelTransform &out) {
+  if (pending_.core != &core || pending_.object != object || !pending_.transform.valid) {
     return false;
   }
-  out = pending.transform;
-  pending = {};
+  out = pending_.transform;
+  pending_ = {};
   return true;
 }
 
-const ModelTransformCaptureCensus &modelTransformCaptureCensus() {
-  return census;
+namespace {
+
+void modelTransformComposer(Core *core) {
+  frameDriver(*core).modelTransformCapture().compose(*core);
 }
+
+void alternateModelTransformComposer(Core *core) {
+  frameDriver(*core).modelTransformCapture().composeAlternate(*core);
+}
+
+} // namespace
 
 void registerModelTransformCaptureOverride(Core &core) {
   runtime::registerNativeOverride(core,

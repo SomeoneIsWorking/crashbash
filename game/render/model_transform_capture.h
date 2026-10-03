@@ -26,9 +26,32 @@ struct ModelTransformCaptureCensus {
   std::uint32_t lastProjection = 0;
 };
 
+// The one-shot handoff between the retail transform composer and the object submit leaf: `reset`
+// names the object whose transform is about to be composed, the composer fills it, and `take`
+// consumes it once. Product state, not evidence — one instance belongs to the frame driver, and
+// `census` is what the composer rejected on the way.
+class ModelTransformCapture {
+public:
+  void reset(Core &core, std::uint32_t object);
+  bool take(Core &core, std::uint32_t object, ModelTransform &out);
+  void compose(Core &core);
+  void composeAlternate(Core &core);
+
+  const ModelTransformCaptureCensus &census() const {
+    return census_;
+  }
+
+private:
+  struct Pending {
+    Core *core = nullptr;
+    std::uint32_t object = 0;
+    ModelTransform transform;
+  };
+
+  Pending pending_{};
+  ModelTransformCaptureCensus census_{};
+};
+
 void registerModelTransformCaptureOverride(Core &core);
-void resetModelTransformCapture(Core &core, std::uint32_t object);
-bool takeModelTransformCapture(Core &core, std::uint32_t object, ModelTransform &out);
-const ModelTransformCaptureCensus &modelTransformCaptureCensus();
 
 } // namespace crashbash::render

@@ -113,6 +113,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/render/model_depth_scale_capture.cpp
   game/render/model_frame_source.cpp
   game/render/model_material_diagnostic.cpp
+  game/render/model_packet_identity.cpp
   game/render/model_packet_identity_diagnostic.cpp
   game/render/model_submit_capture.cpp
   game/render/model_recipe_capture.cpp
@@ -364,7 +365,7 @@ if(BUILD_TESTING)
     crashbash_model_packet_identity_diagnostic_test
     tests/test_model_packet_identity_diagnostic.cpp
     game/render/model_face_coverage.cpp
-    game/render/model_packet_identity_diagnostic.cpp
+    game/render/model_packet_identity.cpp
   )
   target_include_directories(crashbash_model_packet_identity_diagnostic_test PRIVATE ${CRASHBASH_TITLE_INCLUDE_DIRS})
   target_link_libraries(crashbash_model_packet_identity_diagnostic_test PRIVATE crashbash_guest_execution)

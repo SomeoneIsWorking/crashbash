@@ -2,17 +2,15 @@
 
 #include "config_var.h"
 #include "core.h"
+#include "crashbash_frame_driver.h"
 #include "guest_execution.h"
-#include "model_face_coverage.h"
-#include "native_projection.h"
 
 #include <array>
-#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <lucent/log.h>
-#include <string_view>
-#include <vector>
+#include <string>
+#include <utility>
 
 namespace crashbash::render {
 namespace {
@@ -26,21 +24,6 @@ psx::config::TextVar cvPacketIdentityNodes(
     "diagnostic: comma/space-separated guest OT packet tag addresses to bind to Crash Bash model source faces",
     /*persistable=*/false);
 
-struct ModelPacketIdentityFrameCensus {
-  std::vector<std::uint32_t> targets;
-  std::vector<ModelPacketIdentity> matches;
-  std::uint32_t draws = 0;
-  std::uint32_t packetBlocks = 0;
-  std::uint32_t targetComparisons = 0;
-};
-
-thread_local ModelPacketIdentityFrameCensus census;
-thread_local std::vector<std::vector<ModelPacketFillObservation>> pendingDrawPacketBlocks;
-
-bool separator(char value) {
-  return value == ',' || value == ' ' || value == '\t' || value == '\n';
-}
-
 void packetGeometryFill(Core *core) {
   ModelPacketFillObservation observation{
       .packetBlock = core->r[4],
@@ -48,178 +31,18 @@ void packetGeometryFill(Core *core) {
       .topologyBase = core->r[6],
   };
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kPacketGeometryFill);
-  for (const std::uint32_t target : census.targets) {
-    if (target < 0x80000000u || target > 0x80200000u - kPacketRecordStride) {
-      continue;
-    }
-    ModelPacketPayload payload{.packetNode = target};
-    for (std::uint32_t word = 0; word < payload.words.size(); ++word) {
-      payload.words[word] = core->mem_r32(target + word * 4u);
-    }
-    observation.payloads.push_back(payload);
-  }
-  observeModelPacketBlock(std::move(observation));
-}
-std::array<std::int16_t, 2> unpackSxy(std::uint32_t word) {
-  return {
-      static_cast<std::int16_t>(word),
-      static_cast<std::int16_t>(word >> 16u),
-  };
-}
-
-const char *rejectionName(ModelFaceRejection rejection) {
-  switch (rejection) {
-  case ModelFaceRejection::None:
-    return "accepted";
-  case ModelFaceRejection::ZeroUntexturedDepth:
-    return "zero-depth";
-  case ModelFaceRejection::FarDepth:
-    return "far-depth";
-  case ModelFaceRejection::Winding:
-    return "winding";
-  }
-  return "unknown";
+  frameDriver(*core).packetIdentityDiagnostic().observeBlock(std::move(observation));
 }
 
 } // namespace
 
-std::optional<ModelPacketIdentity>
-identifyModelPacketNode(const ModelDraw &draw, std::uint32_t packetBlock, std::uint32_t packetNode) {
-  if (packetNode < packetBlock) {
-    return std::nullopt;
-  }
-  const std::uint32_t offset = packetNode - packetBlock;
-  if (offset % kPacketRecordStride != 0) {
-    return std::nullopt;
-  }
-  const std::uint32_t faceIndex = offset / kPacketRecordStride;
-  if (faceIndex >= draw.faces.size()) {
-    return std::nullopt;
-  }
-  return ModelPacketIdentity{
-      .packetNode = packetNode,
-      .packetBlock = packetBlock,
-      .object = draw.object,
-      .objectFlags = draw.objectFlags,
-      .callFlags = draw.callFlags,
-      .modelAsset = draw.modelAsset,
-      .modelData = draw.modelData,
-      .frameCode = draw.frameCode,
-      .depthCueFarColor = draw.depthCueFarColor,
-      .depthCueFactor = draw.depthCueFactor,
-      .submitter = draw.submitter,
-      .face = draw.faces[faceIndex],
-  };
-}
-
-ModelPacketIdentityScan scanModelPacketIdentity(const ModelDraw &draw,
-                                                const std::vector<ModelPacketFillObservation> &packetBlocks,
-                                                const std::vector<std::uint32_t> &packetNodes) {
-  ModelPacketIdentityScan scan{
-      .packetBlocks = static_cast<std::uint32_t>(packetBlocks.size()),
-      .targetComparisons = static_cast<std::uint32_t>(packetBlocks.size() * packetNodes.size()),
-  };
-  for (const ModelPacketFillObservation &observation : packetBlocks) {
-    for (const std::uint32_t packetNode : packetNodes) {
-      if (auto identity = identifyModelPacketNode(draw, observation.packetBlock, packetNode)) {
-        identity->fillVertexBase = observation.vertexBase;
-        identity->fillTopologyBase = observation.topologyBase;
-        for (const ModelPacketPayload &payload : observation.payloads) {
-          if (payload.packetNode == packetNode) {
-            identity->payload = payload;
-            break;
-          }
-        }
-        identity->geometry = compareModelPacketGeometry(draw, *identity);
-        scan.matches.push_back(*identity);
-      }
-    }
-  }
-  return scan;
-}
-
-ModelPacketGeometryComparison compareModelPacketGeometry(const ModelDraw &draw, const ModelPacketIdentity &identity) {
-  ModelPacketGeometryComparison comparison;
-  if (!draw.transform.valid || !identity.payload) {
-    return comparison;
-  }
-
-  const std::array<std::uint32_t, 3> sxyWords =
-      identity.face.textured ? std::array<std::uint32_t, 3>{2u, 5u, 8u} : std::array<std::uint32_t, 3>{4u, 6u, 8u};
-  psxport::native_projection::FixedAffine affine{
-      .m = draw.transform.rotation,
-      .t = draw.transform.translation,
-  };
-  const psxport::native_projection::ProjectionParams projection{
-      .ofx = draw.transform.projectionX,
-      .ofy = draw.transform.projectionY,
-      .h = draw.transform.projectionDistance,
-  };
-  std::array<ProjectedFaceVertex, 3> coverageVertices{};
-  comparison.valid = true;
-  comparison.projectedCoordinatesMatch = true;
-  for (std::uint32_t vertexIndex = 0; vertexIndex < 3u; ++vertexIndex) {
-    comparison.packetVertices[vertexIndex] = unpackSxy(identity.payload->words[sxyWords[vertexIndex]]);
-    const ModelVertex &source = identity.face.vertices[vertexIndex];
-    const auto native =
-        psxport::native_projection::project(affine, projection, {.x = source.x, .y = source.y, .z = source.z});
-    comparison.nativeVertices[vertexIndex] = {native.sx, native.sy};
-    comparison.nativeFloatVertices[vertexIndex] = {native.px, native.py};
-    comparison.nativeDepths[vertexIndex] = native.sz;
-    comparison.projectedCoordinatesMatch &=
-        comparison.packetVertices[vertexIndex] == comparison.nativeVertices[vertexIndex];
-    coverageVertices[vertexIndex] = {.x = native.sx, .y = native.sy, .depth = native.sz};
-  }
-  const ModelFaceCoverage coverage = classifyFixedModelFace(coverageVertices,
-                                                            identity.face.textured,
-                                                            identity.face.vertices[2].flags,
-                                                            draw.depthBias,
-                                                            draw.depthLimit,
-                                                            draw.depthScale);
-  comparison.nativeOtz = fixedModelAvsz3Otz(coverageVertices, draw.depthScale);
-  comparison.depthScale = draw.depthScale;
-  comparison.nativeSortKey = coverage.sortKey;
-  comparison.nativeRejection = static_cast<std::uint8_t>(coverage.rejection);
-  return comparison;
-}
-
-std::array<std::uint32_t, 3> modelPacketColors(const ModelPacketPayload &payload, bool textured) {
-  const std::array<std::uint32_t, 3> colorWords =
-      textured ? std::array<std::uint32_t, 3>{1u, 4u, 7u} : std::array<std::uint32_t, 3>{3u, 5u, 7u};
-  return {payload.words[colorWords[0]], payload.words[colorWords[1]], payload.words[colorWords[2]]};
-}
-
-std::optional<std::vector<std::uint32_t>> parseModelPacketIdentityTargets(std::string_view text) {
-  std::vector<std::uint32_t> targets;
-  std::size_t cursor = 0;
-  while (cursor < text.size()) {
-    while (cursor < text.size() && separator(text[cursor])) {
-      ++cursor;
-    }
-    if (cursor == text.size()) {
-      break;
-    }
-    const std::size_t begin = cursor;
-    while (cursor < text.size() && !separator(text[cursor])) {
-      ++cursor;
-    }
-    std::string_view token = text.substr(begin, cursor - begin);
-    if (token.starts_with("0x") || token.starts_with("0X")) {
-      token.remove_prefix(2);
-    }
-    std::uint32_t target = 0;
-    const auto parsed = std::from_chars(token.data(), token.data() + token.size(), target, 16);
-    if (token.empty() || parsed.ec != std::errc{} || parsed.ptr != token.data() + token.size()) {
-      return std::nullopt;
-    }
-    targets.push_back(target);
-  }
-  return targets;
-}
-
-void beginModelPacketIdentityDiagnosticFrame() {
-  census = {};
-  pendingDrawPacketBlocks.clear();
+void PacketIdentityDiagnostic::beginFrame() {
+  targets_.clear();
+  matches_.clear();
+  draws_ = 0;
+  packetBlocks_ = 0;
+  targetComparisons_ = 0;
+  pendingDrawPacketBlocks_.clear();
   const std::string &setting = cvPacketIdentityNodes.get();
   const auto targets = parseModelPacketIdentityTargets(setting);
   if (!targets) {
@@ -229,34 +52,34 @@ void beginModelPacketIdentityDiagnosticFrame() {
                   setting);
     std::abort();
   }
-  census.targets = *targets;
+  targets_ = *targets;
 }
 
-void beginModelPacketIdentityDraw() {
-  if (!census.targets.empty()) {
-    pendingDrawPacketBlocks.emplace_back();
+void PacketIdentityDiagnostic::beginDraw() {
+  if (!targets_.empty()) {
+    pendingDrawPacketBlocks_.emplace_back();
   }
 }
 
-void observeModelPacketBlock(ModelPacketFillObservation observation) {
-  if (!pendingDrawPacketBlocks.empty()) {
-    pendingDrawPacketBlocks.back().push_back(std::move(observation));
+void PacketIdentityDiagnostic::observeBlock(ModelPacketFillObservation observation) {
+  if (!pendingDrawPacketBlocks_.empty()) {
+    pendingDrawPacketBlocks_.back().push_back(std::move(observation));
   }
 }
 
-void finishModelPacketIdentityDraw(const ModelDraw &draw) {
-  if (census.targets.empty()) {
+void PacketIdentityDiagnostic::finishDraw(const ModelDraw &draw) {
+  if (targets_.empty()) {
     return;
   }
-  if (pendingDrawPacketBlocks.empty()) {
+  if (pendingDrawPacketBlocks_.empty()) {
     lucent::error("crashbash-packet-identity", "model packet diagnostic draw stack underflow");
     std::abort();
   }
-  std::vector<ModelPacketFillObservation> packetBlocks = std::move(pendingDrawPacketBlocks.back());
-  pendingDrawPacketBlocks.pop_back();
-  ++census.draws;
+  std::vector<ModelPacketFillObservation> packetBlocks = std::move(pendingDrawPacketBlocks_.back());
+  pendingDrawPacketBlocks_.pop_back();
+  ++draws_;
   for (const ModelPacketFillObservation &observation : packetBlocks) {
-    for (const std::uint32_t target : census.targets) {
+    for (const std::uint32_t target : targets_) {
       if (target < observation.packetBlock) {
         continue;
       }
@@ -286,25 +109,25 @@ void finishModelPacketIdentityDraw(const ModelDraw &draw) {
       }
     }
   }
-  const ModelPacketIdentityScan scan = scanModelPacketIdentity(draw, packetBlocks, census.targets);
-  census.packetBlocks += scan.packetBlocks;
-  census.targetComparisons += scan.targetComparisons;
-  census.matches.insert(census.matches.end(), scan.matches.begin(), scan.matches.end());
+  const ModelPacketIdentityScan scan = scanModelPacketIdentity(draw, packetBlocks, targets_);
+  packetBlocks_ += scan.packetBlocks;
+  targetComparisons_ += scan.targetComparisons;
+  matches_.insert(matches_.end(), scan.matches.begin(), scan.matches.end());
 }
 
-void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
-  if (census.targets.empty()) {
+void PacketIdentityDiagnostic::reportFrame(std::uint32_t frame) {
+  if (targets_.empty()) {
     return;
   }
   lucent::debug("crashbash-packet-identity",
                 "f{} targets={} draws={} packet-blocks={} comparisons={} matches={}",
                 frame,
-                census.targets.size(),
-                census.draws,
-                census.packetBlocks,
-                census.targetComparisons,
-                census.matches.size());
-  for (const ModelPacketIdentity &identity : census.matches) {
+                targets_.size(),
+                draws_,
+                packetBlocks_,
+                targetComparisons_,
+                matches_.size());
+  for (const ModelPacketIdentity &identity : matches_) {
     const ModelFace &face = identity.face;
     const ModelPacketGeometryComparison &geometry = identity.geometry;
     const std::array<std::uint32_t, 3> packetColors =
@@ -395,7 +218,7 @@ void reportModelPacketIdentityDiagnosticFrame(std::uint32_t frame) {
                     geometry.depthScale,
                     geometry.nativeOtz,
                     geometry.projectedCoordinatesMatch,
-                    rejectionName(static_cast<ModelFaceRejection>(geometry.nativeRejection)),
+                    modelFaceRejectionName(geometry.nativeRejection),
                     geometry.nativeSortKey);
     }
   }

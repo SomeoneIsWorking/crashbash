@@ -106,9 +106,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   game_.pad.serviceFrame();
   deliveredFields_ = 0;
   sceneSnapshots_.beginFrame(frame);
-  render::beginModelMaterialDiagnosticFrame();
-  render::beginModelFacePixelDiagnosticFrame();
-  render::beginModelPacketIdentityDiagnosticFrame();
+  materialDiagnostic_.beginFrame();
+  facePixelDiagnostic_.beginFrame();
+  packetIdentityDiagnostic_.beginFrame();
   // Everything above is host-side per-tick work; everything below is the guest tick and the
   // present. `markPre` is the boundary, so a phase that reads 0.00 ms means this work is cheap and
   // never "the work moved somewhere this label still claims to cover".
@@ -167,9 +167,9 @@ void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   }
 
   reportProgress(core, frame);
-  render::reportModelMaterialDiagnosticFrame(frame);
-  render::reportModelFacePixelDiagnosticFrame(frame);
-  render::reportModelPacketIdentityDiagnosticFrame(frame);
+  materialDiagnostic_.reportFrame(frame);
+  facePixelDiagnostic_.reportFrame(frame);
+  packetIdentityDiagnostic_.reportFrame(frame);
   snapshot_tick(&core);
   game_.perf.phaseEnd(GpuPerf::Phase::GameLogic);
   game_.perf.phaseBegin(GpuPerf::Phase::Present);
@@ -275,8 +275,8 @@ void CrashBashFrameDriver::reportProgress(Core &core, std::uint32_t frame) {
     farDepthRejected += draw.nativeFarDepthRejected;
     windingRejected += draw.nativeWindingRejected;
   }
-  const render::ModelTransformCaptureCensus &transformCensus = render::modelTransformCaptureCensus();
-  const render::ModelTransformInputCensus &inputCensus = render::modelTransformInputCensus();
+  const render::ModelTransformCaptureCensus &transformCensus = modelTransformCapture_.census();
+  const render::ModelTransformInputCensus &inputCensus = transformInputDiagnostic_.census();
   lucent::info("crashbash-frame",
                "f{}: dwelling in state 0x{:08X} for {} frame(s) (update=0x{:08X} present=0x{:08X}, "
                "{} field(s) delivered, "

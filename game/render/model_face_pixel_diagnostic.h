@@ -41,15 +41,26 @@ struct ModelFacePixelFrameCensus {
 bool modelFaceCoversPixel(const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
                           std::int32_t pixelX,
                           std::int32_t pixelY);
-void beginModelFacePixelDiagnosticFrame();
-void observeModelFaceAtPixel(const ModelDraw &draw,
-                             const ModelFace &face,
-                             const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
-                             const ModelFaceCoverage &coverage,
-                             bool queued,
-                             std::int32_t pixelX,
-                             std::int32_t pixelY);
-const ModelFacePixelFrameCensus &modelFacePixelFrameCensus();
-void reportModelFacePixelDiagnosticFrame(std::uint32_t frame);
+// The per-frame per-pixel face evidence: which submitted faces covered a sampled pixel and how each
+// was classified. Diagnostic only, and one instance per frame driver.
+class FacePixelDiagnostic {
+public:
+  void beginFrame();
+  void observe(const ModelDraw &draw,
+               const ModelFace &face,
+               const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
+               const ModelFaceCoverage &coverage,
+               bool queued,
+               std::int32_t pixelX,
+               std::int32_t pixelY);
+  void reportFrame(std::uint32_t frame);
+
+  const ModelFacePixelFrameCensus &frameCensus() const {
+    return census_;
+  }
+
+private:
+  ModelFacePixelFrameCensus census_{};
+};
 
 } // namespace crashbash::render

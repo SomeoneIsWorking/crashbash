@@ -6,14 +6,12 @@
 #include <cstdio>
 
 int main() {
-  using crashbash::render::beginModelFacePixelDiagnosticFrame;
+  using crashbash::render::FacePixelDiagnostic;
   using crashbash::render::ModelDraw;
   using crashbash::render::ModelFace;
   using crashbash::render::ModelFaceCoverage;
   using crashbash::render::modelFaceCoversPixel;
-  using crashbash::render::modelFacePixelFrameCensus;
   using crashbash::render::ModelFaceRejection;
-  using crashbash::render::observeModelFaceAtPixel;
 
   int failures = 0;
   const auto check = [&failures](bool condition, const char *message) {
@@ -44,14 +42,14 @@ int main() {
       .sourceMaterial = 0x1234u,
       .topologyFlags = 0x42u,
   };
-  beginModelFacePixelDiagnosticFrame();
-  observeModelFaceAtPixel(draw, face, outside, {.rejection = ModelFaceRejection::None, .sortKey = 10u}, true, 35, 115);
-  observeModelFaceAtPixel(
-      draw, face, covering, {.rejection = ModelFaceRejection::Winding, .sortKey = 20u}, false, 35, 115);
+  FacePixelDiagnostic diagnostic;
+  diagnostic.beginFrame();
+  diagnostic.observe(draw, face, outside, {.rejection = ModelFaceRejection::None, .sortKey = 10u}, true, 35, 115);
+  diagnostic.observe(draw, face, covering, {.rejection = ModelFaceRejection::Winding, .sortKey = 20u}, false, 35, 115);
   face.sourceFace = 18u;
-  observeModelFaceAtPixel(draw, face, covering, {.rejection = ModelFaceRejection::None, .sortKey = 30u}, true, 35, 115);
+  diagnostic.observe(draw, face, covering, {.rejection = ModelFaceRejection::None, .sortKey = 30u}, true, 35, 115);
 
-  const auto &census = modelFacePixelFrameCensus();
+  const auto &census = diagnostic.frameCensus();
   check(census.projectedFaces == 3, "all pre-filter faces contribute to denominator");
   check(census.coveringFaces == 2, "both pre-filter covering faces are retained");
   check(census.windingRejected == 1, "winding rejection is attributed");

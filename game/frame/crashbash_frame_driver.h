@@ -3,6 +3,12 @@
 #include "dev_arena.h"
 #include "execution_exit.h"
 #include "game_runtime.h"
+#include "model_face_pixel_diagnostic.h"
+#include "model_material_diagnostic.h"
+#include "model_packet_identity_diagnostic.h"
+#include "model_transform_capture.h"
+#include "model_transform_input_diagnostic.h"
+#include "polar_push_contact.h"
 #include "scene_snapshot.h"
 
 #include <cstdint>
@@ -28,6 +34,35 @@ public:
   // armed request and the frame that advances it are the same object.
   debug::DevArena &devArena() {
     return devArena_;
+  }
+
+  // The per-frame render state below is owned here because this driver is the one per-Core object
+  // every native override can reach from its bare `Core *`, and because each of these is scoped to a
+  // frame this driver brackets. They are product capture (the transform handoff) and evidence (the
+  // four diagnostics); none of them is process state.
+  // The Polar Push contact traversal's running totals. They live here because this driver is the
+  // one per-Core title object a native override can reach from its bare `Core *`, and because a
+  // process-global tally would let two Cores report each other's numbers.
+  polar::ContactCensus &polarContactCensus() {
+    return polarContactCensus_;
+  }
+  render::ModelTransformCapture &modelTransformCapture() {
+    return modelTransformCapture_;
+  }
+  render::MaterialDiagnostic &materialDiagnostic() {
+    return materialDiagnostic_;
+  }
+  render::FacePixelDiagnostic &facePixelDiagnostic() {
+    return facePixelDiagnostic_;
+  }
+  render::PacketIdentityDiagnostic &packetIdentityDiagnostic() {
+    return packetIdentityDiagnostic_;
+  }
+  const render::TransformInputDiagnostic &transformInputDiagnostic() const {
+    return transformInputDiagnostic_;
+  }
+  render::TransformInputDiagnostic &transformInputDiagnostic() {
+    return transformInputDiagnostic_;
   }
 
 private:
@@ -60,6 +95,12 @@ private:
   std::uint32_t scene_ = 0;
   std::uint32_t sceneChanges_ = 0;
   debug::DevArena devArena_;
+  polar::ContactCensus polarContactCensus_;
+  render::ModelTransformCapture modelTransformCapture_;
+  render::MaterialDiagnostic materialDiagnostic_;
+  render::FacePixelDiagnostic facePixelDiagnostic_;
+  render::PacketIdentityDiagnostic packetIdentityDiagnostic_;
+  render::TransformInputDiagnostic transformInputDiagnostic_;
   render::SceneSnapshotHistory sceneSnapshots_;
 };
 

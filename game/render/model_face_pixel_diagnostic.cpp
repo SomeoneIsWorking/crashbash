@@ -9,8 +9,6 @@
 namespace crashbash::render {
 namespace {
 
-thread_local ModelFacePixelFrameCensus census;
-
 const char *rejectionName(ModelFaceRejection rejection) {
   switch (rejection) {
   case ModelFaceRejection::None:
@@ -41,17 +39,18 @@ bool modelFaceCoversPixel(const std::array<std::array<std::int32_t, 2>, 3> &proj
                               projectedVertices[2][1] * 2);
 }
 
-void beginModelFacePixelDiagnosticFrame() {
-  census = {};
+void FacePixelDiagnostic::beginFrame() {
+  census_ = {};
 }
 
-void observeModelFaceAtPixel(const ModelDraw &draw,
-                             const ModelFace &face,
-                             const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
-                             const ModelFaceCoverage &coverage,
-                             bool queued,
-                             std::int32_t pixelX,
-                             std::int32_t pixelY) {
+void FacePixelDiagnostic::observe(const ModelDraw &draw,
+                                  const ModelFace &face,
+                                  const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
+                                  const ModelFaceCoverage &coverage,
+                                  bool queued,
+                                  std::int32_t pixelX,
+                                  std::int32_t pixelY) {
+  ModelFacePixelFrameCensus &census = census_;
   ++census.projectedFaces;
   if (!modelFaceCoversPixel(projectedVertices, pixelX, pixelY)) {
     return;
@@ -92,11 +91,8 @@ void observeModelFaceAtPixel(const ModelDraw &draw,
   });
 }
 
-const ModelFacePixelFrameCensus &modelFacePixelFrameCensus() {
-  return census;
-}
-
-void reportModelFacePixelDiagnosticFrame(std::uint32_t frame) {
+void FacePixelDiagnostic::reportFrame(std::uint32_t frame) {
+  const ModelFacePixelFrameCensus &census = census_;
   lucent::debug(
       "crashbash-pixel-face",
       "f{} projected={} covering={} accepted={} rejected-zero={} rejected-far={} rejected-winding={} queued={}",

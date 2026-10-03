@@ -1,6 +1,7 @@
 #include "polar_push_contact.h"
 
 #include "core.h"
+#include "crashbash_frame_driver.h"
 #include "execution_services.h"
 #include "game.h"
 #include "guest_execution.h"
@@ -116,18 +117,6 @@ struct EffectResultView {
     }
   }
 };
-
-struct ContactCensus {
-  std::uint64_t invocations = 0;
-  std::uint64_t scanned = 0;
-  std::uint64_t active = 0;
-  std::uint64_t diskPass = 0;
-  std::uint64_t retained = 0;
-  std::uint64_t consumed = 0;
-  std::uint64_t emittedEffects = 0;
-};
-
-ContactCensus gCensus;
 
 std::int32_t signedWord(std::uint32_t value) {
   return std::bit_cast<std::int32_t>(value);
@@ -261,26 +250,27 @@ void restoreRegisters(Core &core) {
   ticks(core, 12u);
 }
 
-void reportCensus(const ContactCensus &call) {
+void reportCensus(const ContactCensus &totals, const ContactCensus &call) {
   lucent::debug("crashbash-polar",
                 "contact update #{}: scanned={} active={} disk-pass={} retained={} consumed={} effects={} "
                 "(total scanned={} active={} disk-pass={} retained={} consumed={} effects={})",
-                gCensus.invocations,
+                totals.invocations,
                 call.scanned,
                 call.active,
                 call.diskPass,
                 call.retained,
                 call.consumed,
                 call.emittedEffects,
-                gCensus.scanned,
-                gCensus.active,
-                gCensus.diskPass,
-                gCensus.retained,
-                gCensus.consumed,
-                gCensus.emittedEffects);
+                totals.scanned,
+                totals.active,
+                totals.diskPass,
+                totals.retained,
+                totals.consumed,
+                totals.emittedEffects);
 }
 
 void polarPushArenaContactUpdate(Core *core) {
+  ContactCensus &gCensus = frameDriver(*core).polarContactCensus();
   ContactCensus call{};
   ++gCensus.invocations;
   core->r[29] -= 72u;
@@ -307,7 +297,7 @@ void polarPushArenaContactUpdate(Core *core) {
     core->r[2] = 0;
     ticks(*core, 1u);
     restoreRegisters(*core);
-    reportCensus(call);
+    reportCensus(gCensus, call);
     return;
   }
 
@@ -378,7 +368,7 @@ void polarPushArenaContactUpdate(Core *core) {
       core->r[2] = 1u;
       ticks(*core, 3u);
       restoreRegisters(*core);
-      reportCensus(call);
+      reportCensus(gCensus, call);
       return;
     }
 
@@ -397,7 +387,7 @@ void polarPushArenaContactUpdate(Core *core) {
       core->r[2] = 1u;
       ticks(*core, 3u);
       restoreRegisters(*core);
-      reportCensus(call);
+      reportCensus(gCensus, call);
       return;
     }
 
@@ -417,7 +407,7 @@ void polarPushArenaContactUpdate(Core *core) {
     core->r[2] = 1u;
     ticks(*core, 3u);
     restoreRegisters(*core);
-    reportCensus(call);
+    reportCensus(gCensus, call);
     return;
   }
 
@@ -425,7 +415,7 @@ void polarPushArenaContactUpdate(Core *core) {
   core->r[2] = 0;
   ticks(*core, 1u);
   restoreRegisters(*core);
-  reportCensus(call);
+  reportCensus(gCensus, call);
 }
 
 } // namespace

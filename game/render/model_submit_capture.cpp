@@ -104,7 +104,7 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
   // zero/sentinel frame codes before producing geometry. Recording only that accepted set makes the
   // snapshot a faithful denominator, not a list of objects the game itself declined to draw.
   if (!isRenderableModelDraw(draw)) {
-    finishModelPacketIdentityDraw(draw);
+    frameDriver(core).packetIdentityDiagnostic().finishDraw(draw);
     return;
   }
   SceneSnapshotHistory &history = frameDriver(core).sceneSnapshots();
@@ -112,31 +112,33 @@ void recordIfRenderable(Core &core, ModelDraw draw) {
     if (draw.transform.valid) {
       captureFixedModelRecipe(core, draw);
     }
-    finishModelPacketIdentityDraw(draw);
+    frameDriver(core).packetIdentityDiagnostic().finishDraw(draw);
     history.record(std::move(draw));
   } else {
-    finishModelPacketIdentityDraw(draw);
+    frameDriver(core).packetIdentityDiagnostic().finishDraw(draw);
   }
 }
 
 void standardModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Standard, core->r[4], core->r[5], core->r[5] + 0x14u, core->r[6]);
-  resetModelTransformCapture(*core, draw.object);
-  beginModelPacketIdentityDraw();
+  render::ModelTransformCapture &capture = frameDriver(*core).modelTransformCapture();
+  capture.reset(*core, draw.object);
+  frameDriver(*core).packetIdentityDiagnostic().beginDraw();
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kStandardModelSubmit);
-  if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
-    observeInstalledModelTransformInputs(draw.transform, draw.submitter);
+  if (capture.take(*core, draw.object, draw.transform)) {
+    frameDriver(*core).transformInputDiagnostic().observe(draw.transform, draw.submitter);
   }
   recordIfRenderable(*core, std::move(draw));
 }
 
 void alternateModelSubmit(Core *core) {
   ModelDraw draw = decodeDraw(*core, ModelSubmitter::Alternate, core->r[4], 0u, 0u, 0u);
-  resetModelTransformCapture(*core, draw.object);
-  beginModelPacketIdentityDraw();
+  render::ModelTransformCapture &capture = frameDriver(*core).modelTransformCapture();
+  capture.reset(*core, draw.object);
+  frameDriver(*core).packetIdentityDiagnostic().beginDraw();
   runtime::callOriginal(*core, runtime::GuestImage::Resident, kAlternateModelSubmit);
-  if (takeModelTransformCapture(*core, draw.object, draw.transform)) {
-    observeInstalledModelTransformInputs(draw.transform, draw.submitter);
+  if (capture.take(*core, draw.object, draw.transform)) {
+    frameDriver(*core).transformInputDiagnostic().observe(draw.transform, draw.submitter);
   }
   recordIfRenderable(*core, std::move(draw));
 }

@@ -10,8 +10,6 @@
 namespace crashbash::render {
 namespace {
 
-thread_local ModelMaterialFrameCensus census;
-
 std::int64_t arithmeticShiftRight(std::int64_t value, unsigned shift) {
   const std::int64_t divisor = std::int64_t{1} << shift;
   if (value >= 0) {
@@ -82,7 +80,7 @@ ModelMaterialWitness makeWitness(const ModelDraw &draw,
   return witness;
 }
 
-void recordLargestAccepted(const ModelMaterialWitness &candidate) {
+void recordLargestAccepted(ModelMaterialFrameCensus &census, const ModelMaterialWitness &candidate) {
   auto position = std::find_if(census.largestAcceptedFaces.begin(),
                                census.largestAcceptedFaces.end(),
                                [&candidate](const ModelMaterialWitness &existing) {
@@ -142,17 +140,18 @@ ModelMaterialSemantics decodeModelMaterialSemantics(std::uint16_t material, std:
   };
 }
 
-void beginModelMaterialDiagnosticFrame() {
-  census = {};
+void MaterialDiagnostic::beginFrame() {
+  census_ = {};
 }
 
-void observeModelMaterialFace(const ModelDraw &draw,
-                              const ModelFace &face,
-                              const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
-                              std::uint32_t sortKey) {
+void MaterialDiagnostic::observe(const ModelDraw &draw,
+                                 const ModelFace &face,
+                                 const std::array<std::array<std::int32_t, 2>, 3> &projectedVertices,
+                                 std::uint32_t sortKey) {
+  ModelMaterialFrameCensus &census = census_;
   ++census.acceptedFaces;
   const ModelMaterialWitness candidate = makeWitness(draw, face, projectedVertices, sortKey);
-  recordLargestAccepted(candidate);
+  recordLargestAccepted(census_, candidate);
   const bool rawBlack = blackRgb(face.colors);
   const bool dpcsChanged = face.colors != face.retailColors;
   const bool rawBlackDpcsColored = rawBlack && !blackRgb(face.retailColors);
@@ -181,11 +180,8 @@ void observeModelMaterialFace(const ModelDraw &draw,
   }
 }
 
-const ModelMaterialFrameCensus &modelMaterialFrameCensus() {
-  return census;
-}
-
-void reportModelMaterialDiagnosticFrame(std::uint32_t frame) {
+void MaterialDiagnostic::reportFrame(std::uint32_t frame) {
+  const ModelMaterialFrameCensus &census = census_;
   const ModelMaterialWitness &dpcs = census.largestDpcsChange;
   const ModelMaterialWitness &black = census.largestRawBlack;
   const ModelMaterialWitness &semi = census.largestForcedSemiTransparent;

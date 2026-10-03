@@ -1,6 +1,7 @@
 #include "native_model_producer.h"
 
 #include "core.h"
+#include "crashbash_frame_driver.h"
 #include "game.h"
 #include "gpu_vk.h"
 #include "interpolated_scene.h"
@@ -135,7 +136,8 @@ NativeModelSubmitResult submitFixedModel(Core &core,
     }};
     if (!coverage.accepted()) {
       if (pixelProbeActive) {
-        observeModelFaceAtPixel(draw, face, absoluteProjectedVertices, coverage, false, pixelProbeX, pixelProbeY);
+        frameDriver(core).facePixelDiagnostic().observe(
+            draw, face, absoluteProjectedVertices, coverage, false, pixelProbeX, pixelProbeY);
       }
       switch (coverage.rejection) {
       case ModelFaceRejection::ZeroUntexturedDepth:
@@ -158,7 +160,7 @@ NativeModelSubmitResult submitFixedModel(Core &core,
         {{projected[1].sx, projected[1].sy}},
         {{projected[2].sx, projected[2].sy}},
     }};
-    observeModelMaterialFace(draw, face, projectedVertices, coverage.sortKey);
+    frameDriver(core).materialDiagnostic().observe(draw, face, projectedVertices, coverage.sortKey);
 
     int xs[3]{}, ys[3]{}, us[3]{}, vs[3]{};
     float screenX[3]{}, screenY[3]{}, depth[3]{};
@@ -235,13 +237,13 @@ NativeModelSubmitResult submitFixedModel(Core &core,
                       1,
                       dither);
     if (pixelProbeActive) {
-      observeModelFaceAtPixel(draw,
-                              face,
-                              absoluteProjectedVertices,
-                              coverage,
-                              queue.pushed_total == pushedBefore + 1,
-                              pixelProbeX,
-                              pixelProbeY);
+      frameDriver(core).facePixelDiagnostic().observe(draw,
+                                                      face,
+                                                      absoluteProjectedVertices,
+                                                      coverage,
+                                                      queue.pushed_total == pushedBefore + 1,
+                                                      pixelProbeX,
+                                                      pixelProbeY);
     }
     ++result.submitted;
   }

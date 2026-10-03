@@ -33,13 +33,11 @@ std::uint32_t oracleDpcs(std::uint32_t color, const crashbash::render::ModelColo
 
 int main() {
   using crashbash::render::applyModelDpcs;
-  using crashbash::render::beginModelMaterialDiagnosticFrame;
   using crashbash::render::decodeModelMaterialSemantics;
+  using crashbash::render::MaterialDiagnostic;
   using crashbash::render::ModelColorCueInputs;
   using crashbash::render::ModelDraw;
   using crashbash::render::ModelFace;
-  using crashbash::render::modelMaterialFrameCensus;
-  using crashbash::render::observeModelMaterialFace;
   using crashbash::render::resolveModelColorCueInputs;
 
   bool ok = true;
@@ -76,7 +74,8 @@ int main() {
     ok &= check(applyModelDpcs(color, inputs) == oracleDpcs(color, inputs));
   }
 
-  beginModelMaterialDiagnosticFrame();
+  MaterialDiagnostic diagnostic;
+  diagnostic.beginFrame();
   ModelDraw draw{.object = 0x80123456u, .objectFlags = 0x40008000u, .frameCode = 0x2008u};
   ModelFace blackFace{
       .colors = {0u, 0u, 0u},
@@ -86,14 +85,14 @@ int main() {
       .topologyFlags = 8u,
   };
   const std::array<std::array<std::int32_t, 2>, 3> large{{{{0, 0}}, {{20, 0}}, {{0, 10}}}};
-  observeModelMaterialFace(draw, blackFace, large, 55u);
+  diagnostic.observe(draw, blackFace, large, 55u);
   ModelFace coloredFace = blackFace;
   coloredFace.colors = {0x00101010u, 0x00202020u, 0x00303030u};
   coloredFace.retailColors = {0x00010203u, 0x00040506u, 0x00070809u};
   coloredFace.sourceFace = 18u;
   const std::array<std::array<std::int32_t, 2>, 3> small{{{{0, 0}}, {{5, 0}}, {{0, 5}}}};
-  observeModelMaterialFace(draw, coloredFace, small, 66u);
-  const auto &census = modelMaterialFrameCensus();
+  diagnostic.observe(draw, coloredFace, small, 66u);
+  const auto &census = diagnostic.frameCensus();
   ok &= check(census.acceptedFaces == 2u && census.rawBlackFaces == 1u);
   ok &= check(census.largestAcceptedFaces[0].sourceFace == 17u &&
               census.largestAcceptedFaces[0].screenAreaTwice == 200u && census.largestAcceptedFaces[0].sortKey == 55u);
