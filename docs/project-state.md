@@ -53,11 +53,11 @@ native/dynarec product; nothing it lands may regress Spyro 1's gates. Finish lis
 | S012 | Polar Push reaches a visually correct, controllable live match | verified | **requalified on Lightrec 2026-10-02** — the match faulted `ambiguous code-image identity` at `0x800CBA64` because `dat22510_module.json` said 70 sectors while retail reads 71 (sector 71 continues the module's halfword table), so DAT22510 never published; manifest corrected to 71 sectors / `0x23800` / sha256 `7477dd74…`, re-recorded v1 `polar-push-control.pad` reaches the live match, P1 `0x800AD304` holds -2018 idle and moves -2800 under Left then -308 under Right | G001 |
 | S013 | The remaining retail modes are reachable and playable | partial — **2026-10-02: Pogo Painter (Pogo Pandemonium) plays on Lightrec**: `replays/flow/pogo-painter-control.pad` reaches a live DAT28272 match and P1 paints squares under held directions (captured; the idle leg stays on its start square). On a fresh card Battle offers Crate Crush, Polar Push, Pogo Pandemonium and Ballistix; Tank Wars, Crash Dash and Medieval Mayhem show retail's own LOCKED page and need Adventure progress on the card, which is the next route. Earlier notes: every `replays/flow/*.pad` was a pre-v1 raw recording the runtime REFUSES, so S009-S012 had been running with the pad at rest; all four are now v1 and the Crashball route drives a live 4-player match again. Battle Mode is reachable and playable end to end (SELECT BATTLE TYPE -> briefing -> a live 4-player Crate Crush round with the player moving under held input), and the Adventure island carousel pans correctly across its signs. **The earlier per-character-availability theory for the island carousel is REFUTED by the console oracle**: on a settled island the reference holds the same `0x8005A6F8..0x8005A717` all zero, the same index `0x8005A677 = 0xFF`, the same `0x8005A618 & 0x2000 = false`, and shows no "press X" prompt, so the closed gate is retail's normal rest state and not our defect. `PSXPORT_WWATCH`'s reported `pc` cannot attribute a store (it is neither the block entry nor the store: the block at the reported PC contains no store to the watched range), and the store's own PC exists only inside lightrec's emitter-side store observer, not at the runtime `ops->sw` callback | S008 | G001 |
 | S014 | Retail music and sound effects play at the correct rate without premature truncation | partial | S003 | G001 |
-| S015 | All 28 native overrides install by runtime image identity and all 16 original-body calls execute through the dynarec | partial | S003 | G001 |
+| S015 | All 30 native override registrations install by runtime image identity and all 18 original-body calls execute through the dynarec | partial | S003 | G001 |
 | S016 | Representative interactive gameplay passes on the native/dynarec product | partial | S003, S004, S005, S006, S007, S008, S014, S015 | G001, G002, G003 |
 | S017 | Every static product path is deleted before dynarec implementation and mechanically excluded | verified | — | G001 |
 | S018 | Hosted CI truthfully covers applicable Linux, Windows, macOS, and Android product boundaries | partial | S003 | G001 |
-| S020 | Crash Bash: load operations complete without loading-only waits or presentation; logos cancel through the recovered route | partial — the wait is gone and the loading-only presentation is cut from ~1.2 s to ~0.35 s, but the guest's own LOADING screen still reaches the display. The `kLoadPump` override runs retail's pump 0x8001231C to quiescence ONLY at retail's per-frame call site (return 0x800103A4), because its seven other call sites are already busy `while (FUN_80012FFC())` loops; same keyed route both builds: boot→menu 104→30 display fields, briefing→match 150→42 (`scratch/s020/ev-head.log` vs `ev-drain.log`, 2 fields/frame) | S003 | G004 |
+| S020 | Crash Bash: load operations complete without loading-only waits or presentation; logos cancel through the recovered route | verified — no wait and no loading-only presentation: the guest's LOADING card draw (`FUN_80018B08`) is reached only from BOOT's two handoff screen presents, and the owner retires it at those two measured call sites while every other caller keeps the guest body; the authored transition clock is untouched, so the handoff fades through black into the next real picture (boot→menu 30 display fields, briefing→match 42, unchanged from S020's drain build, with zero card frames among them), and the keyed route still reports replay COMPLETE 1394/1394 into a controlled live Polar Push match | S003 | G004 |
 | S021 | A whole-machine save state restores into any session (other minigame, menu, same match) with image identity, generations and native keys matching the restored RAM | verified — see 2026-10-02 measurements | S003, S015 | G001 |
 
 ### 2026-10-02 measurements
@@ -572,8 +572,9 @@ without game assets.
 
 ### S020 — Crash Bash loading removal
 
-Partial. The loading-only WAIT is removed and the loading-only PRESENTATION is cut to about a third
-of its length, but the guest's own LOADING screen still reaches the display, so this is not `verified`.
+Verified. The loading-only wait is gone, and the guest's own LOADING screen no longer reaches the
+display: it is the card draw the handoff's two screen presents make, retired at those call sites.
+The transition clock the handoff runs on is authored and is kept.
 
 **Where the wait is.** Retail's load pump `FUN_8001231C` advances the queue exactly one step per call
 and returns 0: tick the `DAT_80050628 = 3` inter-read cooldown, poll-complete the active read at
@@ -604,11 +605,34 @@ match `f1038→f1113` = 75 frames = **150 fields** against `f1001→f1022` = 21 
 held Left (`ev-head` replay 0xFFFFFBC0→0xFFFFF5C9, `ev-drain` replay 0xFFFFFB61→0xFFFFF6EC), so the
 route, the payload and the control are the same on both sides of the change.
 
-**What is still there.** The LOADING screen is the guest's own scene: `scratch/s020/ev-head_f1053_*.png`
-is a full-frame LOADING at the pre-S020 handoff and `scratch/s020/win-drain_load_f1010.png` is the same
-LOADING on this build, only 21 frames later to the briefing instead of 74. Gap: the presentation, not
-the wait. Removing it means skipping the scene the guest enters, so it needs the recovered cancellation
-route for the loading scene itself, the way the logo screens have one.
+**What the LOADING screen turned out to be.** The card is not a scene of its own and the handoff is
+not held by a counter: `0x800A00DC` IS the game's transition scene (every scene change in the route
+passes through it), and the card is drawn by the resident `FUN_80018B08`, which BOOT reaches only
+from the two handoff screen presents — `FUN_8009421C` (screen `0x8009F998`) at call site
+`0x80094248`, and `FUN_8009414C` (screen `0x8009FA00`) at `0x80094188`. Both presents are entered
+only while `0x800A00DC` is current, so those two sites are the whole of the card's presentation.
+Measured 2026-10-03: the handoff's own work is done by f468 (state 4→7→9, `DAT_800A0158`), and the
+frames after it are the scene transition clock `FUN_8001E598` on `0x8009F644` — −0x300 from `0x700`
+to 0, then +0x300 to `0x1000` until `FUN_8001E610`'s age gate admits the destination. That clock is
+the authored fade for EVERY transition in the game (the world scene's own enter `0x80092CAC` arms
+−0x300 again), so it stays; what shipped was the card, drawn on top of it. `game/core/loading_card_skip.{h,cpp}`
+now retires the card at those two measured call sites and runs every other caller of `FUN_80018B08` —
+the menu screens draw their own panels through it — on the guest's own body. The handoff therefore
+presents the level the guest has built, and the authored fade carries it to black and into the next
+real picture.
+
+**Evidence, the same keyed route.** Field counts are unchanged from the drain build — boot→menu
+`f460→f475` = 15 frames = **30 fields**, briefing→match `f1001→f1022` = 21 frames = **42 fields** —
+because the clock is authored and was not touched; what changed is that none of those fields shows
+the card (`scratch/s020d/base_sheet.png` against `fix_sheet.png`: LOADING at f466/f468/f472/f474
+before, the studio logo held at f462 then the level's own backdrop at f466/f470 after). The dense
+captures are `scratch/s020d/handoff1_sheet.png` (26 consecutive presented frames over boot→menu: logo,
+held studio screen, the level's own backdrop, menu fading in) and `handoff2_sheet.png` (28 frames over
+briefing→match: held briefing page, the authored fade through black, the match fading in). Neither
+contains a card.. The run still
+reports replay COMPLETE 1394 of 1394 and reaches the live Polar Push match
+(`scratch/s020d/fix_match.png`, timer 1:24), where the P1 record word `0x800AD304` holds −2179 while
+idle and moves to −2694 under a held Left.
 
 **Phase-keyed replays.** `replays/flow/polar-push-control.pad` is **phase-keyed v1** (1,394 frames, 13
 segments, keyed through `crashbash::InputPhase` on scene `0x8009F658` packed with the menu screen at
@@ -634,7 +658,8 @@ The first Crash Bash dynamic milestone must prove all of the following together:
   integration with nonzero translated-block execution;
 - product link and configuration inspection excludes an interpreter-only default, with every fallback
   reached only after an explicit JIT rejection and bounded by reason-accounted counters;
-- all 28 native override installations are keyed by complete runtime image identity and address;
+- all 30 native override registrations, across the 18 installation entries in the owner set, are keyed by
+  complete runtime image identity and address;
 - all 16 former generated-body calls use a scoped original call that suppresses only the current
   override, enters the original guest body through Lightrec, and returns with correct guest state;
 - loaded-image replacement at the shared `0x800B32B4` slot invalidates affected translated blocks and

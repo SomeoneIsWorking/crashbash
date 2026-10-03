@@ -96,6 +96,15 @@ inline constexpr std::uint32_t kSceneClockAgeSlot = 8u;
 // menu_boundary.cpp measured these same words as "current/pending manager"; they are a scene record.
 inline constexpr std::uint32_t kMenuSceneTransition = 0x8009F8A4u;
 
+// The LOADING card's draw, in the resident image: `FUN_80018B08` paints the animated panel (and
+// its background quad) from the picture table, and BOOT's two handoff screens reach it from their
+// own present handlers — `FUN_8009421C` for the screen record `0x8009F998` (the general handoff) and
+// `FUN_8009414C` for `0x8009FA00` (the level-0x28 route). Both presents are entered only while the
+// handoff scene `0x800A00DC` is current, so those two call sites are the whole of the card's
+// presentation; everything else the handoff presents — the transition clock's fade word at
+// `0x800569AC`, and the level frame the handoff has built — is left on the guest's own body.
+inline constexpr std::uint32_t kLoadingCardDraw = 0x80018B08u;
+
 inline constexpr std::uint32_t kDisplayFieldsPerFrame = 0x8004E0E0u;
 inline constexpr std::uint32_t kVblankCounter = 0x8006D8DCu;
 inline constexpr std::uint32_t kVblankRoot = 0x8003ADD4u;

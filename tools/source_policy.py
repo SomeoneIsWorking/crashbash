@@ -10,6 +10,14 @@ from pathlib import Path
 
 # The migration boundary, counted so it cannot drift silently.
 #
+# 2026-10-03: 29 -> 30 registrations and 17 -> 18 original calls, for ONE addition — the
+# loading-card skip owner on the resident card draw 0x80018B08 (game/core/loading_card_skip.cpp).
+# The LOADING card is the handoff scene's own presentation of a wait this port does not have: the
+# card draw is reached only from BOOT's two handoff screen presents (measured call sites 0x80094248
+# and 0x80094188), so the owner retires the card there and runs every other caller — the menu screens
+# draw their own panels through the same routine — on the guest's own body, which is the one new
+# original-call site.
+#
 # 2026-10-02: 28 -> 29 registrations and 16 -> 17 original calls, for ONE addition — the load-pump
 # drain owner on the resident pacing pump 0x8001231C (game/core/cd_file_read.cpp). The shipping
 # disc read is synchronous, so the title's one-call-per-frame queue pacing was the load-only wait;
@@ -23,8 +31,8 @@ from pathlib import Path
 # Crashball" and "never left the logo" printed the same line; see docs/issues/0032. Each increment has
 # to name itself here, because a tripwire that is relaxed without a reason is the same defect as one
 # that is never relaxed.
-EXPECTED_OVERRIDE_REGISTRATIONS = 29
-EXPECTED_ORIGINAL_CALLS = 17
+EXPECTED_OVERRIDE_REGISTRATIONS = 30
+EXPECTED_ORIGINAL_CALLS = 18
 SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"})
 ENVIRONMENT_CONFIG_OWNER = Path("packaging/linux/user_paths.cpp")
 DIRECT_STDERR_PATTERN = re.compile(

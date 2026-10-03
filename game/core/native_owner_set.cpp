@@ -7,6 +7,7 @@
 #include "cd_startup.h"
 #include "display_frame.h"
 #include "gpu_timeout.h"
+#include "loading_card_skip.h"
 #include "memory_card_startup.h"
 #include "menu_boundary.h"
 #include "model_depth_scale_capture.h"
@@ -28,6 +29,7 @@ void registerNativeOwners(Core &core) {
   registerDisplayFrameOverride(core);
   registerBootObjectCallbackOverrides(core);
   registerBootLogoSkipOverride(core);
+  registerLoadingCardSkipOverride(core);
   polar::registerPolarPushContactOverride(core);
   render::registerModelDepthScaleCaptureOverride(core);
   render::registerModelTransformCaptureOverride(core);

@@ -72,6 +72,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/nested_module_image.cpp
   game/core/boot_image.cpp
   game/core/cd_file_read.cpp
+  game/core/loading_card_skip.cpp
   game/core/cd_license_startup.cpp
   game/core/cd_startup.cpp
   game/core/crashbash_boot.cpp
