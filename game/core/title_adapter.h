@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdio>
+
 #include "crashbash_input_phase.h"
 #include "game_runtime.h"
 #include "psx_exe_image.h"
@@ -35,6 +37,10 @@ public:
   // why a title declares them at all.
   const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   const char *discEnvVar() const override;
+  // The title's own control-channel surface. Only the developer's `arena` command lives here; it
+  // arms a request the frame driver applies through the game's own scene entry, so no player input
+  // and no guest phase word is reachable from here.
+  bool controlCommand(Core &core, const char *cmd, const char *line, FILE *out) override;
   // The INPUT PHASE pad recordings are keyed on (crashbash_input_phase.h): the boot/logo/menu/match
   // scene packed with the menu world's active screen, so a .pad stores every press as an offset
   // from the entry of the screen it was recorded on rather than an absolute frame from boot. Held

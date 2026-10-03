@@ -5,6 +5,7 @@
 #include "crashbash_boot.h"
 #include "crashbash_frame_driver.h"
 #include "crashbash_guest.h"
+#include "dev_arena.h"
 #include "executable_identity.h"
 #include "game.h"
 #include "guest_execution.h"
@@ -153,6 +154,12 @@ RenderCapabilities TitleAdapter::renderCapabilities() const {
 bool TitleAdapter::guestVramIsPicture(const Game &) const {
   // Retained authored uploads supply the SCEA boot picture and native-scene backdrops.
   return true;
+}
+
+bool TitleAdapter::controlCommand(Core &core, const char *cmd, const char *line, FILE *out) {
+  // The title's own control-channel surface. Only the developer's `arena` command lives here today;
+  // player-facing commands and player input never reach it.
+  return DevArena::handle(core, cmd, line, out);
 }
 
 std::unique_ptr<TemporalFramePresentation> TitleAdapter::createTemporalFramePresentation(Game &game) {

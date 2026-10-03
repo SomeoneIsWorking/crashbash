@@ -496,6 +496,11 @@ arena, ships, balls, and controllable player movement.
 Missing capability: Add durable, controllable hybrid-product scenarios for every retail mode not
 covered by the four retained gameplay routes.
 
+Developer route (verified 2026-10-03): the control-channel-only `arena <id> [battle|tournament]` command
+(`game/core/dev_arena.cpp`, Tomba! 2 `dev_warp` pattern) enters a match at a frame boundary through
+the menu's own flow step `FUN_800B5360` on the located battle flow run and the guest's own accepts;
+`arena 1/2/3/10 battle` entered Crate Crush, Polar Push, a crate arena and Pogo live at 16:9.
+
 ### S014 — Audio playback
 
 Evidence: The measured host sink sustained 44,097 samples/s against the 44,100 Hz target with zero

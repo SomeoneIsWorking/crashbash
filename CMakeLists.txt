@@ -78,6 +78,7 @@ set(CRASHBASH_SEAM_SOURCES
   game/core/crashbash_boot.cpp
   game/core/crashbash_frame_driver.cpp
   game/core/crashbash_input_phase.cpp
+  game/core/dev_arena.cpp
   game/core/display_frame.cpp
   game/core/gpu_timeout.cpp
   game/core/memory_card_startup.cpp

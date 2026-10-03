@@ -2,6 +2,7 @@
 
 #include "core.h"
 #include "crashbash_guest.h"
+#include "dev_arena.h"
 #include "execution_services.h"
 #include "game.h"
 #include "guest_execution.h"
@@ -92,6 +93,9 @@ void CrashBashFrameDriver::finishUpdateSlice(Core &core, const psx::cpu::Executi
 }
 
 void CrashBashFrameDriver::stepFrame(Core &core, std::uint32_t frame) {
+  // A control-channel developer request runs HERE, at the frame boundary, and through the game's own
+  // entry. The player path never arms one; nothing below this line knows the command exists.
+  DevArena::applyArmed(core, game_.pad, frame);
   // psxport's per-frame CPU/frame-time profiler is owned by Game and is off unless the `perf` log
   // channel is enabled. Nothing called it before this: the instrument existed, the channel worked,
   // and a run produced no timing line at all — which reads exactly like "the profiler measured

@@ -105,6 +105,63 @@ inline constexpr std::uint32_t kMenuSceneTransition = 0x8009F8A4u;
 // `0x800569AC`, and the level frame the handoff has built — is left on the guest's own body.
 inline constexpr std::uint32_t kLoadingCardDraw = 0x80018B08u;
 
+// The arena the level setup reads: written by the scene dispatcher and read by `FUN_800793E8`,
+// which indexes the arena table below with it. In MENU it is filled from the SELECT BATTLE TYPE
+// cursor by `FUN_800b7ef4`.
+//
+// The dispatcher is `FUN_8007F314`, the update owner of the scene that hosts BOTH the menus and the
+// match flow (`0x8009F720`; the scene table at `0x8009F724` holds that pointer as DATA, so only the
+// scene machine calls it). Its $a1 is NOT the arena index — a measured call with $a1 = 4 stored
+// 0x28 here and then faulted the guest at MENU.BIN 0x800B5A74, because the owner also expects the
+// machine's prepared frame. The arena therefore reaches the dispatcher through the SELECT BATTLE TYPE
+// accept's own flow-table entry (dev_arena.cpp).
+inline constexpr std::uint32_t kArenaSelection = 0x8009E5DCu;
+// Six-byte arena records: the first halfword is the level type `FUN_800793e8` switches on (0x104
+// Crashball, 0x106..0x10E the arena families), the second the per-family slot, the third the game's
+// own arena id. Adjacent in the resident image: the arena names ('CRATE CRUSH' 0x8004C78C,
+// 'POGO PANDEMONIUM' 0x8004C7A4, 'BALLISTIX' 0x8004C7B8) hang off 0x8004DD84.
+inline constexpr std::uint32_t kArenaTable = 0x8004DDD0u;
+inline constexpr std::uint32_t kArenaRecordBytes = 6u;
+
+// The menu's own arena-selection flow, all of it MENU-overlay state the game owns:
+//
+//   0x800B3CA8  SELECT GAME TYPE's update. Its accept branch installs the mode's screen-flow table
+//               by calling 0x800B5360 with the ADDRESS of that mode's flow pointer.
+//   0x800B5360  stores the flow-table address in 0x800B9620 and requests the transition from the
+//               menu screen record 0x8009F8A4 to *flowTable. The menu machine then walks the table
+//               one entry per screen accept: 0x800B5410 advances 0x800B9620 by a word and asks the
+//               screen machine for the next entry while the word is non-zero.
+//   0x800B5360 is two stores and no guest call, so execution never returns to its boundary.
+inline constexpr std::uint32_t kModeAccept = 0x800B5360u;
+inline constexpr std::uint32_t kModeAcceptReturnPc = 0x800B53C8u;
+// A mode's flow table is a RUN of screen records in MENU that starts at SELECT GAME TYPE. Measured
+// in MENU.BIN: the Battle run is [0x800B8E28, 0x800B8E3C, 0x800B9DF4, 0x800BA72C, 0x800BAAB4,
+// 0x800B8E8C, 0x800B8EAC] at 0x800B8EA0 and the Tournament run is [0x800B8E28, 0x800B8E3C,
+// 0x800B9DF4, 0x8009EB84, ...] at 0x800B8ED0. The run that reaches the match through SELECT BATTLE
+// TYPE is the player's battle route; the run at 0x800B8EC0 ([0x800B8E50, ...]) is the attract
+// demo's short flow, and entering that one skips the arena screen entirely — which is why the flow
+// table is LOCATED by the screen its fourth entry reaches rather than named by address.
+inline constexpr std::uint32_t kSelectBattleTypeBattleScreen = 0x800BA72Cu;
+inline constexpr std::uint32_t kTournamentMatchScreen = 0x8009EB84u;
+// SELECT BATTLE TYPE has TWO screen records with the same body — 0x800BA72C and 0x800BAF2C, both
+// enter 0x800B6CF4, update 0x800B7458, present 0x800B79A8 — and the arena screen is recognised by
+// its update pointer rather than by an address picked here.
+inline constexpr std::uint32_t kSelectBattleTypeUpdate = 0x800B7458u;
+inline constexpr std::uint32_t kSelectBattleTypeEnter = 0x800B6CF4u;
+// The MENU overlay's mapped range, from titles/crashbash/menu_module.json. A page of the arena table
+// is the game's own only when its sub-table pointer lies inside this resident image.
+inline constexpr std::uint32_t kMenuImageBase = 0x800B32B4u;
+inline constexpr std::uint32_t kMenuImageBytes = 0x00008000u;
+inline constexpr std::uint32_t kModeCursor = 0x800B95F0u;
+inline constexpr std::uint32_t kModeCursorBattle = 0u;
+inline constexpr std::uint32_t kModeCursorTournament = 2u;
+inline constexpr std::uint32_t kArenaCursorPage = 0x8005A64Au;
+inline constexpr std::uint32_t kArenaCursorIndex = 0x8005A64Bu;
+inline constexpr std::uint32_t kArenaPageTable = 0x800BA324u;
+inline constexpr std::uint32_t kArenaPageCounts = 0x800BA328u;
+inline constexpr std::uint32_t kArenaEntryBytes = 0x10u;
+inline constexpr std::uint32_t kArenaPageStride = 0x8u;
+
 inline constexpr std::uint32_t kDisplayFieldsPerFrame = 0x8004E0E0u;
 inline constexpr std::uint32_t kVblankCounter = 0x8006D8DCu;
 inline constexpr std::uint32_t kVblankRoot = 0x8003ADD4u;
